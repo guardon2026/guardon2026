@@ -1,0 +1,372 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Note: url is set in prisma.config.ts (Prisma 7 pattern — url in schema.prisma is not supported)
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum UserRole {
+  COMPANY_OWNER  // 업체 대표 (FR1, RBAC)
+  WORKER         // 인력·구직자 (FR2, RBAC)
+  ADMIN          // 플랫폼 관리자 (FR7, RBAC)
+}
+
+enum CompanyStatus {
+  PENDING   // 심사 중 (FR7)
+  APPROVED  // 승인 완료
+  REJECTED  // 반려
+}
+
+enum AvailabilityStatus {
+  AVAILABLE    // 가용 (FR6)
+  UNAVAILABLE  // 불가
+  BUSY         // 배치 중
+}
+
+enum CredentialType {
+  // MVP 자격증 (Domain Requirements)
+  SECURITY_INSTRUCTOR  // 경비지도사
+  BODYGUARD            // 신변보호사
+  SECURITY_TRAINING    // 신임경비교육이수
+  SPECIAL_SECURITY     // 특수경비원
+  // Growth 자격증
+  CIVIL_POLICE         // 청원경찰
+  KRAV_MAGA            // 크라브마가
+}
+
+enum CredentialStatus {
+  PENDING   // 심사 중 (FR8)
+  APPROVED  // 인증 완료 (FR9, FR10)
+  REJECTED  // 반려 (FR9)
+}
+
+enum WorkField {
+  GENERAL_SECURITY      // 일반경비
+  BODYGUARD_SERVICE     // 신변보호
+  SPECIAL_SECURITY      // 특수경비
+  KRAV_MAGA_INSTRUCTOR  // 크라브마가강사
+  EVENT_SECURITY        // 행사경비
+}
+
+enum SosStatus {
+  DISPATCHING  // 알림 발송 중 (FR18)
+  PENDING      // 수락 대기 (FR23)
+  CONFIRMED    // 확정 (FR22)
+  UNRESOLVED   // 미해결 (FR24)
+  CANCELLED    // 취소
+  COMPLETED    // 완료
+}
+
+enum SosMatchStatus {
+  NOTIFIED   // 알림 발송됨
+  ACCEPTED   // 인력 수락 (FR20)
+  REJECTED   // 인력 거절 (FR20)
+  CONFIRMED  // 업체 최종 확정 (FR21)
+}
+
+enum NotificationChannel {
+  KAKAO_ALIMTALK  // 카카오 알림톡 (FR25)
+  SMS             // SMS 폴백 (FR26)
+  IN_APP          // 인앱 알림 (FR27)
+}
+
+enum NotificationStatus {
+  SENT       // 발송됨
+  FAILED     // 발송 실패
+  DELIVERED  // 수신됨
+  READ       // 읽음
+}
+
+// ─────────────────────────────────────────
+// USER (공통 계정)
+// ─────────────────────────────────────────
+
+// NOTE: A partial index on deletedAt WHERE deletedAt IS NULL exists in
+// prisma/migrations/0002_postgis_indexes/migration.sql. Prisma cannot
+// express partial indexes in schema syntax. Do NOT remove it from
+// migrations — it is critical for PIPA soft-delete query performance.
+model User {
+  id        String    @id @default(cuid())
+  email     String?   @unique
+  phone     String?   @unique
+  kakaoId   String?   @unique  // 카카오 소셜 로그인 (FR3)
+  name      String
+  role      UserRole
+  // PIPA soft-delete (RESEARCH.md Pitfall 7, T-01-02-02)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  company       Company?       @relation("CompanyOwner")
+  workerProfile WorkerProfile?
+  notifications Notification[]
+  accounts      Account[]
+  sessions      Session[]
+  consentLogs   ConsentLog[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// NEXTAUTH ADAPTER TABLES
+// ─────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─────────────────────────────────────────
+// COMPANY (경비업체 — 테넌트 단위)
+// ─────────────────────────────────────────
+
+model Company {
+  id              String        @id @default(cuid())
+  ownerId         String        @unique  // FR4, 업체 대표
+  name            String
+  licenseNumber   String        @unique  // 경비업 허가번호 (FR1, FR40)
+  licenseVerified Boolean       @default(false)  // 관리자 승인 여부 (FR7)
+  description     String?
+  address         String
+  city            String                          // 검색 필터용 (FR12)
+  district        String                          // 시/구 단위
+  phone           String
+  status          CompanyStatus @default(PENDING)
+  isActive        Boolean       @default(false)   // 관리자 승인 후 활성화
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  owner       User         @relation("CompanyOwner", fields: [ownerId], references: [id])
+  sosRequests SosRequest[]
+  ratings     Rating[]     @relation("CompanyRating")
+
+  @@map("companies")
+}
+
+// ─────────────────────────────────────────
+// WORKER PROFILE (인력·구직자)
+// ─────────────────────────────────────────
+
+model WorkerProfile {
+  id               String             @id @default(cuid())
+  userId           String             @unique
+  workFields       WorkField[]        // 분야 (FR13)
+  experienceYears  Int                @default(0)  // 경력 연수 (FR14)
+  address          String
+  city             String
+  district         String
+  // Float lat/lng for fallback reads (FR5, FR12)
+  latitude         Float?
+  longitude        Float?
+  // PostGIS geography column for ST_DWithin radius search (INFR-05)
+  // NOTE: $queryRaw calls MUST use tagged template literals (T-01-02-01)
+  location         Unsupported("geography(Point,4326)")?
+  desiredHourlyRate Int?              // 시급 희망 (FR5)
+  bio              String?
+  availability     AvailabilityStatus @default(UNAVAILABLE)  // FR6
+  averageRating    Float              @default(0)
+  totalMatches     Int                @default(0)
+  isProfilePublic  Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentials Credential[] // FR8~FR11
+  sosMatches  SosMatch[]
+  ratings     Rating[]     @relation("WorkerRatings")
+
+  @@map("worker_profiles")
+}
+
+// ─────────────────────────────────────────
+// CREDENTIAL (자격증 인증 뱃지)
+// ─────────────────────────────────────────
+
+model Credential {
+  id              String           @id @default(cuid())
+  workerProfileId String
+  type            CredentialType
+  status          CredentialStatus @default(PENDING)  // FR8, FR9
+  documentUrl     String           // 서류 업로드 URL (암호화 스토리지, FR38)
+  issuedDate      DateTime?        // 자격증 발급일
+  approvedAt      DateTime?        // 관리자 승인 시각 (FR9)
+  rejectedAt      DateTime?
+  rejectionReason String?
+  adminNote       String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  workerProfile WorkerProfile @relation(fields: [workerProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([workerProfileId, type])  // 동일 자격증 중복 방지
+  @@map("credentials")
+}
+
+// ─────────────────────────────────────────
+// SOS REQUEST (긴급 매칭 요청)
+// ─────────────────────────────────────────
+
+model SosRequest {
+  id                  String      @id @default(cuid())
+  companyId           String                         // 테넌트 격리 (FR39)
+  title               String
+  locationAddress     String                         // 집결지 주소 (FR22)
+  city                String
+  district            String
+  // Float lat/lng for fallback reads
+  latitude            Float?
+  longitude           Float?
+  // PostGIS geography column for ST_DWithin radius search (INFR-05)
+  // NOTE: $queryRaw calls MUST use tagged template literals (T-01-02-01)
+  location            Unsupported("geography(Point,4326)")?
+  scheduledAt         DateTime                       // 배치 날짜·시간 (FR17)
+  requiredCount       Int                            // 필요 인원 (FR17)
+  requiredFields      WorkField[]                    // 필요 분야 (FR17)
+  requiredCredentials CredentialType[]               // 필요 자격증 (FR17)
+  hourlyRate          Int                            // 시급 (FR17)
+  description         String?
+  status              SosStatus   @default(DISPATCHING)  // FR23
+  radiusKm            Float       @default(20)           // 현재 발송 반경 (FR19)
+  dispatchedAt        DateTime?                          // 알림 최초 발송 시각
+  expandedAt          DateTime?                          // 반경 확장 시각 (FR19)
+  confirmedAt         DateTime?                          // 매칭 확정 시각
+  unresolvedAt        DateTime?
+  cancelledAt         DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // 테넌트 격리: company에서만 접근 가능
+  company       Company        @relation(fields: [companyId], references: [id])
+  sosMatches    SosMatch[]
+  notifications Notification[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("sos_requests")
+}
+
+// ─────────────────────────────────────────
+// SOS MATCH (인력 수락/거절/확정)
+// ─────────────────────────────────────────
+
+model SosMatch {
+  id              String         @id @default(cuid())
+  sosRequestId    String
+  workerProfileId String
+  status          SosMatchStatus @default(NOTIFIED)
+  notifiedAt      DateTime       @default(now())  // FR18
+  respondedAt     DateTime?                       // 수락/거절 시각 (FR20)
+  confirmedAt     DateTime?                       // 업체 최종 확정 시각 (FR21)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  sosRequest    SosRequest    @relation(fields: [sosRequestId], references: [id])
+  workerProfile WorkerProfile @relation(fields: [workerProfileId], references: [id])
+  rating        Rating?
+
+  @@unique([sosRequestId, workerProfileId])
+  @@index([sosRequestId])
+  @@index([workerProfileId])
+  @@map("sos_matches")
+}
+
+// ─────────────────────────────────────────
+// RATING (평점)
+// ─────────────────────────────────────────
+
+model Rating {
+  id              String   @id @default(cuid())
+  sosMatchId      String   @unique
+  companyId       String                      // 평점 남긴 업체 (FR30)
+  workerProfileId String
+  score           Int                         // 1~5점 (FR30)
+  comment         String?
+  createdAt       DateTime @default(now())
+
+  sosMatch      SosMatch      @relation(fields: [sosMatchId], references: [id])
+  company       Company       @relation("CompanyRating", fields: [companyId], references: [id])
+  workerProfile WorkerProfile @relation("WorkerRatings", fields: [workerProfileId], references: [id])
+
+  @@index([workerProfileId])  // 평점 집계 (FR31)
+  @@map("ratings")
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATION (알림 이력)
+// ─────────────────────────────────────────
+
+model Notification {
+  id             String              @id @default(cuid())
+  userId         String
+  sosRequestId   String?
+  type           String              // NotificationType string for flexibility
+  channel        NotificationChannel
+  status         NotificationStatus  @default(SENT)
+  title          String
+  body           String
+  isRead         Boolean             @default(false)
+  sentAt         DateTime?
+  failedAt       DateTime?
+  fallbackSentAt DateTime?           // SMS 폴백 발송 시각 (FR26)
+  createdAt      DateTime            @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  sosRequest SosRequest? @relation(fields: [sosRequestId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────
+// CONSENT LOG (개인정보 동의 — FR37, T-01-02-03)
+// ─────────────────────────────────────────
+
+model ConsentLog {
+  id          String   @id @default(cuid())
+  userId      String
+  consentType String   // TERMS | PRIVACY | LOCATION
+  agreedAt    DateTime @default(now())
+  version     String   // 약관 버전 (non-repudiable audit trail)
+  ipAddress   String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("consent_logs")
+}
