@@ -6,8 +6,6 @@ import type { UserRole } from "@prisma/client"
 
 const { auth } = NextAuth(authConfig)
 
-const isDev = process.env.NODE_ENV === "development"
-
 // (admin), (company), (worker) 라우트 그룹 — URL에 그룹명 prefix 없음
 // 각 그룹의 실제 URL 패턴으로 역할 보호
 const ROLE_PATHS: Record<string, UserRole> = {
@@ -36,41 +34,16 @@ function getRequiredRole(pathname: string): UserRole | null {
   return null
 }
 
-function buildCsp(nonce: string): string {
-  return [
-    "default-src 'self'",
-    // Next.js App Router injects inline hydration scripts — they need the
-    // per-request nonce to execute under CSP, otherwise React never hydrates
-    // and forms/buttons silently fall back to native (non-JS) behavior.
-    `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ""}`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
-    "connect-src 'self' https://kauth.kakao.com https://kapi.kakao.com",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join("; ")
-}
-
 export default auth(async (req) => {
   const { pathname } = req.nextUrl
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
-  const csp = buildCsp(nonce)
-
-  // 모든 요청에 x-pathname / x-nonce 헤더 주입
-  // (x-pathname: 서버 컴포넌트에서 현재 경로 확인용, x-nonce: CSP 스크립트 허용용)
+  // 모든 요청에 x-pathname 헤더 주입 (서버 컴포넌트에서 현재 경로 확인용)
   const requestHeaders = new Headers(req.headers)
   requestHeaders.set("x-pathname", pathname)
-  requestHeaders.set("x-nonce", nonce)
-  requestHeaders.set("Content-Security-Policy", csp)
 
   const requiredRole = getRequiredRole(pathname)
   if (!requiredRole) {
-    const res = NextResponse.next({ request: { headers: requestHeaders } })
-    res.headers.set("Content-Security-Policy", csp)
-    return res
+    return NextResponse.next({ request: { headers: requestHeaders } })
   }
 
   // 1. 개발 환경: dev_role 쿠키 우선 확인
@@ -90,9 +63,7 @@ export default auth(async (req) => {
     return NextResponse.redirect(new URL("/unauthorized", req.url))
   }
 
-  const res = NextResponse.next({ request: { headers: requestHeaders } })
-  res.headers.set("Content-Security-Policy", csp)
-  return res
+  return NextResponse.next({ request: { headers: requestHeaders } })
 })
 
 export const config = {

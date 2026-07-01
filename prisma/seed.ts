@@ -131,16 +131,9 @@ async function main() {
       address: "서울특별시 강남구 테헤란로 1",
       city: "서울특별시",
       district: "강남구",
-      // SOS 반경 매칭(ST_DWithin)이 동작하려면 lat/lng + location이 필수.
-      // 코엑스(SOS 시드 좌표) 인근으로 설정해 매칭 데모가 항상 성공하도록 함.
-      latitude: 37.5088,
-      longitude: 127.0633,
       bio: "[DEV] 테스트 경비 인력입니다.",
     },
-    update: {
-      latitude: 37.5088,
-      longitude: 127.0633,
-    },
+    update: {},
   })
   console.log("  ✓ WorkerProfile: dev-worker")
 
@@ -149,14 +142,6 @@ async function main() {
     where: { userId: "dev-worker" },
   })
   if (!workerProfile) throw new Error("dev-worker WorkerProfile not found")
-
-  // PostGIS location 컬럼은 lat/lng로부터 별도 raw SQL로 채워야 함 (ST_DWithin 매칭 전제조건)
-  await prisma.$queryRaw`
-    UPDATE worker_profiles
-    SET location = ST_SetSRID(ST_MakePoint(${workerProfile.longitude}, ${workerProfile.latitude}), 4326)::geography
-    WHERE id = ${workerProfile.id}
-  `
-  console.log("  ✓ WorkerProfile location (PostGIS) set for dev-worker")
 
   // dev-company_owner 의 company id 조회
   const mainCompany = await prisma.company.findUnique({

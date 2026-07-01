@@ -179,7 +179,8 @@ export default function SosNewPage() {
   ]
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-5xl mx-auto space-y-6">
 
         {/* SOS 배너 */}
         <div className="bg-sos text-white rounded-xl p-4 flex items-center gap-3">
@@ -426,6 +427,7 @@ export default function SosNewPage() {
 
           </div>
         </form>
+      </div>
     </div>
   )
 }

@@ -67,7 +67,8 @@ export default async function SosPage({
   const TABS: TabKey[] = ["전체", "진행 중", "확정", "미해결"]
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <PageHeader
           title="SOS 요청 현황"
           subtitle="발송한 긴급 인력 요청 목록입니다."
@@ -176,6 +177,7 @@ export default async function SosPage({
             })}
           </div>
         )}
+      </div>
     </div>
   )
 }

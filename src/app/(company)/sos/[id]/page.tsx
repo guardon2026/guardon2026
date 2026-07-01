@@ -105,7 +105,8 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
   const acceptedCount  = matchGroups[SosMatchStatus.ACCEPTED].length
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
         {/* 헤더 */}
         <PageHeader
@@ -269,6 +270,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
             {SOS_DETAIL.NEW_SOS_BUTTON}
           </Link>
         </div>
+      </div>
     </div>
   )
 }

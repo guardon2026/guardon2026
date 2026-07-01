@@ -47,7 +47,8 @@ export default async function PendingPage() {
   ]
 
   return (
-    <div className="w-full max-w-md mx-auto space-y-6 py-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
+      <div className="w-full max-w-md space-y-6">
 
         {/* 타임라인 카드 */}
         <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-8">
@@ -159,6 +160,7 @@ export default async function PendingPage() {
             문의하기
           </a>
         </div>
+      </div>
     </div>
   )
 }

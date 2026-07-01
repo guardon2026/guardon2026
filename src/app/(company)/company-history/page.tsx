@@ -130,7 +130,8 @@ export default async function CompanyHistoryPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
         <PageHeader
           title={HISTORY_LABELS.COMPANY.PAGE_TITLE}
           subtitle={HISTORY_LABELS.COMPANY.PAGE_SUBTITLE}
@@ -154,6 +155,7 @@ export default async function CompanyHistoryPage() {
             />
           </div>
         )}
+      </div>
     </div>
   )
 }
