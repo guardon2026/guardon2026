@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -10,8 +9,6 @@ import {
   Zap,
   BarChart3,
   LogOut,
-  Menu,
-  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -49,7 +46,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
   },
 ]
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+export function AdminSidebar() {
   const pathname = usePathname()
 
   const isActive = (href: string) => {
@@ -58,21 +55,11 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <aside className="w-64 bg-gray-900 text-white flex flex-col min-h-screen shrink-0">
       {/* 로고 영역 */}
-      <div className="p-5 border-b border-gray-700/50 flex items-center justify-between">
-        <div>
-          <p className="text-lg font-bold text-white">GuardOn</p>
-          <p className="text-xs text-gray-400 mt-0.5">관리자 콘솔</p>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="md:hidden p-1 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
+      <div className="p-5 border-b border-gray-700/50">
+        <Link href="/" className="text-lg font-bold text-white hover:text-gray-200 transition-colors">GuardOn</Link>
+        <p className="text-xs text-gray-400 mt-0.5">관리자 콘솔</p>
       </div>
 
       {/* 네비게이션 */}
@@ -87,7 +74,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
                 <li key={href}>
                   <Link
                     href={href}
-                    onClick={onClose}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                       isActive(href)
@@ -105,7 +91,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         ))}
       </nav>
 
-      {/* 하단: 역할 배지 + 로그아웃 */}
+      {/* 하단: 역할 배지 + 역할 전환 */}
       <div className="p-4 border-t border-gray-700/50 space-y-2">
         <div className="flex items-center gap-2 px-3 py-2">
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand/20 text-blue-300">
@@ -121,44 +107,6 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
           역할 전환
         </Link>
       </div>
-    </div>
-  )
-}
-
-export function AdminSidebar() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-
-  return (
-    <>
-      {/* 모바일 상단 바 */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 text-white flex items-center px-4 z-40 border-b border-gray-700/50">
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-        <span className="ml-3 text-base font-bold text-white">GuardOn</span>
-        <span className="ml-2 text-xs text-gray-400">관리자 콘솔</span>
-      </div>
-
-      {/* 모바일 드로어 오버레이 */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
-          <aside className="w-72 bg-gray-900 text-white flex flex-col shadow-2xl">
-            <SidebarContent onClose={() => setMobileOpen(false)} />
-          </aside>
-          <div
-            className="flex-1 bg-black/60 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-          />
-        </div>
-      )}
-
-      {/* 데스크톱 사이드바 */}
-      <aside className="hidden md:flex w-64 bg-gray-900 text-white flex-col min-h-screen shrink-0">
-        <SidebarContent />
-      </aside>
-    </>
+    </aside>
   )
 }

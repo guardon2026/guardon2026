@@ -92,12 +92,14 @@ enum NotificationStatus {
 // express partial indexes in schema syntax. Do NOT remove it from
 // migrations — it is critical for PIPA soft-delete query performance.
 model User {
-  id        String    @id @default(cuid())
-  email     String?   @unique
-  phone     String?   @unique
-  kakaoId   String?   @unique  // 카카오 소셜 로그인 (FR3)
-  name      String
-  role      UserRole
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  phone         String?   @unique
+  kakaoId       String?   @unique  // 카카오 소셜 로그인 (FR3)
+  name          String?
+  role          UserRole?
   // PIPA soft-delete (RESEARCH.md Pitfall 7, T-01-02-02)
   deletedAt DateTime?
   createdAt DateTime  @default(now())

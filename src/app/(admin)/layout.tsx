@@ -16,7 +16,7 @@ export default async function AdminLayout({
       <AdminSidebar />
       <main className="flex-1 overflow-y-auto bg-gray-50">
         {/* 모바일: pt-14 (고정 상단바 높이만큼), 데스크톱: pt-8 */}
-        <div className="p-4 pt-[calc(1rem+3.5rem)] md:p-8">{children}</div>
+        <div className="p-8">{children}</div>
       </main>
     </div>
   )

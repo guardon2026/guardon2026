@@ -1,9 +1,7 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type Role = "COMPANY_OWNER" | "WORKER" | "ADMIN"
@@ -50,98 +48,56 @@ export interface HeaderProps {
 export function Header({ role }: HeaderProps) {
   const pathname = usePathname()
   const links = NAV_LINKS[role]
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href + "/"))
 
   return (
-    <>
-      <header className="h-14 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
-          {/* 좌측: 로고 + 역할 배지 */}
-          <div className="flex items-center gap-2 shrink-0">
-            <Link href="/" className="text-lg font-bold text-brand">
-              GuardOn
-            </Link>
-            <span
+    <header className="h-14 bg-white/95 backdrop-blur border-b border-gray-100 shadow-sm sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between gap-4">
+        {/* 좌측: 로고 + 역할 배지 */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href="/" className="text-lg font-bold text-brand">
+            GuardOn
+          </Link>
+          <span
+            className={cn(
+              "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
+              ROLE_BADGE_COLORS[role],
+            )}
+          >
+            {ROLE_BADGE_LABELS[role]}
+          </span>
+        </div>
+
+        {/* 중앙: 네비게이션 */}
+        <nav className="flex items-center gap-1 flex-1 justify-center">
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
               className={cn(
-                "hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium",
-                ROLE_BADGE_COLORS[role],
+                "px-4 py-2 rounded-lg text-sm transition-colors",
+                isActive(link.href)
+                  ? "bg-gray-100 text-gray-900 font-semibold"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
               )}
             >
-              {ROLE_BADGE_LABELS[role]}
-            </span>
-          </div>
-
-          {/* 데스크톱 네비게이션 */}
-          <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-sm transition-colors",
-                  isActive(link.href)
-                    ? "bg-gray-100 text-gray-900 font-semibold"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-50",
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* 우측: 데스크톱 로그아웃 + 모바일 햄버거 */}
-          <div className="flex items-center gap-2 shrink-0">
-            <Link
-              href="/dev-login"
-              className="hidden md:inline-flex text-sm text-gray-500 hover:text-gray-900 transition-colors min-h-[36px] px-3 rounded-lg hover:bg-gray-50 items-center"
-            >
-              역할 전환
+              {link.label}
             </Link>
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen((v) => !v)}
-              className="md:hidden p-2 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-              aria-label="메뉴"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-        </div>
-      </header>
+          ))}
+        </nav>
 
-      {/* 모바일 드롭다운 메뉴 */}
-      {mobileMenuOpen && (
-        <div className="md:hidden fixed top-14 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-lg">
-          <nav className="px-4 py-3 space-y-1">
-            {links.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  "flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-colors",
-                  isActive(link.href)
-                    ? "bg-brand/5 text-brand font-semibold"
-                    : "text-gray-700 hover:bg-gray-50",
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
-            <div className="h-px bg-gray-100 my-2" />
-            <Link
-              href="/dev-login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center px-3 py-3 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors"
-            >
-              역할 전환
-            </Link>
-          </nav>
+        {/* 우측: 역할 전환 */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/dev-login"
+            className="text-sm text-gray-500 hover:text-gray-900 transition-colors min-h-[36px] px-3 rounded-lg hover:bg-gray-50 inline-flex items-center"
+          >
+            역할 전환
+          </Link>
         </div>
-      )}
-    </>
+      </div>
+    </header>
   )
 }

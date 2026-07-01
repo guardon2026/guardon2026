@@ -1,9 +1,7 @@
-"use client"
-import { signIn } from "next-auth/react"
-import { useState } from "react"
 import Link from "next/link"
 import { CheckCircle2, Shield, Users } from "lucide-react"
 import { AUTH } from "@/lib/constants"
+import { kakaoSignIn } from "./actions"
 
 const FEATURES = [
   {
@@ -24,20 +22,14 @@ const FEATURES = [
 ]
 
 export default function LoginPage() {
-  const [loading, setLoading] = useState(false)
   const isDev = process.env.NODE_ENV === "development"
-
-  const handleKakaoLogin = async () => {
-    setLoading(true)
-    await signIn("kakao", { callbackUrl: "/onboarding" })
-  }
 
   return (
     <div className="min-h-screen flex">
-      {/* 좌측 브랜딩 패널 (데스크톱만) */}
-      <div className="hidden md:flex md:w-1/2 bg-gray-900 flex-col justify-between p-12">
+      {/* 좌측 브랜딩 패널 */}
+      <div className="flex w-1/2 bg-gray-900 flex-col justify-between p-12">
         <div>
-          <span className="text-2xl font-bold text-white">GuardOn</span>
+          <Link href="/" className="text-2xl font-bold text-white hover:text-gray-200 transition-colors">GuardOn</Link>
         </div>
         <div className="space-y-8">
           <div>
@@ -72,36 +64,32 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center bg-gray-50 px-4 py-12">
         <div className="w-full max-w-sm">
           <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-8 space-y-6">
-            {/* 로고 */}
             <div className="text-center space-y-1">
               <h1 className="text-2xl font-bold text-gray-900">{AUTH.loginTitle}</h1>
               <p className="text-sm text-gray-500">{AUTH.loginSubtitle}</p>
             </div>
 
-            {/* 카카오 로그인 버튼 */}
-            <button
-              onClick={handleKakaoLogin}
-              disabled={loading}
-              className="w-full h-12 flex items-center justify-center gap-2.5
-                         bg-[#FEE500] hover:bg-[#FDD835] text-gray-900
-                         font-semibold rounded-xl transition-colors
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {/* 카카오 아이콘 (인라인 SVG) */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 512 512"
-                className="w-5 h-5"
-                aria-hidden="true"
+            {/* 카카오 로그인 — Server Action */}
+            <form action={kakaoSignIn}>
+              <button
+                type="submit"
+                className="w-full h-12 flex items-center justify-center gap-2.5
+                           bg-[#FEE500] hover:bg-[#FDD835] text-gray-900
+                           font-semibold rounded-xl transition-colors"
               >
-                <path
-                  d="M255.5 48C138.0 48 42 123.8 42 218.1c0 60.4 38.5 113.4 96.7 144.1l-24.7 90.2c-2.2 8.0 6.9 14.4 13.8 9.5l104.9-71.2a282 282 0 0 0 22.8.9c117.5 0 213.5-75.8 213.5-170.1S373.0 48 255.5 48z"
-                />
-              </svg>
-              {loading ? AUTH.kakaoLoginLoading : AUTH.kakaoLoginBtn}
-            </button>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 512 512"
+                  className="w-5 h-5"
+                  aria-hidden="true"
+                >
+                  <path d="M255.5 48C138.0 48 42 123.8 42 218.1c0 60.4 38.5 113.4 96.7 144.1l-24.7 90.2c-2.2 8.0 6.9 14.4 13.8 9.5l104.9-71.2a282 282 0 0 0 22.8.9c117.5 0 213.5-75.8 213.5-170.1S373.0 48 255.5 48z" />
+                </svg>
+                {AUTH.kakaoLoginBtn}
+              </button>
+            </form>
 
-            {/* 개발 환경 전용 구분선 */}
+            {/* 개발 환경 전용 */}
             {isDev && (
               <>
                 <div className="flex items-center gap-3">
@@ -120,7 +108,6 @@ export default function LoginPage() {
               </>
             )}
 
-            {/* 약관 안내 */}
             <p className="text-xs text-gray-400 text-center leading-relaxed">
               가입하면 이용약관 및 개인정보처리방침에<br />
               동의하는 것으로 간주됩니다.

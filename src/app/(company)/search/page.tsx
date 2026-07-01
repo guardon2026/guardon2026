@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Search, MapPin, Star, Briefcase, SlidersHorizontal, Users, ChevronDown, ChevronUp } from "lucide-react"
+import { Search, MapPin, Star, Briefcase, SlidersHorizontal, Users } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PageHeader } from "@/components/ui/page-header"
 import {
@@ -155,7 +155,6 @@ export default function SearchPage() {
   const [results, setResults] = useState<WorkerResult[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState("")
-  const [filterOpen, setFilterOpen] = useState(true)
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -198,32 +197,23 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6 md:py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <PageHeader
           title={SEARCH_LABELS.PAGE_TITLE}
           subtitle={SEARCH_LABELS.PAGE_SUBTITLE}
         />
 
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6 items-start">
-          {/* 필터 — 모바일: 토글 가능한 패널, 데스크톱: 고정 사이드바 */}
-          <aside className="w-full md:w-60 md:shrink-0 md:sticky md:top-20">
+        <div className="flex flex-row gap-6 items-start">
+          {/* 좌측 필터 사이드바 */}
+          <aside className="w-64 shrink-0 sticky top-20">
             <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-card border border-gray-100 overflow-hidden">
-              {/* 모바일 토글 헤더 */}
-              <button
-                type="button"
-                onClick={() => setFilterOpen((v) => !v)}
-                className="w-full flex items-center justify-between px-5 py-4 md:cursor-default"
-              >
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="w-4 h-4 text-gray-400" />
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">검색 조건</p>
-                </div>
-                <span className="md:hidden text-gray-400">
-                  {filterOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </span>
-              </button>
+              {/* 필터 헤더 */}
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-50">
+                <SlidersHorizontal className="w-4 h-4 text-gray-400" />
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">검색 조건</p>
+              </div>
 
-              <div className={`px-5 pb-5 space-y-5 ${filterOpen ? "block" : "hidden md:block"}`}>
+              <div className="px-5 pb-5 space-y-5 pt-4">
 
               {/* 위도 */}
               <div className="space-y-1.5">
@@ -370,7 +360,7 @@ export default function SearchPage() {
                   <p className="text-sm font-semibold text-gray-900">{SEARCH_LABELS.RESULT.HEADING}</p>
                   <span className="text-xs text-gray-400">{SEARCH_LABELS.RESULT.COUNT(results.length)}</span>
                 </div>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {results.map((worker) => (
                     <WorkerCard key={worker.id} worker={worker} />
                   ))}

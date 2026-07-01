@@ -1,11 +1,19 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
+import Kakao from "next-auth/providers/kakao"
 import { prisma } from "./prisma"
 import { UserRole } from "@prisma/client"
 import authConfig from "./auth.config"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  debug: true,
+  providers: [
+    Kakao({
+      clientId: process.env.KAKAO_CLIENT_ID!,
+      clientSecret: process.env.KAKAO_CLIENT_SECRET ?? "placeholder",
+    }),
+  ],
   adapter: PrismaAdapter(prisma),
   callbacks: {
     async jwt({ token, user }) {

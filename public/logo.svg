@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 52" fill="none">
+  <!-- Shield icon -->
+  <path
+    d="M18 6 L30 10 L30 22 C30 29 24 35 18 38 C12 35 6 29 6 22 L6 10 Z"
+    fill="#2563EB"
+  />
+  <path
+    d="M18 12 L25 14.5 L25 22 C25 27 21.5 31.5 18 33.5 C14.5 31.5 11 27 11 22 L11 14.5 Z"
+    fill="white"
+    opacity="0.25"
+  />
+  <!-- Checkmark inside shield -->
+  <polyline
+    points="13,22 17,26 23,18"
+    stroke="white"
+    stroke-width="2.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+  <!-- GuardOn text -->
+  <text
+    x="40"
+    y="34"
+    font-family="'Pretendard', 'Noto Sans KR', sans-serif"
+    font-size="26"
+    font-weight="700"
+    fill="#111827"
+    letter-spacing="-0.5"
+  >Guard<tspan fill="#2563EB">On</tspan></text>
+</svg>
