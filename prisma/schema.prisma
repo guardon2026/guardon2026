@@ -255,7 +255,9 @@ model SosRequest {
   // PostGIS geography column for ST_DWithin radius search (INFR-05)
   // NOTE: $queryRaw calls MUST use tagged template literals (T-01-02-01)
   location            Unsupported("geography(Point,4326)")?
-  scheduledAt         DateTime                       // 배치 날짜·시간 (FR17)
+  scheduledAt         DateTime                       // 배치 시작 날짜·시간 (FR17)
+  scheduledEndAt      DateTime?                      // 배치 종료 날짜·시간 (다일 근무)
+  scheduleDays        Json?                          // 날짜별 배치 시간 [{date, startTime, endTime}]
   requiredCount       Int                            // 필요 인원 (FR17)
   requiredFields      WorkField[]                    // 필요 분야 (FR17)
   requiredCredentials CredentialType[]               // 필요 자격증 (FR17)

@@ -1,13 +1,84 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Zap, MapPin, Calendar, Clock, Users, Minus, Plus } from "lucide-react"
+import { Zap, MapPin, Calendar, Users, Minus, Plus, Search, Trash2 } from "lucide-react"
 import { WorkField, CredentialType } from "@prisma/client"
 import { SOS_FORM, WORK_FIELD_LABELS, CREDENTIAL_LABELS } from "@/lib/constants"
 
 // ─────────────────────────────────────────
-// 분야 멀티셀렉트 (pill 그리드)
+// 타입
+// ─────────────────────────────────────────
+
+interface WorkDay {
+  id: number
+  date: string       // 시작 날짜
+  startTime: string
+  endDate: string    // 종료 날짜 (다음 날이면 date+1)
+  endTime: string
+}
+
+// ─────────────────────────────────────────
+// 유틸
+// ─────────────────────────────────────────
+
+// 초기 행은 고정 ID — SSR·클라이언트 hydration 일치를 위해 Math.random/Date.now 사용 금지
+const INITIAL_DAY: WorkDay = { id: 1, date: "", startTime: "", endDate: "", endTime: "" }
+
+// 추가 행은 클라이언트 클릭 시에만 호출되므로 Date.now() 사용 가능
+function makeDay(): WorkDay {
+  return { id: Date.now(), date: "", startTime: "", endDate: "", endTime: "" }
+}
+
+// 30분 단위 시간 옵션 생성 (오전 00:00~11:30, 오후 12:00~23:30)
+const TIME_OPTIONS: { value: string; label: string }[] = (() => {
+  const opts = []
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const hh = String(h).padStart(2, "0")
+      const mm = String(m).padStart(2, "0")
+      const value = `${hh}:${mm}`
+      const period = h < 12 ? "오전" : "오후"
+      const displayH = h > 12 ? h - 12 : h
+      const label = `${period} ${displayH}:${mm}`
+      opts.push({ value, label })
+    }
+  }
+  return opts
+})()
+
+// ─────────────────────────────────────────
+// 시간 선택 셀렉트
+// ─────────────────────────────────────────
+
+function TimeSelect({
+  value,
+  onChange,
+  placeholder = "시간 선택",
+  hasError,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  hasError?: boolean
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`border rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand bg-white appearance-none cursor-pointer
+        ${hasError ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+    >
+      <option value="" disabled>{placeholder}</option>
+      {TIME_OPTIONS.map(({ value: v, label }) => (
+        <option key={v} value={v}>{label}</option>
+      ))}
+    </select>
+  )
+}
+
+// ─────────────────────────────────────────
+// 분야 멀티셀렉트
 // ─────────────────────────────────────────
 
 function PillSelect<T extends string>({
@@ -89,10 +160,13 @@ export default function SosNewPage() {
 
   const [title, setTitle] = useState("")
   const [locationAddress, setLocationAddress] = useState("")
-  const [latitude, setLatitude] = useState("")
-  const [longitude, setLongitude] = useState("")
-  const [scheduledDate, setScheduledDate] = useState("")
-  const [scheduledTime, setScheduledTime] = useState("")
+
+  // 근무일 목록 — 초기값은 고정 ID (hydration 일치)
+  const [workDays, setWorkDays] = useState<WorkDay[]>([INITIAL_DAY])
+  // 날짜 입력 ref 배열 (submit 시 직접 읽기 — onChange 미발생 대비)
+  const startDateRefsMap = useRef<Map<number, HTMLInputElement>>(new Map())
+  const endDateRefsMap = useRef<Map<number, HTMLInputElement>>(new Map())
+
   const [requiredCount, setRequiredCount] = useState(1)
   const [requiredFields, setRequiredFields] = useState<WorkField[]>([])
   const [requiredCredentials, setRequiredCredentials] = useState<CredentialType[]>([])
@@ -106,14 +180,84 @@ export default function SosNewPage() {
   const workFieldOptions = Object.values(WorkField)
   const credentialOptions = Object.values(CredentialType)
 
+  // Daum 우편번호 스크립트 로드
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+    script.async = true
+    document.head.appendChild(script)
+    return () => { document.head.removeChild(script) }
+  }, [])
+
+  // 근무일 조작
+  function addDay() {
+    setWorkDays((prev) => [...prev, makeDay()])
+  }
+
+  function removeDay(id: number) {
+    setWorkDays((prev) => (prev.length > 1 ? prev.filter((d) => d.id !== id) : prev))
+    startDateRefsMap.current.delete(id)
+    endDateRefsMap.current.delete(id)
+  }
+
+  function updateDay(id: number, field: keyof Omit<WorkDay, "id">, value: string) {
+    setWorkDays((prev) =>
+      prev.map((d) => {
+        if (d.id !== id) return d
+        const updated = { ...d, [field]: value }
+        // 시작 날짜 변경 시 종료 날짜가 비어있으면 자동 동기화
+        if (field === "date" && !d.endDate) updated.endDate = value
+        return updated
+      })
+    )
+  }
+
+  function openAddressSearch() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const daum = (window as any).daum
+    if (!daum?.Postcode) {
+      alert("주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.")
+      return
+    }
+    new daum.Postcode({
+      oncomplete(data: { roadAddress: string; jibunAddress: string }) {
+        setLocationAddress(data.roadAddress || data.jibunAddress)
+        setErrors((prev) => ({ ...prev, locationAddress: "" }))
+      },
+    }).open()
+  }
+
+  // submit 시 ref에서 날짜값 읽기 (onChange 미발생 대비)
+  function getWorkDaysWithDates(): WorkDay[] {
+    return workDays.map((d) => {
+      const date = startDateRefsMap.current.get(d.id)?.value || d.date
+      const endDate = endDateRefsMap.current.get(d.id)?.value || d.endDate || date
+      return { ...d, date, endDate }
+    })
+  }
+
   function validate() {
     const newErrors: Record<string, string> = {}
     if (!title.trim()) newErrors.title = SOS_FORM.ERROR.TITLE_REQUIRED
     if (!locationAddress.trim()) newErrors.locationAddress = SOS_FORM.ERROR.ADDRESS_REQUIRED
-    if (!scheduledDate || !scheduledTime) newErrors.scheduledAt = SOS_FORM.ERROR.SCHEDULED_AT_REQUIRED
+
+    const days = getWorkDaysWithDates()
+    const hasEmptyDate = days.some((d) => !d.date || !d.endDate)
+    const hasEmptyTime = days.some((d) => !d.startTime || !d.endTime)
+    // 시작 datetime이 종료 datetime 이후이면 에러
+    const hasInvalidTime = days.some((d) => {
+      if (!d.date || !d.endDate || !d.startTime || !d.endTime) return false
+      return new Date(`${d.endDate}T${d.endTime}`) <= new Date(`${d.date}T${d.startTime}`)
+    })
+
+    if (hasEmptyDate) newErrors.workDays = "모든 근무일의 날짜를 입력해 주세요."
+    else if (hasEmptyTime) newErrors.workDays = "모든 근무일의 시작·종료 시간을 입력해 주세요."
+    else if (hasInvalidTime) newErrors.workDays = "종료 일시는 시작 일시보다 이후여야 합니다."
+
     if (requiredCount < 1) newErrors.requiredCount = SOS_FORM.ERROR.REQUIRED_COUNT_INVALID
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
     if (!hourlyRate || Number(hourlyRate) < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -124,25 +268,30 @@ export default function SosNewPage() {
     setSubmitting(true)
     setSubmitError("")
     try {
-      const scheduledAt = new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString()
-      const body: Record<string, unknown> = {
-        title: title.trim(),
-        locationAddress: locationAddress.trim(),
-        scheduledAt,
-        requiredCount,
-        requiredFields,
-        requiredCredentials,
-        hourlyRate: Number(hourlyRate),
-        description: description.trim() || null,
-      }
-      if (latitude && longitude) {
-        body.latitude = Number(latitude)
-        body.longitude = Number(longitude)
-      }
+      const days = getWorkDaysWithDates().sort((a, b) => a.date.localeCompare(b.date))
+      const first = days[0]
+      const last = days[days.length - 1]
+
       const res = await fetch("/api/sos/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          title: title.trim(),
+          locationAddress: locationAddress.trim(),
+          scheduledAt: new Date(`${first.date}T${first.startTime}:00`).toISOString(),
+          scheduledEndAt: new Date(`${last.endDate || last.date}T${last.endTime}:00`).toISOString(),
+          scheduleDays: days.map((d) => ({
+            date: d.date,
+            startTime: d.startTime,
+            endDate: d.endDate || d.date,
+            endTime: d.endTime,
+          })),
+          requiredCount,
+          requiredFields,
+          requiredCredentials,
+          hourlyRate: Number(hourlyRate),
+          description: description.trim() || null,
+        }),
       })
       if (!res.ok) {
         const data = await res.json()
@@ -158,9 +307,17 @@ export default function SosNewPage() {
     }
   }
 
-  // 조건 요약 카드 데이터
+  // 요약 표시
+  const daysWithDates = workDays.filter((d) => d.date)
+  const scheduleSummary =
+    daysWithDates.length === 0
+      ? "미입력"
+      : daysWithDates.length === 1
+      ? `${daysWithDates[0].date}${daysWithDates[0].startTime ? ` ${daysWithDates[0].startTime}~${daysWithDates[0].endTime}` : ""}`
+      : `${daysWithDates[0].date} ~ ${daysWithDates[daysWithDates.length - 1].date} (${daysWithDates.length}일)`
+
   const summaryItems = [
-    { label: "배치 일시", value: scheduledDate && scheduledTime ? `${scheduledDate} ${scheduledTime}` : "미입력" },
+    { label: "배치 일정", value: scheduleSummary },
     { label: "장소", value: locationAddress || "미입력" },
     { label: "필요 인원", value: `${requiredCount}명` },
     {
@@ -175,7 +332,10 @@ export default function SosNewPage() {
         ? requiredCredentials.map((c) => CREDENTIAL_LABELS[c]).join(", ")
         : "없음",
     },
-    { label: "시급", value: hourlyRate ? `${Number(hourlyRate).toLocaleString()}원/시간` : "미입력" },
+    {
+      label: "일급",
+      value: hourlyRate ? `${Number(hourlyRate).toLocaleString()}원/일` : "미입력",
+    },
   ]
 
   return (
@@ -193,8 +353,6 @@ export default function SosNewPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {/* 좌측: 요청 세부사항 (2/3) */}
             <div className="lg:col-span-2 space-y-6">
 
               {/* 요청 제목 */}
@@ -213,97 +371,149 @@ export default function SosNewPage() {
                 </div>
               </div>
 
-              {/* 날짜·시간 + 장소 */}
-              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
+              {/* 배치 일정 */}
+              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    배치 일정
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addDay}
+                    className="flex items-center gap-1 text-xs text-brand font-medium hover:underline"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    날짜 추가
+                  </button>
+                </div>
+
+                {/* 근무일 테이블 */}
+                <div className="rounded-xl border border-gray-200 overflow-hidden">
+                  {/* 헤더 */}
+                  <div className="grid grid-cols-[1fr_90px_1fr_90px_36px] bg-gray-50 px-3 py-2.5 text-xs font-semibold text-gray-500 border-b border-gray-200 gap-2">
+                    <span>시작 날짜 <span className="text-sos">*</span></span>
+                    <span>시작 시간 <span className="text-sos">*</span></span>
+                    <span>종료 날짜 <span className="text-sos">*</span></span>
+                    <span>종료 시간 <span className="text-sos">*</span></span>
+                    <span />
+                  </div>
+
+                  {/* 행 */}
+                  {workDays.map((day, idx) => {
+                    const hasTimeError = !!(
+                      day.date && day.endDate && day.startTime && day.endTime &&
+                      new Date(`${day.endDate}T${day.endTime}`) <= new Date(`${day.date}T${day.startTime}`)
+                    )
+                    const endIsNextDay = day.date && day.endDate && day.endDate > day.date
+                    return (
+                      <div
+                        key={day.id}
+                        className={`grid grid-cols-[1fr_90px_1fr_90px_36px] items-center px-3 py-2.5 gap-2
+                          ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
+                          ${idx < workDays.length - 1 ? "border-b border-gray-100" : ""}
+                        `}
+                      >
+                        {/* 시작 날짜 */}
+                        <input
+                          type="date"
+                          ref={(el) => { if (el) startDateRefsMap.current.set(day.id, el) }}
+                          defaultValue={day.date}
+                          onChange={(e) => updateDay(day.id, "date", e.target.value)}
+                          className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand"
+                        />
+
+                        {/* 시작 시간 */}
+                        <TimeSelect
+                          value={day.startTime}
+                          onChange={(v) => updateDay(day.id, "startTime", v)}
+                          placeholder="시작"
+                          hasError={hasTimeError}
+                        />
+
+                        {/* 종료 날짜 */}
+                        <div className="relative">
+                          <input
+                            type="date"
+                            ref={(el) => { if (el) endDateRefsMap.current.set(day.id, el) }}
+                            defaultValue={day.endDate}
+                            onChange={(e) => updateDay(day.id, "endDate", e.target.value)}
+                            className={`border rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand
+                              ${endIsNextDay ? "border-indigo-300 bg-indigo-50" : "border-gray-200"}`}
+                          />
+                          {endIsNextDay && (
+                            <span className="absolute -top-2 right-1 text-[9px] font-bold text-indigo-600 bg-white px-0.5">
+                              +1일
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 종료 시간 */}
+                        <TimeSelect
+                          value={day.endTime}
+                          onChange={(v) => updateDay(day.id, "endTime", v)}
+                          placeholder="종료"
+                          hasError={hasTimeError}
+                        />
+
+                        {/* 삭제 */}
+                        <button
+                          type="button"
+                          onClick={() => removeDay(day.id)}
+                          disabled={workDays.length === 1}
+                          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400
+                            hover:text-sos hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {errors.workDays && <p className="text-xs text-sos">{errors.workDays}</p>}
+              </div>
+
+              {/* 집결지 주소 */}
+              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  일정 및 장소
+                  <MapPin className="w-3.5 h-3.5" />
+                  집결지 주소
                 </p>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                      {SOS_FORM.FIELDS.SCHEDULED_DATE_LABEL}
-                      <span className="text-sos">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
-                        ${errors.scheduledAt ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-gray-400" />
-                      {SOS_FORM.FIELDS.SCHEDULED_TIME_LABEL}
-                      <span className="text-sos">*</span>
-                    </label>
-                    <input
-                      type="time"
-                      value={scheduledTime}
-                      onChange={(e) => setScheduledTime(e.target.value)}
-                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
-                        ${errors.scheduledAt ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                    />
-                  </div>
-                </div>
-                {errors.scheduledAt && <p className="text-xs text-sos">{errors.scheduledAt}</p>}
-
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                  <label className="text-sm font-medium text-gray-700">
                     {SOS_FORM.FIELDS.ADDRESS_LABEL}
-                    <span className="text-sos">*</span>
+                    <span className="text-sos ml-0.5">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={locationAddress}
-                    onChange={(e) => setLocationAddress(e.target.value)}
-                    placeholder={SOS_FORM.FIELDS.ADDRESS_PLACEHOLDER}
-                    className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
-                      ${errors.locationAddress ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={locationAddress}
+                      placeholder="주소 검색 버튼을 눌러 주소를 선택해 주세요."
+                      className={`flex-1 border rounded-xl px-4 py-2.5 text-sm bg-gray-50 cursor-default
+                        ${errors.locationAddress ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={openAddressSearch}
+                      className="flex items-center gap-1.5 px-4 py-2.5 bg-brand text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shrink-0"
+                    >
+                      <Search className="w-4 h-4" />
+                      주소 검색
+                    </button>
+                  </div>
                   {errors.locationAddress && <p className="text-xs text-sos mt-1">{errors.locationAddress}</p>}
-                </div>
-
-                {/* 위도·경도 (선택) */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">{SOS_FORM.FIELDS.LATITUDE_LABEL}</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={latitude}
-                      onChange={(e) => setLatitude(e.target.value)}
-                      placeholder={SOS_FORM.FIELDS.LATITUDE_PLACEHOLDER}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-gray-700">{SOS_FORM.FIELDS.LONGITUDE_LABEL}</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={longitude}
-                      onChange={(e) => setLongitude(e.target.value)}
-                      placeholder={SOS_FORM.FIELDS.LONGITUDE_PLACEHOLDER}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                    />
-                  </div>
                 </div>
               </div>
 
-              {/* 인원 + 분야 + 자격증 */}
+              {/* 인력 조건 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" />
                   인력 조건
                 </p>
 
-                {/* 필요 인원 스피너 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     {SOS_FORM.FIELDS.REQUIRED_COUNT_LABEL}
@@ -316,7 +526,6 @@ export default function SosNewPage() {
                   {errors.requiredCount && <p className="text-xs text-sos">{errors.requiredCount}</p>}
                 </div>
 
-                {/* 분야 선택 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     {SOS_FORM.FIELDS.REQUIRED_FIELDS_LABEL}
@@ -332,7 +541,6 @@ export default function SosNewPage() {
                   {errors.requiredFields && <p className="text-xs text-sos">{errors.requiredFields}</p>}
                 </div>
 
-                {/* 자격증 조건 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
                     {SOS_FORM.FIELDS.REQUIRED_CREDENTIALS_LABEL}
@@ -347,7 +555,7 @@ export default function SosNewPage() {
                 </div>
               </div>
 
-              {/* 시급 + 설명 */}
+              {/* 일급 + 설명 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">급여 및 기타</p>
 
@@ -366,7 +574,7 @@ export default function SosNewPage() {
                       className={`w-40 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
                         ${errors.hourlyRate ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                     />
-                    <span className="text-sm text-gray-600">{SOS_FORM.FIELDS.HOURLY_RATE_UNIT}/시간</span>
+                    <span className="text-sm text-gray-600">{SOS_FORM.FIELDS.HOURLY_RATE_UNIT}/일</span>
                   </div>
                   {errors.hourlyRate && <p className="text-xs text-sos mt-1">{errors.hourlyRate}</p>}
                 </div>
@@ -402,7 +610,7 @@ export default function SosNewPage() {
               </button>
             </div>
 
-            {/* 우측: 조건 요약 카드 (스티키) */}
+            {/* 우측 요약 카드 */}
             <div className="hidden lg:block">
               <div className="sticky top-20 bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">요청 요약</p>
@@ -416,6 +624,26 @@ export default function SosNewPage() {
                     </div>
                   ))}
                 </div>
+
+                {workDays.filter((d) => d.date && d.startTime).length > 0 && (
+                  <div className="pt-3 border-t border-gray-100 space-y-1.5">
+                    <p className="text-xs font-semibold text-gray-400">날짜별 시간</p>
+                    {workDays
+                      .filter((d) => d.date)
+                      .sort((a, b) => a.date.localeCompare(b.date))
+                      .map((d) => (
+                        <div key={d.id} className="flex justify-between text-xs">
+                          <span className="text-gray-500">{d.date}</span>
+                          <span className="text-gray-700 font-medium">
+                            {d.startTime && d.endTime
+                              ? `${d.startTime} ~ ${d.endDate && d.endDate !== d.date ? `${d.endDate} ` : ""}${d.endTime}`
+                              : "시간 미입력"}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+
                 <div className="pt-3 border-t border-gray-100">
                   <p className="text-xs text-gray-400 leading-relaxed">
                     발송 후 인근 인력에게 즉시 알림이 전송됩니다.
@@ -424,7 +652,6 @@ export default function SosNewPage() {
                 </div>
               </div>
             </div>
-
           </div>
         </form>
       </div>

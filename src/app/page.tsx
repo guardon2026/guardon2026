@@ -327,8 +327,8 @@ export default function HomePage() {
         <div className="border-t border-gray-800 pt-6 flex flex-col md:flex-row justify-between items-center gap-3 text-xs">
           <p>© 2026 GuardOn. All rights reserved.</p>
           <div className="flex gap-4">
-            <Link href="/login" className="hover:text-white transition-colors">개인정보처리방침</Link>
-            <Link href="/login" className="hover:text-white transition-colors">이용약관</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">개인정보처리방침</Link>
+            <Link href="/terms" className="hover:text-white transition-colors">이용약관</Link>
           </div>
         </div>
       </footer>

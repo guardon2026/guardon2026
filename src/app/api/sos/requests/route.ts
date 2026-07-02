@@ -12,6 +12,7 @@ import {
   NotificationChannel,
   NotificationStatus,
   UserRole,
+  Prisma,
 } from "@prisma/client"
 
 // ─────────────────────────────────────────
@@ -33,12 +34,20 @@ async function requireCompanyOwnerSession() {
 // 요청 바디 파서
 // ─────────────────────────────────────────
 
+interface ScheduleDay {
+  date: string
+  startTime: string
+  endTime: string
+}
+
 interface SosRequestBody {
   title: string
   locationAddress: string
   latitude?: number | null
   longitude?: number | null
   scheduledAt: string
+  scheduledEndAt?: string | null
+  scheduleDays?: ScheduleDay[] | null
   requiredCount: number
   requiredFields: WorkField[]
   requiredCredentials: CredentialType[]
@@ -77,6 +86,8 @@ function parseBody(body: unknown): SosRequestBody | null {
     latitude: b.latitude != null ? Number(b.latitude) : null,
     longitude: b.longitude != null ? Number(b.longitude) : null,
     scheduledAt: b.scheduledAt as string,
+    scheduledEndAt: typeof b.scheduledEndAt === "string" ? b.scheduledEndAt : null,
+    scheduleDays: Array.isArray(b.scheduleDays) ? (b.scheduleDays as ScheduleDay[]) : null,
     requiredCount: b.requiredCount as number,
     requiredFields: b.requiredFields as WorkField[],
     requiredCredentials,
@@ -123,10 +134,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 4. scheduledAt ISO 날짜 파싱
+  // 4. scheduledAt / scheduledEndAt ISO 날짜 파싱
   const scheduledAt = new Date(data.scheduledAt)
   if (isNaN(scheduledAt.getTime())) {
     return NextResponse.json({ error: "배치 날짜·시간 형식이 올바르지 않습니다." }, { status: 400 })
+  }
+  let scheduledEndAt: Date | null = null
+  if (data.scheduledEndAt) {
+    scheduledEndAt = new Date(data.scheduledEndAt)
+    if (isNaN(scheduledEndAt.getTime()) || scheduledEndAt <= scheduledAt) {
+      return NextResponse.json({ error: "종료 일시는 시작 일시보다 이후여야 합니다." }, { status: 400 })
+    }
   }
 
   // 5. 집결지 주소에서 city/district 파싱 (간단 파싱 — 정확한 값은 추후 주소 API 연동)
@@ -145,6 +163,10 @@ export async function POST(req: NextRequest) {
       latitude: data.latitude ?? null,
       longitude: data.longitude ?? null,
       scheduledAt,
+      scheduledEndAt,
+      scheduleDays: data.scheduleDays
+        ? (data.scheduleDays as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
       requiredCount: data.requiredCount,
       requiredFields: data.requiredFields,
       requiredCredentials: data.requiredCredentials,

@@ -6,7 +6,7 @@ import { AUTH } from "@/lib/constants"
 const ROLE_REDIRECT: Record<string, string> = {
   COMPANY_OWNER: "/sos/new",
   WORKER: "/profile",
-  ADMIN: "/",
+  ADMIN: "/members",
 }
 
 const ROLE_CONFIG = [

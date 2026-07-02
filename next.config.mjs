@@ -15,10 +15,10 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      // 'unsafe-inline' removed — use nonce-based CSP in Phase 2 when
-      // NextAuth / shadcn inject inline scripts. 'unsafe-eval' is dev-only.
-      // TODO (Phase 2): add "'nonce-{RANDOM_PER_REQUEST}'" via middleware.
-      `script-src 'self'${isDev ? " 'unsafe-eval'" : ""}`,
+      // Next.js App Router uses inline <script> tags (self.__next_f.push) for RSC hydration.
+      // 'unsafe-inline' is required until nonce-based CSP is implemented in Phase 2.
+      // Daum postcode CDN is needed for address search.
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://t1.daumcdn.net https://ssl.daumcdn.net`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
