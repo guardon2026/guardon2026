@@ -447,6 +447,11 @@ export default function SosNewPage() {
                       new Date(`${day.endDate}T${day.endTime}`) <= new Date(`${day.date}T${day.startTime}`)
                     )
                     const endIsNextDay = day.date && day.endDate && day.endDate > day.date
+                    const dayDiff = endIsNextDay
+                      ? Math.round(
+                          (new Date(day.endDate).getTime() - new Date(day.date).getTime()) / 86400000
+                        )
+                      : 0
                     return (
                       <div
                         key={day.id}
@@ -492,7 +497,7 @@ export default function SosNewPage() {
                           />
                           {endIsNextDay && (
                             <span className="absolute -top-2 right-1 text-[9px] font-bold text-indigo-600 bg-white px-0.5">
-                              +1일
+                              +{dayDiff}일
                             </span>
                           )}
                         </div>
