@@ -180,28 +180,52 @@ export default function SosNewPage() {
   const workFieldOptions = Object.values(WorkField)
   const credentialOptions = Object.values(CredentialType)
 
+  const [addrModalOpen, setAddrModalOpen] = useState(false)
   const [daumLoading, setDaumLoading] = useState(false)
-  const daumReadyCallbacks = useRef<Array<() => void>>([])
+  const addrEmbedRef = useRef<HTMLDivElement>(null)
 
-  // Daum 우편번호 스크립트 미리 로드 — 완료 시 pending 콜백 실행
+  // 주소 검색 모달이 열릴 때 Daum 위젯 임베드
   useEffect(() => {
+    if (!addrModalOpen) return
     const w = window as any
-    if (w.daum?.Postcode) return
-    if (document.querySelector('script[src*="daumcdn.net"]')) return
-    const script = document.createElement("script")
-    script.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
-    script.async = true
-    script.onload = () => {
-      daumReadyCallbacks.current.forEach((cb) => cb())
-      daumReadyCallbacks.current = []
-    }
-    script.onerror = () => {
+
+    const doEmbed = () => {
       setDaumLoading(false)
-      daumReadyCallbacks.current = []
-      alert("주소 검색 서비스를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.")
+      if (!addrEmbedRef.current) return
+      addrEmbedRef.current.innerHTML = ""
+      new w.daum.Postcode({
+        oncomplete(data: { roadAddress: string; jibunAddress: string }) {
+          setLocationAddress(data.roadAddress || data.jibunAddress)
+          setErrors((prev) => ({ ...prev, locationAddress: "" }))
+          setAddrModalOpen(false)
+        },
+        width: "100%",
+        height: "100%",
+      }).embed(addrEmbedRef.current, { autoClose: false })
     }
-    document.head.appendChild(script)
-  }, [])
+
+    if (w.daum?.Postcode) {
+      doEmbed()
+      return
+    }
+
+    setDaumLoading(true)
+    if (!document.querySelector('script[src*="daumcdn.net"]')) {
+      const script = document.createElement("script")
+      script.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+      script.async = true
+      script.onload = doEmbed
+      script.onerror = () => {
+        setDaumLoading(false)
+        setAddrModalOpen(false)
+        alert("주소 검색 서비스를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.")
+      }
+      document.head.appendChild(script)
+    } else {
+      const existing = document.querySelector('script[src*="daumcdn.net"]') as HTMLScriptElement
+      existing.addEventListener("load", doEmbed, { once: true })
+    }
+  }, [addrModalOpen])
 
   // 근무일 조작
   function addDay() {
@@ -227,44 +251,7 @@ export default function SosNewPage() {
   }
 
   function openAddressSearch() {
-    const w = window as any
-
-    const doOpen = () => {
-      setDaumLoading(false)
-      new w.daum.Postcode({
-        oncomplete(data: { roadAddress: string; jibunAddress: string }) {
-          setLocationAddress(data.roadAddress || data.jibunAddress)
-          setErrors((prev) => ({ ...prev, locationAddress: "" }))
-        },
-      }).open()
-    }
-
-    // 이미 로드됨 → 바로 열기
-    if (w.daum?.Postcode) {
-      doOpen()
-      return
-    }
-
-    // 아직 로드 중 → 콜백 등록 후 로딩 표시
-    setDaumLoading(true)
-    daumReadyCallbacks.current.push(doOpen)
-
-    // 스크립트가 아직 DOM에 없으면 직접 추가 (useEffect가 아직 실행 안된 경우)
-    if (!document.querySelector('script[src*="daumcdn.net"]')) {
-      const script = document.createElement("script")
-      script.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
-      script.async = true
-      script.onload = () => {
-        daumReadyCallbacks.current.forEach((cb) => cb())
-        daumReadyCallbacks.current = []
-      }
-      script.onerror = () => {
-        setDaumLoading(false)
-        daumReadyCallbacks.current = []
-        alert("주소 검색 서비스를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.")
-      }
-      document.head.appendChild(script)
-    }
+    setAddrModalOpen(true)
   }
 
   // submit 시 ref에서 날짜값 읽기 (onChange 미발생 대비)
@@ -537,11 +524,10 @@ export default function SosNewPage() {
                     <button
                       type="button"
                       onClick={openAddressSearch}
-                      disabled={daumLoading}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-brand text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-wait"
+                      className="flex items-center gap-1.5 px-4 py-2.5 bg-brand text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shrink-0"
                     >
                       <Search className="w-4 h-4" />
-                      {daumLoading ? "로드 중..." : "주소 검색"}
+                      주소 검색
                     </button>
                   </div>
                   {errors.locationAddress && <p className="text-xs text-sos mt-1">{errors.locationAddress}</p>}
@@ -695,6 +681,35 @@ export default function SosNewPage() {
             </div>
           </div>
         </form>
+
+        {/* 주소 검색 모달 (팝업 대신 페이지 내 임베드) */}
+        {addrModalOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={(e) => { if (e.target === e.currentTarget) setAddrModalOpen(false) }}
+          >
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <span className="font-semibold text-gray-900">주소 검색</span>
+                <button
+                  type="button"
+                  onClick={() => setAddrModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-700 text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="relative" style={{ height: 460 }}>
+                {daumLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
+                    주소 검색 서비스를 불러오는 중입니다...
+                  </div>
+                )}
+                <div ref={addrEmbedRef} style={{ width: "100%", height: "100%" }} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
