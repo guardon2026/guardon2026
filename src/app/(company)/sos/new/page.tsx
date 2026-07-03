@@ -435,12 +435,6 @@ export default function SosNewPage() {
                       day.date && day.endDate && day.startTime && day.endTime &&
                       new Date(`${day.endDate}T${day.endTime}`) <= new Date(`${day.date}T${day.startTime}`)
                     )
-                    const endIsNextDay = day.date && day.endDate && day.endDate > day.date
-                    const dayDiff = endIsNextDay
-                      ? Math.round(
-                          (new Date(day.endDate).getTime() - new Date(day.date).getTime()) / 86400000
-                        )
-                      : 0
                     return (
                       <div
                         key={day.id}
@@ -474,14 +468,8 @@ export default function SosNewPage() {
                             defaultValue={day.endDate}
                             min={day.date || undefined}
                             onChange={(e) => updateDay(day.id, "endDate", e.target.value)}
-                            className={`border rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand
-                              ${endIsNextDay ? "border-indigo-300 bg-indigo-50" : "border-gray-200"}`}
+                            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand"
                           />
-                          {endIsNextDay && (
-                            <span className="absolute -top-2 right-1 text-[9px] font-bold text-indigo-600 bg-white px-0.5">
-                              +{dayDiff}일
-                            </span>
-                          )}
                         </div>
 
                         {/* 종료 시간 — 같은 날 + 시작 시간 이전 선택 시 종료 날짜 자동 +1일 */}
