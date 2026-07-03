@@ -7,6 +7,26 @@ import { WorkField, CredentialType } from "@prisma/client"
 import { SOS_FORM, WORK_FIELD_LABELS, CREDENTIAL_LABELS } from "@/lib/constants"
 
 // ─────────────────────────────────────────
+// 날짜·시간 포맷 헬퍼
+// ─────────────────────────────────────────
+
+const WEEK_DAYS = ["일", "월", "화", "수", "목", "금", "토"]
+
+function formatDateShort(dateStr: string) {
+  if (!dateStr) return ""
+  const d = new Date(dateStr + "T00:00:00")
+  return `${d.getMonth() + 1}/${d.getDate()}(${WEEK_DAYS[d.getDay()]})`
+}
+
+function formatTimeKorean(timeStr: string) {
+  if (!timeStr) return ""
+  const [h, m] = timeStr.split(":").map(Number)
+  const period = h < 12 ? "오전" : "오후"
+  const hour = h > 12 ? h - 12 : h === 0 ? 0 : h
+  return `${period} ${hour}:${String(m).padStart(2, "0")}`
+}
+
+// ─────────────────────────────────────────
 // 타입
 // ─────────────────────────────────────────
 
@@ -670,22 +690,38 @@ export default function SosNewPage() {
                   ))}
                 </div>
 
-                {workDays.filter((d) => d.date && d.startTime).length > 0 && (
-                  <div className="pt-3 border-t border-gray-100 space-y-1.5">
+                {workDays.filter((d) => d.date).length > 0 && (
+                  <div className="pt-3 border-t border-gray-100 space-y-2">
                     <p className="text-xs font-semibold text-gray-400">날짜별 시간</p>
                     {workDays
                       .filter((d) => d.date)
                       .sort((a, b) => a.date.localeCompare(b.date))
-                      .map((d) => (
-                        <div key={d.id} className="flex justify-between text-xs">
-                          <span className="text-gray-500">{d.date}</span>
-                          <span className="text-gray-700 font-medium">
-                            {d.startTime && d.endTime
-                              ? `${d.startTime} ~ ${d.endDate && d.endDate !== d.date ? `${d.endDate} ` : ""}${d.endTime}`
-                              : "시간 미입력"}
-                          </span>
-                        </div>
-                      ))}
+                      .map((d) => {
+                        const overnight = d.endDate && d.endDate !== d.date
+                        return (
+                          <div key={d.id} className="space-y-0.5">
+                            <p className="text-xs font-semibold text-gray-600">{formatDateShort(d.date)}</p>
+                            {d.startTime || d.endTime ? (
+                              <p className="text-xs text-gray-500">
+                                {d.startTime ? formatTimeKorean(d.startTime) : "시작 미입력"}
+                                {" → "}
+                                {d.endTime
+                                  ? <>
+                                      {overnight && (
+                                        <span className="text-indigo-500 font-medium mr-0.5">
+                                          {formatDateShort(d.endDate)}
+                                        </span>
+                                      )}
+                                      {formatTimeKorean(d.endTime)}
+                                    </>
+                                  : "종료 미입력"}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-gray-300">시간 미입력</p>
+                            )}
+                          </div>
+                        )
+                      })}
                   </div>
                 )}
 
