@@ -30,6 +30,7 @@ function sosStatusVariant(status: string): StatusVariant {
 type HistoryRow = {
   id: string
   date: string
+  title: string
   location: string
   fields: string
   matchResult: string
@@ -68,6 +69,7 @@ export default async function CompanyHistoryPage() {
       hour: "2-digit",
       minute: "2-digit",
     }),
+    title: req.title,
     location: req.locationAddress,
     fields: req.requiredFields
       .map((f) => WORK_FIELD_LABELS[f] ?? f)
@@ -82,6 +84,13 @@ export default async function CompanyHistoryPage() {
       key: "date" as const,
       label: "날짜",
       width: "160px",
+    },
+    {
+      key: "title" as const,
+      label: "제목",
+      render: (row: HistoryRow) => (
+        <span className="text-sm font-medium text-gray-900 truncate max-w-[200px] block">{row.title}</span>
+      ),
     },
     {
       key: "location" as const,

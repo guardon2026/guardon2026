@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
-import { MapPin, Calendar, Users, Zap, ArrowLeft } from "lucide-react"
+import { MapPin, Calendar, Users, Zap, ArrowLeft, Pencil } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { requireApprovedCompany, CompanyNotApprovedError } from "@/lib/company-gate"
@@ -15,6 +15,7 @@ import {
 } from "@/lib/constants"
 import { SosMatchStatus } from "@prisma/client"
 import type { StatusVariant } from "@/components/ui/status-badge"
+import ConfirmButton from "./ConfirmButton"
 
 interface SosDetailPageProps {
   params: Promise<{ id: string }>
@@ -261,6 +262,16 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
             <ArrowLeft className="w-4 h-4" />
             {SOS_DETAIL.BACK_BUTTON}
           </Link>
+          {!["COMPLETED", "CANCELLED"].includes(sosRequest.status) && (
+            <Link
+              href={`/sos/${sosRequest.id}/edit`}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-brand
+                         text-sm text-brand font-semibold hover:bg-brand hover:text-white transition-colors"
+            >
+              <Pencil className="w-4 h-4" />
+              요청 수정
+            </Link>
+          )}
           <Link
             href="/sos/new"
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sos text-white
@@ -299,21 +310,3 @@ function InfoItem({
   )
 }
 
-function ConfirmButton({
-  matchId,
-}: {
-  sosRequestId: string
-  matchId: string
-}) {
-  return (
-    <form action={`/api/sos/matches/${matchId}/confirm`} method="POST">
-      <button
-        type="submit"
-        className="shrink-0 px-3 py-1.5 rounded-lg bg-green-600 text-white
-                   text-xs font-semibold hover:bg-green-700 transition-colors"
-      >
-        {SOS_DETAIL.CONFIRM_BUTTON}
-      </button>
-    </form>
-  )
-}

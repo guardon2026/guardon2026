@@ -4,13 +4,12 @@ import { getServerSession } from "@/lib/session"
 import { requireApprovedCompany, CompanyNotApprovedError } from "@/lib/company-gate"
 import { matchWorkers } from "@/lib/sos-matcher"
 import { scheduleRadiusExpansion, scheduleUnresolvedCheck } from "@/lib/sos-scheduler"
+import { createNotifications } from "@/lib/notify"
 import {
   WorkField,
   CredentialType,
   SosStatus,
   SosMatchStatus,
-  NotificationChannel,
-  NotificationStatus,
   UserRole,
   Prisma,
 } from "@prisma/client"
@@ -195,33 +194,30 @@ export async function POST(req: NextRequest) {
   const matched = await matchWorkers(sosRequest.id)
   const matchedCount = matched.length
 
-  // 9. SosMatch + Notification 생성 (트랜잭션)
+  // 9. SosMatch + Notification 생성
   if (matched.length > 0) {
     const now = new Date()
 
-    await prisma.$transaction([
-      prisma.sosMatch.createMany({
-        data: matched.map((m) => ({
-          sosRequestId: sosRequest.id,
-          workerProfileId: m.workerProfileId,
-          status: SosMatchStatus.NOTIFIED,
-          notifiedAt: now,
-        })),
-        skipDuplicates: true,
-      }),
-      prisma.notification.createMany({
-        data: matched.map((m) => ({
-          userId: m.userId,
-          sosRequestId: sosRequest.id,
-          type: "SOS_REQUEST",
-          channel: NotificationChannel.IN_APP,
-          status: NotificationStatus.SENT,
-          title: "SOS 긴급 요청 알림",
-          body: `긴급 경비 인력 배치 요청이 접수되었습니다. 지금 확인해 주세요.`,
-          sentAt: now,
-        })),
-      }),
-    ])
+    await prisma.sosMatch.createMany({
+      data: matched.map((m) => ({
+        sosRequestId: sosRequest.id,
+        workerProfileId: m.workerProfileId,
+        status: SosMatchStatus.NOTIFIED,
+        notifiedAt: now,
+      })),
+      skipDuplicates: true,
+    })
+
+    await createNotifications(
+      matched.map((m) => ({
+        userId: m.userId,
+        sosRequestId: sosRequest.id,
+        type: "SOS_REQUEST",
+        title: "SOS 긴급 요청 알림",
+        body: "긴급 경비 인력 배치 요청이 접수되었습니다. 지금 확인해 주세요.",
+        sentAt: now,
+      })),
+    )
   }
 
   // 10. 반경 확장 및 미해결 체크 스케줄링 (async, don't await)

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { matchWorkers } from "@/lib/sos-matcher"
-import { SosMatchStatus, NotificationChannel, NotificationStatus, SosStatus } from "@prisma/client"
+import { createNotifications } from "@/lib/notify"
+import { SosMatchStatus, SosStatus } from "@prisma/client"
 
 // NOTE: MVP에서는 setTimeout으로 구현합니다.
 // 프로덕션에서는 BullMQ 또는 Inngest와 같은 큐 시스템으로 교체해야 합니다.
@@ -49,29 +50,26 @@ export function scheduleRadiusExpansion(sosRequestId: string): void {
 
       const now = new Date()
 
-      await prisma.$transaction([
-        prisma.sosMatch.createMany({
-          data: newMatches.map((m) => ({
-            sosRequestId,
-            workerProfileId: m.workerProfileId,
-            status: SosMatchStatus.NOTIFIED,
-            notifiedAt: now,
-          })),
-          skipDuplicates: true,
-        }),
-        prisma.notification.createMany({
-          data: newMatches.map((m) => ({
-            userId: m.userId,
-            sosRequestId,
-            type: "SOS_REQUEST",
-            channel: NotificationChannel.IN_APP,
-            status: NotificationStatus.SENT,
-            title: "SOS 긴급 요청 알림 (확장)",
-            body: "반경이 확장된 SOS 긴급 배치 요청이 접수되었습니다. 지금 확인해 주세요.",
-            sentAt: now,
-          })),
-        }),
-      ])
+      await prisma.sosMatch.createMany({
+        data: newMatches.map((m) => ({
+          sosRequestId,
+          workerProfileId: m.workerProfileId,
+          status: SosMatchStatus.NOTIFIED,
+          notifiedAt: now,
+        })),
+        skipDuplicates: true,
+      })
+
+      await createNotifications(
+        newMatches.map((m) => ({
+          userId: m.userId,
+          sosRequestId,
+          type: "SOS_REQUEST",
+          title: "SOS 긴급 요청 알림 (확장)",
+          body: "반경이 확장된 SOS 긴급 배치 요청이 접수되었습니다. 지금 확인해 주세요.",
+          sentAt: now,
+        })),
+      )
     } catch (err) {
       // 스케줄 오류는 로그만 남기고 무시 (서버 재시작 시 재실행 불가 — 프로덕션에서 큐 필요)
       console.error("[SOS scheduler] scheduleRadiusExpansion error:", err)

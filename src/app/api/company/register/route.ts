@@ -93,9 +93,10 @@ export async function POST(request: Request) {
         district,
         phone,
         description: description ?? null,
-        status: "PENDING",
-        isActive: false,
+        status: "APPROVED",
+        isActive: true,
         licenseVerified: false,
+        approvedAt: new Date(),
       },
     })
 

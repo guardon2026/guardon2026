@@ -29,7 +29,7 @@ const ROLE_PATHS: Record<string, UserRole> = {
 
 function getRequiredRole(pathname: string): UserRole | null {
   for (const [prefix, role] of Object.entries(ROLE_PATHS)) {
-    if (pathname.startsWith(prefix)) return role
+    if (pathname === prefix || pathname.startsWith(prefix + "/")) return role
   }
   return null
 }
