@@ -180,13 +180,27 @@ export default function SosNewPage() {
   const workFieldOptions = Object.values(WorkField)
   const credentialOptions = Object.values(CredentialType)
 
-  // Daum 우편번호 스크립트 로드
+  const [daumLoading, setDaumLoading] = useState(false)
+  const daumReadyCallbacks = useRef<Array<() => void>>([])
+
+  // Daum 우편번호 스크립트 미리 로드 — 완료 시 pending 콜백 실행
   useEffect(() => {
+    const w = window as any
+    if (w.daum?.Postcode) return
+    if (document.querySelector('script[src*="daumcdn.net"]')) return
     const script = document.createElement("script")
-    script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+    script.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
     script.async = true
+    script.onload = () => {
+      daumReadyCallbacks.current.forEach((cb) => cb())
+      daumReadyCallbacks.current = []
+    }
+    script.onerror = () => {
+      setDaumLoading(false)
+      daumReadyCallbacks.current = []
+      alert("주소 검색 서비스를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.")
+    }
     document.head.appendChild(script)
-    return () => { document.head.removeChild(script) }
   }, [])
 
   // 근무일 조작
@@ -213,18 +227,44 @@ export default function SosNewPage() {
   }
 
   function openAddressSearch() {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const daum = (window as any).daum
-    if (!daum?.Postcode) {
-      alert("주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.")
+    const w = window as any
+
+    const doOpen = () => {
+      setDaumLoading(false)
+      new w.daum.Postcode({
+        oncomplete(data: { roadAddress: string; jibunAddress: string }) {
+          setLocationAddress(data.roadAddress || data.jibunAddress)
+          setErrors((prev) => ({ ...prev, locationAddress: "" }))
+        },
+      }).open()
+    }
+
+    // 이미 로드됨 → 바로 열기
+    if (w.daum?.Postcode) {
+      doOpen()
       return
     }
-    new daum.Postcode({
-      oncomplete(data: { roadAddress: string; jibunAddress: string }) {
-        setLocationAddress(data.roadAddress || data.jibunAddress)
-        setErrors((prev) => ({ ...prev, locationAddress: "" }))
-      },
-    }).open()
+
+    // 아직 로드 중 → 콜백 등록 후 로딩 표시
+    setDaumLoading(true)
+    daumReadyCallbacks.current.push(doOpen)
+
+    // 스크립트가 아직 DOM에 없으면 직접 추가 (useEffect가 아직 실행 안된 경우)
+    if (!document.querySelector('script[src*="daumcdn.net"]')) {
+      const script = document.createElement("script")
+      script.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+      script.async = true
+      script.onload = () => {
+        daumReadyCallbacks.current.forEach((cb) => cb())
+        daumReadyCallbacks.current = []
+      }
+      script.onerror = () => {
+        setDaumLoading(false)
+        daumReadyCallbacks.current = []
+        alert("주소 검색 서비스를 불러오지 못했습니다. 네트워크 연결을 확인해 주세요.")
+      }
+      document.head.appendChild(script)
+    }
   }
 
   // submit 시 ref에서 날짜값 읽기 (onChange 미발생 대비)
@@ -497,10 +537,11 @@ export default function SosNewPage() {
                     <button
                       type="button"
                       onClick={openAddressSearch}
-                      className="flex items-center gap-1.5 px-4 py-2.5 bg-brand text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shrink-0"
+                      disabled={daumLoading}
+                      className="flex items-center gap-1.5 px-4 py-2.5 bg-brand text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition-colors shrink-0 disabled:opacity-60 disabled:cursor-wait"
                     >
                       <Search className="w-4 h-4" />
-                      주소 검색
+                      {daumLoading ? "로드 중..." : "주소 검색"}
                     </button>
                   </div>
                   {errors.locationAddress && <p className="text-xs text-sos mt-1">{errors.locationAddress}</p>}
