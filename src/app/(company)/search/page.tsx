@@ -145,8 +145,6 @@ function WorkerCard({ worker }: { worker: WorkerResult }) {
 // ─────────────────────────────────────────
 
 export default function SearchPage() {
-  const [lat, setLat] = useState("")
-  const [lng, setLng] = useState("")
   const [radiusKm, setRadiusKm] = useState("20")
   const [workField, setWorkField] = useState("")
   const [credentialType, setCredentialType] = useState("")
@@ -159,21 +157,24 @@ export default function SearchPage() {
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     setError("")
-
-    if (!lat.trim()) {
-      setError(SEARCH_LABELS.ERROR.LAT_REQUIRED)
-      return
-    }
-    if (!lng.trim()) {
-      setError(SEARCH_LABELS.ERROR.LNG_REQUIRED)
-      return
-    }
-
     setSearching(true)
+
     try {
+      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("이 브라우저는 위치 서비스를 지원하지 않습니다."))
+          return
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos.coords),
+          () => reject(new Error("위치 정보를 가져오지 못했습니다. 브라우저 위치 권한을 허용해 주세요.")),
+          { timeout: 10000 }
+        )
+      })
+
       const params = new URLSearchParams({
-        lat: lat.trim(),
-        lng: lng.trim(),
+        lat: String(coords.latitude),
+        lng: String(coords.longitude),
         radiusKm: radiusKm || "20",
         minExperience: minExperience || "0",
       })
@@ -188,8 +189,8 @@ export default function SearchPage() {
         return
       }
       setResults(data.workers)
-    } catch {
-      setError(SEARCH_LABELS.ERROR.SEARCH_FAILED)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : SEARCH_LABELS.ERROR.SEARCH_FAILED)
     } finally {
       setSearching(false)
     }
@@ -214,40 +215,6 @@ export default function SearchPage() {
               </div>
 
               <div className="px-5 pb-5 space-y-5 pt-4">
-
-              {/* 위도 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">
-                  {SEARCH_LABELS.FILTER.LAT_LABEL}
-                  <span className="text-sos ml-0.5">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                  placeholder={SEARCH_LABELS.FILTER.LAT_PLACEHOLDER}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-brand transition-colors"
-                />
-              </div>
-
-              {/* 경도 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-600">
-                  {SEARCH_LABELS.FILTER.LNG_LABEL}
-                  <span className="text-sos ml-0.5">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                  placeholder={SEARCH_LABELS.FILTER.LNG_PLACEHOLDER}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-brand transition-colors"
-                />
-              </div>
 
               {/* 반경 */}
               <div className="space-y-1.5">
@@ -342,8 +309,8 @@ export default function SearchPage() {
               <div className="bg-white rounded-2xl shadow-card border border-gray-100">
                 <EmptyState
                   icon={Users}
-                  title="검색 조건을 입력해 주세요"
-                  description="위도·경도와 검색 반경을 입력한 후 검색하기 버튼을 눌러 주세요."
+                  title="검색 조건을 설정해 주세요"
+                  description="검색하기 버튼을 누르면 현재 위치 기준으로 인근 인력을 검색합니다."
                 />
               </div>
             ) : results.length === 0 ? (
