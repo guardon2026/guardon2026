@@ -387,7 +387,7 @@ export default function SosNewPage() {
 
               {/* 요청 제목 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">요청 제목</p>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">요청 제목 <span className="text-sos">*</span></p>
                 <div>
                   <input
                     type="text"
