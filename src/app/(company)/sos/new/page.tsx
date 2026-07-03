@@ -56,12 +56,23 @@ function TimeSelect({
   onChange,
   placeholder = "시간 선택",
   hasError,
+  minTime,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
   hasError?: boolean
+  minTime?: string  // "HH:mm" — 이 시각 이후만 선택 가능 (같은 날 종료 시간용)
 }) {
+  const options = minTime
+    ? TIME_OPTIONS.filter(({ value: v }) => v > minTime)
+    : TIME_OPTIONS
+
+  // 현재 선택된 값이 필터 밖이면 자동 초기화
+  if (value && minTime && value <= minTime) {
+    onChange("")
+  }
+
   return (
     <select
       value={value}
@@ -70,7 +81,7 @@ function TimeSelect({
         ${hasError ? "border-red-300 bg-red-50" : "border-gray-200"}`}
     >
       <option value="" disabled>{placeholder}</option>
-      {TIME_OPTIONS.map(({ value: v, label }) => (
+      {options.map(({ value: v, label }) => (
         <option key={v} value={v}>{label}</option>
       ))}
     </select>
@@ -461,13 +472,21 @@ export default function SosNewPage() {
                           hasError={hasTimeError}
                         />
 
-                        {/* 종료 날짜 */}
+                        {/* 종료 날짜 — 시작 날짜 이전 선택 불가 */}
                         <div className="relative">
                           <input
                             type="date"
                             ref={(el) => { if (el) endDateRefsMap.current.set(day.id, el) }}
                             defaultValue={day.endDate}
-                            onChange={(e) => updateDay(day.id, "endDate", e.target.value)}
+                            min={day.date || undefined}
+                            onChange={(e) => {
+                              const newEndDate = e.target.value
+                              updateDay(day.id, "endDate", newEndDate)
+                              // 종료 날짜가 시작 날짜와 같아지면 시작 시간 이전 종료 시간 초기화
+                              if (newEndDate === day.date && day.endTime && day.startTime && day.endTime <= day.startTime) {
+                                updateDay(day.id, "endTime", "")
+                              }
+                            }}
                             className={`border rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand
                               ${endIsNextDay ? "border-indigo-300 bg-indigo-50" : "border-gray-200"}`}
                           />
@@ -478,12 +497,13 @@ export default function SosNewPage() {
                           )}
                         </div>
 
-                        {/* 종료 시간 */}
+                        {/* 종료 시간 — 같은 날이면 시작 시간 이후만 선택 가능 */}
                         <TimeSelect
                           value={day.endTime}
                           onChange={(v) => updateDay(day.id, "endTime", v)}
                           placeholder="종료"
                           hasError={hasTimeError}
+                          minTime={day.endDate === day.date && day.date ? day.startTime : undefined}
                         />
 
                         {/* 삭제 */}
