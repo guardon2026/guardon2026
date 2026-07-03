@@ -160,6 +160,7 @@ export default function SosNewPage() {
 
   const [title, setTitle] = useState("")
   const [locationAddress, setLocationAddress] = useState("")
+  const [locationDetail, setLocationDetail] = useState("")
 
   // 근무일 목록 — 초기값은 고정 ID (hydration 일치)
   const [workDays, setWorkDays] = useState<WorkDay[]>([INITIAL_DAY])
@@ -304,7 +305,9 @@ export default function SosNewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
-          locationAddress: locationAddress.trim(),
+          locationAddress: locationDetail.trim()
+            ? `${locationAddress.trim()} ${locationDetail.trim()}`
+            : locationAddress.trim(),
           scheduledAt: new Date(`${first.date}T${first.startTime}:00`).toISOString(),
           scheduledEndAt: new Date(`${last.endDate || last.date}T${last.endTime}:00`).toISOString(),
           scheduleDays: days.map((d) => ({
@@ -345,7 +348,7 @@ export default function SosNewPage() {
 
   const summaryItems = [
     { label: "배치 일정", value: scheduleSummary },
-    { label: "장소", value: locationAddress || "미입력" },
+    { label: "장소", value: locationAddress ? `${locationAddress}${locationDetail ? " " + locationDetail : ""}` : "미입력" },
     { label: "필요 인원", value: `${requiredCount}명` },
     {
       label: "분야",
@@ -531,6 +534,13 @@ export default function SosNewPage() {
                     </button>
                   </div>
                   {errors.locationAddress && <p className="text-xs text-sos mt-1">{errors.locationAddress}</p>}
+                  <input
+                    type="text"
+                    value={locationDetail}
+                    onChange={(e) => setLocationDetail(e.target.value)}
+                    placeholder="상세 주소 입력 (동·호수, 층 등)"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
                 </div>
               </div>
 

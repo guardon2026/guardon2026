@@ -23,8 +23,8 @@ const securityHeaders = [
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://kauth.kakao.com https://kapi.kakao.com",
-      // Daum Postcode opens an about:blank popup that inherits parent CSP; frame-src must allow their CDN
-      "frame-src 'self' https://ssl.daumcdn.net https://t1.daumcdn.net",
+      // Daum/Kakao Postcode embed creates nested iframes from these origins
+      "frame-src 'self' https://ssl.daumcdn.net https://t1.daumcdn.net http://postcode.map.kakao.com https://postcode.map.kakao.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
