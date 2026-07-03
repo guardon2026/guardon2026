@@ -27,8 +27,13 @@ interface UpdateBody {
   requiredFields: WorkField[]
   requiredCredentials: CredentialType[]
   hourlyRate: number
+  siteManagerContact?: string | null
+  dressCode?: string | null
+  dressCodeNote?: string | null
   description?: string | null
 }
+
+const VALID_DRESS_CODES = ["FORMAL", "TACTICAL", "CASUAL", "OTHER"]
 
 function parseBody(body: unknown): UpdateBody | null {
   if (typeof body !== "object" || body === null) return null
@@ -65,6 +70,8 @@ function parseBody(body: unknown): UpdateBody | null {
     requiredFields: b.requiredFields as WorkField[],
     requiredCredentials,
     hourlyRate: b.hourlyRate as number,
+    siteManagerContact: typeof b.siteManagerContact === "string" ? b.siteManagerContact.trim() || null : null,
+    dressCode: typeof b.dressCode === "string" ? b.dressCode.trim() || null : null,
     description: typeof b.description === "string" ? b.description.trim() || null : null,
   }
 }
@@ -143,6 +150,9 @@ export async function PUT(
       requiredFields: true,
       requiredCredentials: true,
       hourlyRate: true,
+      siteManagerContact: true,
+      dressCode: true,
+      dressCodeNote: true,
       description: true,
     },
   })
@@ -193,6 +203,8 @@ export async function PUT(
       requiredFields: data.requiredFields,
       requiredCredentials: data.requiredCredentials,
       hourlyRate: data.hourlyRate,
+      siteManagerContact: data.siteManagerContact,
+      dressCode: data.dressCode,
       description: data.description,
     },
   })
@@ -230,6 +242,10 @@ export async function PUT(
       changes.push({ field: "requiredFields", label: "업무 분야", before: existing.requiredFields.join(", "), after: data.requiredFields.join(", ") })
     if (JSON.stringify([...existing.requiredCredentials].sort()) !== JSON.stringify([...data.requiredCredentials].sort()))
       changes.push({ field: "requiredCredentials", label: "필요 자격증", before: existing.requiredCredentials.join(", ") || "없음", after: data.requiredCredentials.join(", ") || "없음" })
+    if ((existing.siteManagerContact ?? "") !== (data.siteManagerContact ?? ""))
+      changes.push({ field: "siteManagerContact", label: "현장 담당자 연락처", before: existing.siteManagerContact ?? "없음", after: data.siteManagerContact ?? "없음" })
+    if ((existing.dressCode ?? "") !== (data.dressCode ?? ""))
+      changes.push({ field: "dressCode", label: "복장 규정", before: existing.dressCode ?? "없음", after: data.dressCode ?? "없음" })
     if ((existing.description ?? "") !== (data.description ?? ""))
       changes.push({ field: "description", label: "상세 설명", before: existing.description ?? "없음", after: data.description ?? "없음" })
 

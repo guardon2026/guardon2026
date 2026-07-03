@@ -199,8 +199,8 @@ export async function matchWorkers(
   const conflictingIds = new Set<string>()
   for (const m of overlapMatches) {
     const isBusy = busyIds.has(m.workerProfileId)
-    // BUSY 워커는 CONFIRMED만, AVAILABLE 워커는 ACCEPTED + CONFIRMED 체크
-    if (!isBusy && m.status === SosMatchStatus.CONFIRMED) continue
+    // BUSY 워커는 CONFIRMED만 체크, AVAILABLE 워커는 ACCEPTED + CONFIRMED 모두 체크
+    if (isBusy && m.status === SosMatchStatus.ACCEPTED) continue
 
     if (
       scheduleOverlaps(

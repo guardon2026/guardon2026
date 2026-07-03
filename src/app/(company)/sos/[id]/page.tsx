@@ -9,13 +9,12 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import {
   SOS_DETAIL,
   SOS_STATUS_LABELS,
-  SOS_MATCH_STATUS_LABELS,
   WORK_FIELD_LABELS,
   CREDENTIAL_LABELS,
 } from "@/lib/constants"
 import { SosMatchStatus } from "@prisma/client"
 import type { StatusVariant } from "@/components/ui/status-badge"
-import ConfirmButton from "./ConfirmButton"
+import WorkerMatchGroup from "./WorkerDetailModal"
 
 interface SosDetailPageProps {
   params: Promise<{ id: string }>
@@ -77,8 +76,17 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
       sosMatches: {
         include: {
           workerProfile: {
-            include: {
-              user: { select: { id: true, name: true, phone: true } },
+            select: {
+              id: true,
+              experienceYears: true,
+              workFields: true,
+              declaredCredentials: true,
+              desiredHourlyRate: true,
+              height: true,
+              weight: true,
+              profileImageUrl: true,
+              bio: true,
+              user: { select: { id: true, name: true } },
               credentials: {
                 where: { status: "APPROVED" },
                 select: { type: true },
@@ -172,6 +180,24 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
             </div>
           )}
 
+          {sosRequest.dressCode && (
+            <div>
+              <p className="text-xs text-gray-400 mb-1">복장 규정</p>
+              <p className="text-sm text-gray-700 font-medium">{sosRequest.dressCode}</p>
+            </div>
+          )}
+
+          {sosRequest.siteManagerContact && (
+            <div>
+              <p className="text-xs text-gray-400 mb-1">현장 담당자 연락처</p>
+              <div className="space-y-0.5">
+                {sosRequest.siteManagerContact.split("\n").map((line, i) => (
+                  <p key={i} className="text-sm text-gray-700 font-medium">{line}</p>
+                ))}
+              </div>
+            </div>
+          )}
+
           {sosRequest.description && (
             <div>
               <p className="text-xs text-gray-400 mb-1">{SOS_DETAIL.DESCRIPTION_LABEL}</p>
@@ -197,58 +223,16 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
               <p className="text-sm text-gray-400">{SOS_DETAIL.NO_MATCHES}</p>
             </div>
           ) : (
-            MATCH_ORDER.map((status) => {
-              const group = matchGroups[status]
-              if (group.length === 0) return null
-              return (
-                <div key={status} className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                    {MATCH_GROUP_LABELS[status]} ({group.length})
-                  </p>
-                  <div className="space-y-2">
-                    {group.map((match) => (
-                      <div
-                        key={match.id}
-                        className="bg-white rounded-2xl border border-gray-100 shadow-card p-4
-                                   flex items-center justify-between gap-4"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                            <span className="text-sm font-bold text-gray-500">
-                              {match.workerProfile.user.name?.charAt(0) ?? "?"}
-                            </span>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-gray-900">
-                                {match.workerProfile.user.name}
-                              </span>
-                              <StatusBadge
-                                variant={matchStatusVariant(match.status)}
-                                label={SOS_MATCH_STATUS_LABELS[match.status] ?? match.status}
-                              />
-                            </div>
-                            {match.workerProfile.credentials.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {match.workerProfile.credentials.map((c) => (
-                                  <span key={c.type} className="text-xs px-1.5 py-0.5 bg-blue-50 text-brand rounded-md">
-                                    {CREDENTIAL_LABELS[c.type] ?? c.type}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {match.status === SosMatchStatus.ACCEPTED && (
-                          <ConfirmButton sosRequestId={sosRequest.id} matchId={match.id} />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })
+            MATCH_ORDER.map((status) => (
+              <WorkerMatchGroup
+                key={status}
+                status={status}
+                label={MATCH_GROUP_LABELS[status]}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                matches={matchGroups[status] as any}
+                sosRequestId={sosRequest.id}
+              />
+            ))
           )}
         </div>
 

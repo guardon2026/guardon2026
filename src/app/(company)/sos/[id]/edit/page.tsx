@@ -46,6 +46,9 @@ export default async function SosEditPage({ params }: Props) {
       requiredFields: true,
       requiredCredentials: true,
       hourlyRate: true,
+      siteManagerContact: true,
+      dressCode: true,
+      dressCodeNote: true,
       description: true,
     },
   })
@@ -67,6 +70,9 @@ export default async function SosEditPage({ params }: Props) {
         requiredFields: sos.requiredFields,
         requiredCredentials: sos.requiredCredentials,
         hourlyRate: sos.hourlyRate,
+        siteManagerContact: sos.siteManagerContact,
+        dressCode: sos.dressCode,
+        dressCodeNote: sos.dressCodeNote,
         description: sos.description,
       }}
     />

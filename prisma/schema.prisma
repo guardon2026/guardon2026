@@ -30,14 +30,13 @@ enum AvailabilityStatus {
 }
 
 enum CredentialType {
-  // MVP 자격증 (Domain Requirements)
   SECURITY_INSTRUCTOR  // 경비지도사
   BODYGUARD            // 신변보호사
-  SECURITY_TRAINING    // 신임경비교육이수
-  SPECIAL_SECURITY     // 특수경비원
-  // Growth 자격증
+  SECURITY_TRAINING    // 신임교육이수증
+  SPECIAL_SECURITY     // 특수경비이수증
   CIVIL_POLICE         // 청원경찰
   KRAV_MAGA            // 크라브마가
+  CPR                  // CPR
 }
 
 enum CredentialStatus {
@@ -186,8 +185,12 @@ model Company {
 model WorkerProfile {
   id               String             @id @default(cuid())
   userId           String             @unique
-  workFields       WorkField[]        // 분야 (FR13)
-  experienceYears  Int                @default(0)  // 경력 연수 (FR14)
+  workFields            WorkField[]        // 분야 (FR13)
+  declaredCredentials   CredentialType[]   // 자기신고 자격증 (UI 표시용)
+  experienceYears       Int                @default(0)  // 경력 연수 (FR14)
+  profileImageUrl       String?            // 프로필 사진
+  height                Int?               // 키 (cm)
+  weight                Int?               // 몸무게 (kg)
   address          String
   city             String
   district         String
@@ -262,6 +265,9 @@ model SosRequest {
   requiredFields      WorkField[]                    // 필요 분야 (FR17)
   requiredCredentials CredentialType[]               // 필요 자격증 (FR17)
   hourlyRate          Int                            // 시급 (FR17)
+  siteManagerContact  String?                        // 현장 담당자 연락처
+  dressCode           String?                        // 복장 규정: FORMAL | TACTICAL | CASUAL | OTHER
+  dressCodeNote       String?                        // 기타 복장 규정 설명
   description         String?
   status              SosStatus   @default(DISPATCHING)  // FR23
   radiusKm            Float       @default(20)           // 현재 발송 반경 (FR19)

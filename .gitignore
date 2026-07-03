@@ -8,6 +8,9 @@ tsconfig.tsbuildinfo
 # Local env
 .env*.local
 
+# User uploads (local storage)
+public/uploads/
+
 # Prisma
 /prisma/migrations/dev.db*
 /prisma/migrations/*.db-journal

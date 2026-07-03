@@ -7,9 +7,11 @@ import { SOS_DETAIL } from "@/lib/constants"
 export default function ConfirmButton({
   sosRequestId,
   matchId,
+  fullWidth = false,
 }: {
   sosRequestId: string
   matchId: string
+  fullWidth?: boolean
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -36,14 +38,16 @@ export default function ConfirmButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={`flex flex-col gap-1 ${fullWidth ? "w-full" : "items-end"}`}>
       <button
         type="button"
         onClick={handleConfirm}
         disabled={loading}
-        className="shrink-0 px-3 py-1.5 rounded-lg bg-green-600 text-white
-                   text-xs font-semibold hover:bg-green-700 transition-colors
-                   disabled:opacity-60 disabled:cursor-not-allowed"
+        className={`bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors
+                   disabled:opacity-60 disabled:cursor-not-allowed
+                   ${fullWidth
+                     ? "w-full py-3 rounded-xl text-sm"
+                     : "shrink-0 px-3 py-1.5 rounded-lg text-xs"}`}
       >
         {loading ? "처리 중..." : SOS_DETAIL.CONFIRM_BUTTON}
       </button>

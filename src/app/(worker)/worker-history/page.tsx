@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
@@ -20,6 +21,7 @@ import {
 
 interface HistoryRow extends Record<string, unknown> {
   id: string
+  matchId: string
   date: string
   company: string
   location: string
@@ -27,23 +29,27 @@ interface HistoryRow extends Record<string, unknown> {
   hourlyRate: string
   status: string
   statusRaw: string
+  matchStatus: string
 }
 
 // ─────────────────────────────────────────
 // 상태 배지
 // ─────────────────────────────────────────
 
-function StatusCell({ status }: { status: string }) {
+function StatusCell({ matchStatus, sosStatus }: { matchStatus: string; sosStatus: string }) {
+  if (matchStatus === "ACCEPTED") {
+    return <StatusBadge variant="pending" label="확정 대기 중" />
+  }
   const variant =
-    status === "CONFIRMED" || status === "COMPLETED"
+    sosStatus === "CONFIRMED" || sosStatus === "COMPLETED"
       ? "approved"
-      : status === "CANCELLED" || status === "UNRESOLVED"
+      : sosStatus === "CANCELLED" || sosStatus === "UNRESOLVED"
       ? "rejected"
       : "pending"
   return (
     <StatusBadge
       variant={variant as "approved" | "rejected" | "pending"}
-      label={SOS_STATUS_LABELS[status] ?? status}
+      label={SOS_STATUS_LABELS[sosStatus] ?? sosStatus}
     />
   )
 }
@@ -67,7 +73,7 @@ export default async function WorkerHistoryPage() {
   const matches = await prisma.sosMatch.findMany({
     where: {
       workerProfileId: workerProfile.id,
-      status: SosMatchStatus.CONFIRMED,
+      status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
     },
     include: {
       sosRequest: {
@@ -76,18 +82,19 @@ export default async function WorkerHistoryPage() {
         },
       },
     },
-    orderBy: { confirmedAt: "desc" },
+    orderBy: { notifiedAt: "desc" },
   })
 
-  // 요약 통계
-  const totalDispatches = matches.length
-  const completedDispatches = matches.filter(
+  // 요약 통계 (CONFIRMED 매치만 집계)
+  const confirmedMatches = matches.filter((m) => m.status === SosMatchStatus.CONFIRMED)
+  const totalDispatches = confirmedMatches.length
+  const completedDispatches = confirmedMatches.filter(
     (m) => m.sosRequest.status === "COMPLETED" || m.sosRequest.status === "CONFIRMED",
   ).length
   const avgHourlyRate =
-    matches.length > 0
+    confirmedMatches.length > 0
       ? Math.round(
-          matches.reduce((sum, m) => sum + m.sosRequest.hourlyRate, 0) / matches.length,
+          confirmedMatches.reduce((sum, m) => sum + m.sosRequest.hourlyRate, 0) / confirmedMatches.length,
         )
       : 0
 
@@ -98,7 +105,8 @@ export default async function WorkerHistoryPage() {
       .map((f) => WORK_FIELD_LABELS[f] ?? f)
       .join(", ")
     return {
-      id: match.id,
+      id: req.id,
+      matchId: match.id,
       date: new Date(req.scheduledAt).toLocaleDateString("ko-KR", {
         year: "numeric",
         month: "long",
@@ -110,6 +118,7 @@ export default async function WorkerHistoryPage() {
       hourlyRate: `${req.hourlyRate.toLocaleString()}원`,
       status: req.status,
       statusRaw: req.status,
+      matchStatus: match.status,
     }
   })
 
@@ -123,7 +132,20 @@ export default async function WorkerHistoryPage() {
       key: "status",
       label: "상태",
       width: "100px",
-      render: (row) => <StatusCell status={row.statusRaw} />,
+      render: (row) => <StatusCell matchStatus={row.matchStatus as string} sosStatus={row.statusRaw} />,
+    },
+    {
+      key: "matchId",
+      label: "상세보기",
+      width: "80px",
+      render: (row) => (
+        <Link
+          href={`/worker-history/${row.matchId}`}
+          className="text-sm font-medium text-brand hover:text-blue-700 transition-colors"
+        >
+          보기 →
+        </Link>
+      ),
     },
   ]
 

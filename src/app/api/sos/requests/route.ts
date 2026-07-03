@@ -51,8 +51,13 @@ interface SosRequestBody {
   requiredFields: WorkField[]
   requiredCredentials: CredentialType[]
   hourlyRate: number
+  siteManagerContact?: string | null
+  dressCode?: string | null
+  dressCodeNote?: string | null
   description?: string | null
 }
+
+const VALID_DRESS_CODES = ["FORMAL", "TACTICAL", "CASUAL", "OTHER"]
 
 function parseBody(body: unknown): SosRequestBody | null {
   if (typeof body !== "object" || body === null) return null
@@ -91,6 +96,8 @@ function parseBody(body: unknown): SosRequestBody | null {
     requiredFields: b.requiredFields as WorkField[],
     requiredCredentials,
     hourlyRate: b.hourlyRate as number,
+    siteManagerContact: typeof b.siteManagerContact === "string" ? b.siteManagerContact.trim() || null : null,
+    dressCode: typeof b.dressCode === "string" ? b.dressCode.trim() || null : null,
     description: typeof b.description === "string" ? b.description.trim() || null : null,
   }
 }
@@ -170,6 +177,8 @@ export async function POST(req: NextRequest) {
       requiredFields: data.requiredFields,
       requiredCredentials: data.requiredCredentials,
       hourlyRate: data.hourlyRate,
+      siteManagerContact: data.siteManagerContact,
+      dressCode: data.dressCode,
       description: data.description,
       status: SosStatus.DISPATCHING,
       dispatchedAt: new Date(),

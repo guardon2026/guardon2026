@@ -6,6 +6,14 @@ export const WORK_FIELD_LABELS = {
   EVENT_SECURITY:       "행사경비",
 } as const
 
+// SOS 폼에서 표시할 업무 분야 순서
+export const SOS_WORK_FIELD_OPTIONS = [
+  "GENERAL_SECURITY",
+  "EVENT_SECURITY",
+  "BODYGUARD_SERVICE",
+  "SPECIAL_SECURITY",
+] as const
+
 export type WorkFieldKey = keyof typeof WORK_FIELD_LABELS
 
 // ─────────────────────────────────────────
@@ -80,17 +88,39 @@ export const WORKER_PUBLIC_PROFILE = {
 } as const
 
 export const CREDENTIAL_LABELS = {
-  // MVP 자격증
   SECURITY_INSTRUCTOR: "경비지도사",
   BODYGUARD:           "신변보호사",
-  SECURITY_TRAINING:   "신임교육이수",
-  SPECIAL_SECURITY:    "특수경비원",
-  // Growth Phase 2 자격증 (schema CredentialType enum에 이미 정의됨)
+  SECURITY_TRAINING:   "신임교육이수증",
+  SPECIAL_SECURITY:    "특수경비이수증",
   CIVIL_POLICE:        "청원경찰",
   KRAV_MAGA:           "크라브마가",
+  CPR:                 "CPR",
 } as const
 
+// SOS 폼에서 표시할 자격증 순서
+export const SOS_CREDENTIAL_OPTIONS = [
+  "SECURITY_TRAINING",
+  "SPECIAL_SECURITY",
+  "CPR",
+  "BODYGUARD",
+  "SECURITY_INSTRUCTOR",
+] as const
+
 export type CredentialTypeKey = keyof typeof CREDENTIAL_LABELS
+
+export const DRESS_CODE_OPTIONS = [
+  { value: "FORMAL",   label: "정장" },
+  { value: "TACTICAL", label: "전술복" },
+  { value: "CASUAL",   label: "사복" },
+  { value: "OTHER",    label: "기타" },
+] as const
+
+export const DRESS_CODE_LABELS: Record<string, string> = {
+  FORMAL:   "정장",
+  TACTICAL: "전술복",
+  CASUAL:   "사복",
+  OTHER:    "기타",
+}
 
 export const CREDENTIAL_STATE_TOOLTIPS = {
   VERIFIED: "인증 완료",
@@ -304,10 +334,10 @@ export const SOS_FORM = {
     REQUIRED_CREDENTIALS_LABEL: "필요 자격증 (선택)",
     REQUIRED_CREDENTIALS_HINT:  "필요한 자격증을 선택해 주세요.",
     HOURLY_RATE_LABEL:    "일급",
-    HOURLY_RATE_PLACEHOLDER: "예) 150000",
+    HOURLY_RATE_PLACEHOLDER: "숫자로만 기입",
     HOURLY_RATE_UNIT:     "원",
     DESCRIPTION_LABEL:    "추가 설명 (선택)",
-    DESCRIPTION_PLACEHOLDER: "업무 내용, 복장, 준비물 등을 입력해 주세요.",
+    DESCRIPTION_PLACEHOLDER: "업무 내용, 준비물 등을 입력해 주세요.",
   },
 
   SUBMIT_BUTTON: "SOS 발송",

@@ -184,9 +184,9 @@ export default async function NotificationsPage() {
     orderBy: { notifiedAt: "desc" },
   })
 
-  // 시스템 알림 (SOS 수정 등)
+  // 시스템 알림 (SOS 수정 등) — SOS_REQUEST 타입은 매치카드로 이미 표시되므로 제외
   const systemNotifications = await prisma.notification.findMany({
-    where: { userId: session.user.id },
+    where: { userId: session.user.id, type: { not: "SOS_REQUEST" } },
     orderBy: { createdAt: "desc" },
     take: 50,
   })

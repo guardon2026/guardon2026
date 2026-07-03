@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Zap, MapPin, Calendar, Users, Minus, Plus, Search, Trash2 } from "lucide-react"
 import { WorkField, CredentialType } from "@prisma/client"
-import { SOS_FORM, WORK_FIELD_LABELS, CREDENTIAL_LABELS } from "@/lib/constants"
+import { SOS_FORM, WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_WORK_FIELD_OPTIONS, SOS_CREDENTIAL_OPTIONS } from "@/lib/constants"
 
 // ─────────────────────────────────────────
 // 날짜·시간 포맷 헬퍼
@@ -175,6 +175,26 @@ function NumberSpinner({
 // 메인 페이지
 // ─────────────────────────────────────────
 
+function formatComma(raw: string): string {
+  const digits = raw.replace(/\D/g, "")
+  if (!digits) return ""
+  return Number(digits).toLocaleString("ko-KR")
+}
+
+function formatPhoneNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 11)
+  if (digits.startsWith("02")) {
+    if (digits.length <= 2) return digits
+    if (digits.length <= 5) return `${digits.slice(0, 2)}-${digits.slice(2)}`
+    if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+  if (digits.length <= 3) return digits
+  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+}
+
 export default function SosNewPage() {
   const router = useRouter()
 
@@ -192,14 +212,16 @@ export default function SosNewPage() {
   const [requiredFields, setRequiredFields] = useState<WorkField[]>([])
   const [requiredCredentials, setRequiredCredentials] = useState<CredentialType[]>([])
   const [hourlyRate, setHourlyRate] = useState("")
+  const [dressCode, setDressCode] = useState("")
+  const [siteManagers, setSiteManagers] = useState([{ id: 1, name: "", phone: "", comment: "" }])
   const [description, setDescription] = useState("")
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
 
-  const workFieldOptions = Object.values(WorkField)
-  const credentialOptions = Object.values(CredentialType)
+  const workFieldOptions = SOS_WORK_FIELD_OPTIONS as unknown as WorkField[]
+  const credentialOptions = SOS_CREDENTIAL_OPTIONS as unknown as CredentialType[]
 
   const [addrModalOpen, setAddrModalOpen] = useState(false)
   const [daumLoading, setDaumLoading] = useState(false)
@@ -304,7 +326,13 @@ export default function SosNewPage() {
 
     if (requiredCount < 1) newErrors.requiredCount = SOS_FORM.ERROR.REQUIRED_COUNT_INVALID
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
-    if (!hourlyRate || Number(hourlyRate) < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
+    if (!hourlyRate || Number(hourlyRate.replace(/,/g, "")) < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
+
+    if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
+
+    const hasContact = siteManagers.some((m) => m.name.trim() || m.phone.trim())
+    if (!hasContact) newErrors.siteManagers = "현장 담당자 연락처를 입력해 주세요."
+    if (!description.trim()) newErrors.description = "추가 설명을 입력해 주세요."
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -339,7 +367,12 @@ export default function SosNewPage() {
           requiredCount,
           requiredFields,
           requiredCredentials,
-          hourlyRate: Number(hourlyRate),
+          hourlyRate: Number(hourlyRate.replace(/,/g, "")),
+          dressCode: dressCode.trim() || null,
+          siteManagerContact: siteManagers
+            .map((m) => [m.name.trim(), m.phone.trim(), m.comment.trim()].filter(Boolean).join(" "))
+            .filter(Boolean)
+            .join("\n") || null,
           description: description.trim() || null,
         }),
       })
@@ -384,7 +417,7 @@ export default function SosNewPage() {
     },
     {
       label: "일급",
-      value: hourlyRate ? `${Number(hourlyRate).toLocaleString()}원/일` : "미입력",
+      value: hourlyRate ? `${Number(hourlyRate.replace(/,/g, "")).toLocaleString()}원/일` : "미입력",
     },
   ]
 
@@ -620,6 +653,84 @@ export default function SosNewPage() {
                 </div>
               </div>
 
+              {/* 복장 규정 */}
+              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  복장 규정
+                  <span className="text-sos ml-0.5">*</span>
+                </p>
+                <input
+                  type="text"
+                  value={dressCode}
+                  onChange={(e) => setDressCode(e.target.value)}
+                  placeholder="예) 정장, 전술복, 검정 면 바지에 흰색 셔츠 등"
+                  className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
+                    ${errors.dressCode ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                />
+                {errors.dressCode && <p className="text-xs text-sos">{errors.dressCode}</p>}
+              </div>
+
+              {/* 현장 담당자 연락처 */}
+              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">현장 담당자 연락처</p>
+                  <button
+                    type="button"
+                    onClick={() => setSiteManagers((prev) => [...prev, { id: Date.now(), name: "", phone: "", comment: "" }])}
+                    className="flex items-center gap-1 text-xs text-brand font-medium hover:underline"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    담당자 추가
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 -mt-2">현장 도착 후 경비 인력이 연락할 담당자 정보를 입력해 주세요.</p>
+                {errors.siteManagers && <p className="text-xs text-sos -mt-2">{errors.siteManagers}</p>}
+                <div className="space-y-3">
+                  {siteManagers.map((m, idx) => (
+                    <div key={m.id} className="flex gap-2 items-center">
+                      <div className="flex gap-2 flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={m.name}
+                          onChange={(e) => setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, name: e.target.value } : s))}
+                          placeholder="이름"
+                          className="w-20 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand shrink-0"
+                        />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={m.phone}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            const stripped = v.replace(/-/g, "")
+                            const formatted = /^\d+$/.test(stripped) ? formatPhoneNumber(stripped) : v
+                            setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, phone: formatted } : s))
+                          }}
+                          placeholder="전화번호"
+                          className="w-36 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={m.comment}
+                          onChange={(e) => setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, comment: e.target.value } : s))}
+                          placeholder="예) 주간 담당자"
+                          className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                        />
+                      </div>
+                      {siteManagers.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setSiteManagers((prev) => prev.filter((s) => s.id !== m.id))}
+                          className="flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-sos hover:bg-red-50 transition-colors shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* 일급 + 설명 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">급여 및 기타</p>
@@ -631,10 +742,10 @@ export default function SosNewPage() {
                   </label>
                   <div className="flex items-center gap-2">
                     <input
-                      type="number"
-                      min="0"
+                      type="text"
+                      inputMode="numeric"
                       value={hourlyRate}
-                      onChange={(e) => setHourlyRate(e.target.value)}
+                      onChange={(e) => setHourlyRate(formatComma(e.target.value))}
                       placeholder={SOS_FORM.FIELDS.HOURLY_RATE_PLACEHOLDER}
                       className={`w-40 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
                         ${errors.hourlyRate ? "border-red-300 bg-red-50" : "border-gray-200"}`}
@@ -645,14 +756,19 @@ export default function SosNewPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-gray-700">{SOS_FORM.FIELDS.DESCRIPTION_LABEL}</label>
+                  <label className="text-sm font-medium text-gray-700">
+                    {SOS_FORM.FIELDS.DESCRIPTION_LABEL}
+                    <span className="text-sos ml-0.5">*</span>
+                  </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder={SOS_FORM.FIELDS.DESCRIPTION_PLACEHOLDER}
                     rows={3}
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none"
+                    className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none
+                      ${errors.description ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                   />
+                  {errors.description && <p className="text-xs text-sos">{errors.description}</p>}
                 </div>
               </div>
 

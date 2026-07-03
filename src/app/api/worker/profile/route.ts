@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
-import { WorkField } from "@prisma/client"
+import { WorkField, CredentialType } from "@prisma/client"
 
 // ─────────────────────────────────────────
 // 공통 헬퍼
@@ -20,19 +20,19 @@ async function requireWorkerSession() {
 
 function parseBody(body: unknown): {
   workFields?: WorkField[]
+  declaredCredentials?: CredentialType[]
   experienceYears?: number
   address?: string
   city?: string
   district?: string
-  latitude?: number | null
-  longitude?: number | null
   desiredHourlyRate?: number | null
+  height?: number | null
+  weight?: number | null
   bio?: string | null
 } | null {
   if (typeof body !== "object" || body === null) return null
   const b = body as Record<string, unknown>
 
-  // workFields 유효성 검사
   if (b.workFields !== undefined) {
     if (!Array.isArray(b.workFields)) return null
     const validFields = Object.values(WorkField) as string[]
@@ -41,20 +41,27 @@ function parseBody(body: unknown): {
     }
   }
 
+  if (b.declaredCredentials !== undefined) {
+    if (!Array.isArray(b.declaredCredentials)) return null
+    const validCreds = Object.values(CredentialType) as string[]
+    for (const c of b.declaredCredentials) {
+      if (typeof c !== "string" || !validCreds.includes(c)) return null
+    }
+  }
+
   return {
     workFields: b.workFields as WorkField[] | undefined,
+    declaredCredentials: b.declaredCredentials as CredentialType[] | undefined,
     experienceYears: b.experienceYears !== undefined ? Number(b.experienceYears) : undefined,
     address: typeof b.address === "string" ? b.address : undefined,
     city: typeof b.city === "string" ? b.city : undefined,
     district: typeof b.district === "string" ? b.district : undefined,
-    latitude: b.latitude !== undefined ? (b.latitude === null ? null : Number(b.latitude)) : undefined,
-    longitude: b.longitude !== undefined ? (b.longitude === null ? null : Number(b.longitude)) : undefined,
     desiredHourlyRate:
       b.desiredHourlyRate !== undefined
-        ? b.desiredHourlyRate === null
-          ? null
-          : Number(b.desiredHourlyRate)
+        ? b.desiredHourlyRate === null ? null : Number(b.desiredHourlyRate)
         : undefined,
+    height: b.height !== undefined ? (b.height === null ? null : Number(b.height)) : undefined,
+    weight: b.weight !== undefined ? (b.weight === null ? null : Number(b.weight)) : undefined,
     bio: b.bio !== undefined ? (b.bio === null ? null : String(b.bio)) : undefined,
   }
 }
@@ -144,25 +151,17 @@ export async function POST(req: NextRequest) {
     data: {
       userId: auth_result.userId,
       workFields: data.workFields,
+      declaredCredentials: data.declaredCredentials ?? [],
       experienceYears: data.experienceYears ?? 0,
       address: data.address.trim(),
       city: data.city.trim(),
       district: data.district.trim(),
-      latitude: data.latitude ?? null,
-      longitude: data.longitude ?? null,
       desiredHourlyRate: data.desiredHourlyRate ?? null,
+      height: data.height ?? null,
+      weight: data.weight ?? null,
       bio: data.bio ?? null,
     },
   })
-
-  // PostGIS location 업데이트 (lat/lng 모두 있을 때)
-  if (data.latitude != null && data.longitude != null) {
-    try {
-      await updateLocation(profile.id, data.latitude, data.longitude)
-    } catch {
-      // location 업데이트 실패해도 프로필 생성은 성공으로 처리
-    }
-  }
 
   return NextResponse.json({ profile }, { status: 201 })
 }
@@ -205,28 +204,20 @@ export async function PATCH(req: NextRequest) {
   // undefined 필드는 업데이트에서 제외 (Prisma는 undefined를 무시)
   const updateData: Record<string, unknown> = {}
   if (data.workFields !== undefined) updateData.workFields = data.workFields
+  if (data.declaredCredentials !== undefined) updateData.declaredCredentials = data.declaredCredentials
   if (data.experienceYears !== undefined) updateData.experienceYears = data.experienceYears
   if (data.address !== undefined) updateData.address = data.address.trim()
   if (data.city !== undefined) updateData.city = data.city.trim()
   if (data.district !== undefined) updateData.district = data.district.trim()
-  if (data.latitude !== undefined) updateData.latitude = data.latitude
-  if (data.longitude !== undefined) updateData.longitude = data.longitude
   if (data.desiredHourlyRate !== undefined) updateData.desiredHourlyRate = data.desiredHourlyRate
+  if (data.height !== undefined) updateData.height = data.height
+  if (data.weight !== undefined) updateData.weight = data.weight
   if (data.bio !== undefined) updateData.bio = data.bio
 
   const profile = await prisma.workerProfile.update({
     where: { id: existing.id },
     data: updateData,
   })
-
-  // PostGIS location 업데이트
-  if (data.latitude != null && data.longitude != null) {
-    try {
-      await updateLocation(profile.id, data.latitude, data.longitude)
-    } catch {
-      // location 업데이트 실패해도 응답은 성공으로 처리
-    }
-  }
 
   return NextResponse.json({ profile })
 }
