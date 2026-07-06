@@ -111,6 +111,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   consentLogs   ConsentLog[]
+  pointAccount  PointAccount?
 
   @@map("users")
 }
@@ -301,9 +302,10 @@ model SosMatch {
   status          SosMatchStatus @default(NOTIFIED)
   notifiedAt      DateTime       @default(now())  // FR18
   respondedAt     DateTime?                       // 수락/거절 시각 (FR20)
-  confirmedAt     DateTime?                       // 업체 최종 확정 시각 (FR21)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  confirmedAt        DateTime?                       // 업체 최종 확정 시각 (FR21)
+  missionReportedAt  DateTime?                       // 경비 인력 임무 완료 보고 시각
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   sosRequest    SosRequest    @relation(fields: [sosRequestId], references: [id])
   workerProfile WorkerProfile @relation(fields: [workerProfileId], references: [id])
@@ -361,6 +363,38 @@ model Notification {
   @@index([userId])
   @@index([createdAt])
   @@map("notifications")
+}
+
+// ─────────────────────────────────────────
+// POINT ACCOUNT & TRANSACTION (포인트 시스템)
+// ─────────────────────────────────────────
+
+model PointAccount {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions PointTransaction[]
+
+  @@map("point_accounts")
+}
+
+model PointTransaction {
+  id           String   @id @default(cuid())
+  accountId    String
+  amount       Int      // 양수 = 충전/획득, 음수 = 차감
+  type         String   // ADMIN_CHARGE | SOS_DEDUCT | WORKER_DEDUCT | REFUND
+  description  String
+  sosRequestId String?
+  createdAt    DateTime @default(now())
+
+  account PointAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@map("point_transactions")
 }
 
 // ─────────────────────────────────────────

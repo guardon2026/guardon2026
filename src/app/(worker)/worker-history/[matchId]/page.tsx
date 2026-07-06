@@ -6,6 +6,7 @@ import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_STATUS_LABELS } from "@/lib/constants"
+import MissionCompleteButton from "./MissionCompleteButton"
 
 function fmtDate(date: Date) {
   return date.toLocaleString("ko-KR", {
@@ -177,7 +178,7 @@ export default async function WorkerSosDetailPage({
 
       {/* 급여 */}
       <InfoSection title="급여" icon={DollarSign}>
-        <InfoRow label="시급" value={`${req.hourlyRate.toLocaleString()}원/시간`} />
+        <InfoRow label="일급" value={`${req.hourlyRate.toLocaleString()}원/일`} />
       </InfoSection>
 
       {/* 업체 정보 */}
@@ -213,6 +214,12 @@ export default async function WorkerSosDetailPage({
         <InfoSection title="상세 설명" icon={FileText}>
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{req.description}</p>
         </InfoSection>
+      )}
+
+      {/* 임무 완료 보고 버튼 — CONFIRMED 매치이고 SOS가 진행 중일 때만 표시 */}
+      {match.status === SosMatchStatus.CONFIRMED &&
+        (req.status === "DISPATCHING" || req.status === "CONFIRMED") && (
+        <MissionCompleteButton matchId={match.id} alreadyReported={!!match.missionReportedAt} />
       )}
     </div>
   )

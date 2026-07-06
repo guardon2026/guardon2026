@@ -5,6 +5,7 @@ import { getServerSession } from "@/lib/session"
 import { Header } from "@/components/ui/header"
 import { getCompanyStatus } from "@/lib/company-gate"
 import { COMPANY_PENDING } from "@/lib/constants"
+import { prisma } from "@/lib/prisma"
 
 export default async function CompanyLayout({
   children,
@@ -22,7 +23,17 @@ export default async function CompanyLayout({
     return <>{children}</>
   }
 
-  const { status, name } = await getCompanyStatus(session.user.id)
+  const [{ status, name }, unreadNotifications, pointAccount] = await Promise.all([
+    getCompanyStatus(session.user.id),
+    prisma.notification.count({
+      where: { userId: session.user.id, isRead: false },
+    }),
+    prisma.pointAccount.findUnique({
+      where: { userId: session.user.id },
+      select: { balance: true },
+    }),
+  ])
+  const pointBalance = pointAccount?.balance ?? 0
 
   // 업체 미등록: 등록 폼으로 이동
   if (status === "NONE") {
@@ -33,7 +44,7 @@ export default async function CompanyLayout({
   if (status === "REJECTED") {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Header role="COMPANY_OWNER" />
+        <Header role="COMPANY_OWNER" unreadNotifications={unreadNotifications} pointBalance={pointBalance} />
         <main className="max-w-7xl mx-auto px-4 py-6">
           <div className="max-w-md mx-auto mt-16 text-center space-y-4 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto">
@@ -59,7 +70,7 @@ export default async function CompanyLayout({
   // APPROVED 및 PENDING 모두 children 렌더 (페이지별 자체 게이트)
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header role="COMPANY_OWNER" />
+      <Header role="COMPANY_OWNER" unreadNotifications={unreadNotifications} pointBalance={pointBalance} />
       <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
     </div>
   )

@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_MATCH_STATUS_LABELS } from "@/lib/constants"
 import { SosMatchStatus } from "@prisma/client"
 import ConfirmButton from "./ConfirmButton"
+import MissionConfirmButton from "./MissionConfirmButton"
 
 interface WorkerProfile {
   id: string
@@ -25,6 +26,7 @@ interface WorkerProfile {
 interface MatchItem {
   id: string
   status: SosMatchStatus
+  missionReportedAt: Date | null
   workerProfile: WorkerProfile
 }
 
@@ -50,18 +52,22 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 function WorkerCard({
   match,
   sosRequestId,
+  sosStatus,
   onClick,
 }: {
   match: MatchItem
   sosRequestId: string
+  sosStatus?: string
   onClick: () => void
 }) {
   const wp = match.workerProfile
   const isAccepted = match.status === SosMatchStatus.ACCEPTED
+  const hasMissionReport = !!match.missionReportedAt
 
   return (
     <div
       className={`bg-white rounded-2xl border shadow-card p-4 space-y-3 ${
+        hasMissionReport ? "border-emerald-300 bg-emerald-50/20" :
         isAccepted ? "border-brand/30 bg-blue-50/20" : "border-gray-100"
       }`}
     >
@@ -82,6 +88,11 @@ function WorkerCard({
                 variant={matchStatusVariant(match.status)}
                 label={SOS_MATCH_STATUS_LABELS[match.status] ?? match.status}
               />
+              {hasMissionReport && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                  임무 완료 보고됨
+                </span>
+              )}
             </div>
             {wp.credentials.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1">
@@ -104,7 +115,10 @@ function WorkerCard({
             보기
           </button>
           {isAccepted && (
-            <ConfirmButton sosRequestId={sosRequestId} matchId={match.id} />
+            <ConfirmButton sosRequestId={sosRequestId} matchId={match.id} workerName={wp.user.name ?? undefined} />
+          )}
+          {hasMissionReport && (
+            <MissionConfirmButton matchId={match.id} alreadySettled={sosStatus === "COMPLETED"} />
           )}
         </div>
       </div>
@@ -115,14 +129,17 @@ function WorkerCard({
 function WorkerDetailDrawer({
   match,
   sosRequestId,
+  sosStatus,
   onClose,
 }: {
   match: MatchItem
   sosRequestId: string
+  sosStatus?: string
   onClose: () => void
 }) {
   const wp = match.workerProfile
   const isAccepted = match.status === SosMatchStatus.ACCEPTED
+  const hasMissionReport = !!match.missionReportedAt
   const approvedCreds = wp.credentials
   const declaredCreds = (wp.declaredCredentials ?? []).filter(
     (d) => !approvedCreds.some((a) => a.type === d),
@@ -229,10 +246,15 @@ function WorkerDetailDrawer({
           )}
         </div>
 
-        {/* 하단 확정 버튼 */}
-        {isAccepted && (
-          <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4">
-            <ConfirmButton sosRequestId={sosRequestId} matchId={match.id} fullWidth />
+        {/* 하단 버튼 */}
+        {(isAccepted || hasMissionReport) && (
+          <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 space-y-2">
+            {isAccepted && (
+              <ConfirmButton sosRequestId={sosRequestId} matchId={match.id} workerName={wp.user.name ?? undefined} fullWidth />
+            )}
+            {hasMissionReport && (
+              <MissionConfirmButton matchId={match.id} fullWidth alreadySettled={sosStatus === "COMPLETED"} />
+            )}
           </div>
         )}
       </div>
@@ -245,11 +267,13 @@ export default function WorkerMatchGroup({
   label,
   matches,
   sosRequestId,
+  sosStatus,
 }: {
   status: string
   label: string
   matches: MatchItem[]
   sosRequestId: string
+  sosStatus?: string
 }) {
   const [selectedMatch, setSelectedMatch] = useState<MatchItem | null>(null)
 
@@ -267,6 +291,7 @@ export default function WorkerMatchGroup({
               key={match.id}
               match={match}
               sosRequestId={sosRequestId}
+              sosStatus={sosStatus}
               onClick={() => setSelectedMatch(match)}
             />
           ))}
@@ -277,6 +302,7 @@ export default function WorkerMatchGroup({
         <WorkerDetailDrawer
           match={selectedMatch}
           sosRequestId={sosRequestId}
+          sosStatus={sosStatus}
           onClose={() => setSelectedMatch(null)}
         />
       )}

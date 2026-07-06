@@ -91,7 +91,7 @@ export default async function WorkerHistoryPage() {
   const completedDispatches = confirmedMatches.filter(
     (m) => m.sosRequest.status === "COMPLETED" || m.sosRequest.status === "CONFIRMED",
   ).length
-  const avgHourlyRate =
+  const avgDailyRate =
     confirmedMatches.length > 0
       ? Math.round(
           confirmedMatches.reduce((sum, m) => sum + m.sosRequest.hourlyRate, 0) / confirmedMatches.length,
@@ -127,7 +127,7 @@ export default async function WorkerHistoryPage() {
     { key: "company",    label: "업체명",     width: "140px" },
     { key: "location",   label: "집결지" },
     { key: "field",      label: "업무 분야",  width: "120px" },
-    { key: "hourlyRate", label: "시급",       width: "100px" },
+    { key: "hourlyRate", label: "일급",       width: "100px" },
     {
       key: "status",
       label: "상태",
@@ -171,8 +171,8 @@ export default async function WorkerHistoryPage() {
           variant="brand"
         />
         <StatCard
-          label="평균 시급"
-          value={avgHourlyRate > 0 ? `${avgHourlyRate.toLocaleString()}원` : "-"}
+          label="평균 일급"
+          value={avgDailyRate > 0 ? `${avgDailyRate.toLocaleString()}원` : "-"}
           icon={DollarSign}
           variant="default"
         />

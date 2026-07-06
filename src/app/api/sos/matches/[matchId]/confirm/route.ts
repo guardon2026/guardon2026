@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus, SosStatus, AvailabilityStatus } from "@prisma/client"
+import { createNotifications } from "@/lib/notify"
 
 // ─────────────────────────────────────────
 // POST /api/sos/matches/[matchId]/confirm
@@ -32,7 +33,7 @@ export async function POST(
           company: { select: { id: true, ownerId: true } },
         },
       },
-      workerProfile: { select: { id: true } },
+      workerProfile: { select: { id: true, userId: true } },
     },
   })
 
@@ -91,6 +92,15 @@ export async function POST(
         : {},
     }),
   ])
+
+  // 7. 경비 인력에게 확정 알림 발송
+  await createNotifications([{
+    userId: match.workerProfile.userId,
+    sosRequestId,
+    type: "MATCH_CONFIRMED",
+    title: "SOS 확정 알림",
+    body: `'${match.sosRequest.title}' 요청에 최종 확정되었습니다. 배치 일정을 확인해 주세요.`,
+  }])
 
   return NextResponse.json({
     match: updatedMatch,

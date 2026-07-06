@@ -387,8 +387,8 @@ export const SOS_DETAIL = {
   SCHEDULED_AT_LABEL:    "배치 일시",
   REQUIRED_COUNT_LABEL:  "필요 인원",
   REQUIRED_COUNT_UNIT:   "명",
-  HOURLY_RATE_LABEL:     "시급",
-  HOURLY_RATE_UNIT:      "원/시간",
+  HOURLY_RATE_LABEL:     "일급",
+  HOURLY_RATE_UNIT:      "원/일",
   WORK_FIELDS_LABEL:     "업무 분야",
   CREDENTIALS_LABEL:     "필요 자격증",
   DESCRIPTION_LABEL:     "설명",
@@ -426,8 +426,8 @@ export const SOS_NOTIFICATION_LABELS = {
   CARD: {
     SCHEDULED_AT_LABEL:   "배치 일시",
     LOCATION_LABEL:       "집결지",
-    HOURLY_RATE_LABEL:    "시급",
-    HOURLY_RATE_UNIT:     "원/시간",
+    HOURLY_RATE_LABEL:    "일급",
+    HOURLY_RATE_UNIT:     "원/일",
     CREDENTIALS_LABEL:    "필요 자격증",
   },
 
@@ -450,8 +450,8 @@ export const HISTORY_LABELS = {
     PAGE_SUBTITLE: "확정된 배치 요청 내역입니다.",
     EMPTY:         "아직 배치 이력이 없습니다.",
     COMPANY_LABEL: "업체",
-    HOURLY_RATE_LABEL: "시급",
-    HOURLY_RATE_UNIT:  "원/시간",
+    HOURLY_RATE_LABEL: "일급",
+    HOURLY_RATE_UNIT:  "원/일",
     SCHEDULED_AT_LABEL:"배치 일시",
   },
 } as const

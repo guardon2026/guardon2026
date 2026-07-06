@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants"
 import NotificationActions from "./NotificationActions"
 import SystemNotificationCard from "./SystemNotificationCard"
+import MarkNotificationsRead from "@/components/ui/mark-notifications-read"
 
 // ─────────────────────────────────────────
 // 상대 시간 포맷
@@ -222,6 +223,7 @@ export default async function NotificationsPage() {
 
   return (
     <div className="space-y-6 pb-10">
+      <MarkNotificationsRead />
       <PageHeader
         title={SOS_NOTIFICATION_LABELS.PAGE_TITLE}
         badge={

@@ -140,6 +140,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
+  // 3-1. 포인트 잔액 확인 (일급 × 필요 인원)
+  const requiredPoints = data.hourlyRate * data.requiredCount
+  const pointAccount = await prisma.pointAccount.findUnique({
+    where: { userId: authResult.userId },
+  })
+  if (!pointAccount || pointAccount.balance < requiredPoints) {
+    return NextResponse.json(
+      {
+        error: `포인트가 부족합니다. 필요: ${requiredPoints.toLocaleString()}P, 보유: ${(pointAccount?.balance ?? 0).toLocaleString()}P`,
+        requiredPoints,
+        currentBalance: pointAccount?.balance ?? 0,
+      },
+      { status: 402 }
+    )
+  }
+
   // 4. scheduledAt / scheduledEndAt ISO 날짜 파싱
   const scheduledAt = new Date(data.scheduledAt)
   if (isNaN(scheduledAt.getTime())) {
@@ -184,6 +200,23 @@ export async function POST(req: NextRequest) {
       dispatchedAt: new Date(),
     },
   })
+
+  // 6-1. 포인트 차감
+  await prisma.$transaction([
+    prisma.pointAccount.update({
+      where: { id: pointAccount.id },
+      data: { balance: { decrement: requiredPoints } },
+    }),
+    prisma.pointTransaction.create({
+      data: {
+        accountId: pointAccount.id,
+        amount: -requiredPoints,
+        type: "SOS_DEDUCT",
+        description: `SOS 요청: ${data.title} (${data.requiredCount}명 × ${data.hourlyRate.toLocaleString()}원)`,
+        sosRequestId: sosRequest.id,
+      },
+    }),
+  ])
 
   // 7. PostGIS location 업데이트 (lat/lng 모두 있을 때)
   if (data.latitude != null && data.longitude != null) {

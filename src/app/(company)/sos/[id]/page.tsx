@@ -231,6 +231,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 matches={matchGroups[status] as any}
                 sosRequestId={sosRequest.id}
+                sosStatus={sosRequest.status}
               />
             ))
           )}

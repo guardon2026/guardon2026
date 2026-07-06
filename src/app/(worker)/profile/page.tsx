@@ -1,11 +1,12 @@
 import Link from "next/link"
+import Image from "next/image"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { AvailabilityToggle } from "./availability-toggle"
-import { Star, Award, MapPin, Clock, DollarSign, User, FileText } from "lucide-react"
+import { Star, Award, MapPin, Clock, DollarSign, User, FileText, Scale, Ruler } from "lucide-react"
 import {
   WORKER_PUBLIC_PROFILE,
   WORK_FIELD_LABELS,
@@ -118,9 +119,15 @@ export default async function ProfilePage() {
           <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5 sticky top-20">
             {/* 아바타 */}
             <div className="flex flex-col items-center gap-3 pb-5 border-b border-gray-100">
-              <div className="bg-brand text-white rounded-full w-18 h-18 flex items-center justify-center text-2xl font-bold select-none"
+              <div className="rounded-full overflow-hidden flex items-center justify-center shrink-0"
                 style={{ width: 72, height: 72 }}>
-                {initials}
+                {profile.profileImageUrl ? (
+                  <Image src={profile.profileImageUrl} alt="" width={72} height={72} className="object-cover w-full h-full" unoptimized />
+                ) : (
+                  <div className="bg-brand text-white w-full h-full flex items-center justify-center text-2xl font-bold select-none">
+                    {initials}
+                  </div>
+                )}
               </div>
               <div className="text-center">
                 <p className="text-xl font-bold text-gray-900">{profile.user.name}</p>
@@ -191,8 +198,8 @@ export default async function ProfilePage() {
 
           {/* 경력 정보 */}
           <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">경력 정보</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">경력 사항</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-50">
                   <Clock className="w-5 h-5 text-brand" />
@@ -218,19 +225,57 @@ export default async function ProfilePage() {
                   </div>
                 </div>
               )}
-              {profile.city && (
+              {profile.height != null && (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-50">
-                    <MapPin className="w-5 h-5 text-purple-600" />
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-50">
+                    <Ruler className="w-5 h-5 text-indigo-500" />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500">활동 지역</p>
-                    <p className="text-base font-bold text-gray-900">{profile.city}</p>
+                    <p className="text-xs text-gray-500">키</p>
+                    <p className="text-base font-bold text-gray-900">
+                      {profile.height}
+                      <span className="text-xs font-normal text-gray-500 ml-1">cm</span>
+                    </p>
+                  </div>
+                </div>
+              )}
+              {profile.weight != null && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-orange-50">
+                    <Scale className="w-5 h-5 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">몸무게</p>
+                    <p className="text-base font-bold text-gray-900">
+                      {profile.weight}
+                      <span className="text-xs font-normal text-gray-500 ml-1">kg</span>
+                    </p>
                   </div>
                 </div>
               )}
             </div>
           </div>
+
+          {/* 기본 정보 (주소) */}
+          {profile.city && (
+            <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">기본 정보</h3>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-purple-50">
+                  <MapPin className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">활동 지역</p>
+                  <p className="text-base font-bold text-gray-900">
+                    {profile.city} {profile.district}
+                    {profile.address && (
+                      <span className="text-sm font-normal text-gray-500 ml-1">({profile.address})</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 자격증 */}
           <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
@@ -269,6 +314,32 @@ export default async function ProfilePage() {
               </div>
             )}
           </div>
+
+          {/* 보유 자격증 자기신고 */}
+          {(() => {
+            const approvedTypes = profile.credentials.map((c) => c.type)
+            const selfDeclared = (profile.declaredCredentials ?? []).filter(
+              (d) => !approvedTypes.includes(d),
+            )
+            if (selfDeclared.length === 0) return null
+            return (
+              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  보유 자격증 (자기신고)
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {selfDeclared.map((c) => (
+                    <span
+                      key={c}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-600 border border-gray-200"
+                    >
+                      {CREDENTIAL_LABELS[c as CredentialTypeKey] ?? c}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* 소개글 */}
           {profile.bio && (
