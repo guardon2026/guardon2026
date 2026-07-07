@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
-import { WorkField, CredentialType } from "@prisma/client"
+import { WorkField, CredentialType, AvailabilityStatus } from "@prisma/client"
+import { matchSosRequestsForWorker } from "@/lib/sos-matcher"
 
 // ─────────────────────────────────────────
 // 공통 헬퍼
@@ -72,6 +73,28 @@ async function updateLocation(profileId: string, latitude: number, longitude: nu
     SET location = ST_SetSRID(ST_MakePoint(${longitude}, ${latitude}), 4326)::geography
     WHERE id = ${profileId}
   `
+}
+
+async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const url = new URL("https://nominatim.openstreetmap.org/search")
+    url.searchParams.set("q", address)
+    url.searchParams.set("format", "json")
+    url.searchParams.set("limit", "1")
+    url.searchParams.set("countrycodes", "kr")
+    url.searchParams.set("accept-language", "ko")
+
+    const res = await fetch(url.toString(), {
+      headers: { "User-Agent": "guardon-app/1.0 (https://guardon.kr)" },
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { lat: string; lon: string }[]
+    const doc = data[0]
+    if (!doc) return null
+    return { lat: parseFloat(doc.lat), lng: parseFloat(doc.lon) }
+  } catch {
+    return null
+  }
 }
 
 // ─────────────────────────────────────────
@@ -160,8 +183,22 @@ export async function POST(req: NextRequest) {
       height: data.height ?? null,
       weight: data.weight ?? null,
       bio: data.bio ?? null,
+      availability: AvailabilityStatus.AVAILABLE,
     },
   })
+
+  // 주소 기반 좌표 설정
+  const coords = await geocodeAddress(data.address.trim())
+  if (coords) {
+    await prisma.workerProfile.update({
+      where: { id: profile.id },
+      data: { latitude: coords.lat, longitude: coords.lng },
+    })
+    await updateLocation(profile.id, coords.lat, coords.lng)
+  }
+
+  // 가입 시점에 진행 중인 SOS 요청 중 조건에 맞는 것에 알림 발송 (fire-and-forget)
+  void matchSosRequestsForWorker(profile.id, auth_result.userId)
 
   return NextResponse.json({ profile }, { status: 201 })
 }
@@ -218,6 +255,18 @@ export async function PATCH(req: NextRequest) {
     where: { id: existing.id },
     data: updateData,
   })
+
+  // 주소가 변경된 경우 좌표 재설정
+  if (data.address !== undefined) {
+    const coords = await geocodeAddress(data.address.trim())
+    if (coords) {
+      await prisma.workerProfile.update({
+        where: { id: existing.id },
+        data: { latitude: coords.lat, longitude: coords.lng },
+      })
+      await updateLocation(existing.id, coords.lat, coords.lng)
+    }
+  }
 
   return NextResponse.json({ profile })
 }

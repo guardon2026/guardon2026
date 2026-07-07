@@ -166,6 +166,7 @@ model Company {
   city            String                          // 검색 필터용 (FR12)
   district        String                          // 시/구 단위
   phone           String
+  kakaoOpenChatUrl String?                         // 카카오 오픈채팅 링크 (경비 인력 문의용)
   status          CompanyStatus @default(PENDING)
   isActive        Boolean       @default(false)   // 관리자 승인 후 활성화
   createdAt       DateTime      @default(now())

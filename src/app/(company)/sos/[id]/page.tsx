@@ -15,6 +15,7 @@ import {
 import { SosMatchStatus } from "@prisma/client"
 import type { StatusVariant } from "@/components/ui/status-badge"
 import WorkerMatchGroup from "./WorkerDetailModal"
+import CancelButton from "./CancelButton"
 
 interface SosDetailPageProps {
   params: Promise<{ id: string }>
@@ -238,7 +239,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
         </div>
 
         {/* 하단 버튼 */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Link
             href="/sos"
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200
@@ -248,14 +249,21 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
             {SOS_DETAIL.BACK_BUTTON}
           </Link>
           {!["COMPLETED", "CANCELLED"].includes(sosRequest.status) && (
-            <Link
-              href={`/sos/${sosRequest.id}/edit`}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-brand
-                         text-sm text-brand font-semibold hover:bg-brand hover:text-white transition-colors"
-            >
-              <Pencil className="w-4 h-4" />
-              요청 수정
-            </Link>
+            <>
+              <Link
+                href={`/sos/${sosRequest.id}/edit`}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-brand
+                           text-sm text-brand font-semibold hover:bg-brand hover:text-white transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+                요청 수정
+              </Link>
+              <CancelButton
+                sosRequestId={sosRequest.id}
+                confirmedCount={confirmedCount}
+                hourlyRate={sosRequest.hourlyRate}
+              />
+            </>
           )}
           <Link
             href="/sos/new"

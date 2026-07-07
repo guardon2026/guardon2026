@@ -53,8 +53,17 @@ export async function POST(
   const workerUserId = match.workerProfile.userId
   const workerName = match.workerProfile.user.name ?? "경비 인력"
   const sosTitle = match.sosRequest.title
+  const dailyPay = match.sosRequest.hourlyRate // hourlyRate 필드가 실제로는 일급
 
-  // SOS → COMPLETED, 워커 → AVAILABLE
+  // 경비 인력 포인트 계정 조회
+  const workerAccount = await prisma.pointAccount.findUnique({
+    where: { userId: workerUserId },
+  })
+  if (!workerAccount) {
+    return NextResponse.json({ error: "경비 인력의 포인트 계정을 찾을 수 없습니다." }, { status: 500 })
+  }
+
+  // SOS → COMPLETED, 워커 → AVAILABLE, 경비 인력에게 일급 지급
   await prisma.$transaction([
     prisma.sosRequest.update({
       where: { id: sosRequestId },
@@ -63,6 +72,19 @@ export async function POST(
     prisma.workerProfile.update({
       where: { id: workerProfileId },
       data: { availability: AvailabilityStatus.AVAILABLE },
+    }),
+    prisma.pointAccount.update({
+      where: { id: workerAccount.id },
+      data: { balance: { increment: dailyPay } },
+    }),
+    prisma.pointTransaction.create({
+      data: {
+        accountId: workerAccount.id,
+        amount: dailyPay,
+        type: "WORKER_CREDIT",
+        description: `SOS 임무 완료 정산: ${sosTitle}`,
+        sosRequestId,
+      },
     }),
   ])
 

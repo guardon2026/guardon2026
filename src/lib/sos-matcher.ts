@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { AvailabilityStatus, CredentialStatus, SosMatchStatus } from "@prisma/client"
+import { AvailabilityStatus, CredentialStatus, SosMatchStatus, SosStatus } from "@prisma/client"
 
 interface ScheduleDay {
   date: string      // "YYYY-MM-DD"
@@ -182,6 +182,9 @@ export async function matchWorkers(
     where: {
       workerProfileId: { in: allCandidateIds },
       status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
+      sosRequest: {
+        status: { notIn: [SosStatus.CANCELLED, SosStatus.COMPLETED] },
+      },
     },
     select: {
       workerProfileId: true,
@@ -234,11 +237,25 @@ export async function matchWorkers(
       SELECT wp.id
       FROM worker_profiles wp
       WHERE wp.id = ANY(${candidateIds}::text[])
-        AND wp.location IS NOT NULL
-        AND ST_DWithin(
-          wp.location::geography,
-          ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
-          ${radiusMeters}
+        AND (
+          (
+            wp.location IS NOT NULL
+            AND ST_DWithin(
+              wp.location::geography,
+              ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+              ${radiusMeters}
+            )
+          )
+          OR (
+            wp.location IS NULL
+            AND wp.latitude IS NOT NULL
+            AND wp.longitude IS NOT NULL
+            AND ST_DWithin(
+              ST_SetSRID(ST_MakePoint(wp.longitude, wp.latitude), 4326)::geography,
+              ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+              ${radiusMeters}
+            )
+          )
         )
     `
 
@@ -249,4 +266,173 @@ export async function matchWorkers(
   }
 
   return credFiltered.map((p) => ({ workerProfileId: p.id, userId: p.userId }))
+}
+
+/**
+ * 특정 경비 인력이 가입·가용 전환 시점에 이미 진행 중인 SOS 요청 중
+ * 조건이 맞는 것을 찾아 SosMatch + 알림을 생성한다.
+ *
+ * 호출 시점:
+ *  - 신규 WorkerProfile 생성 직후
+ *  - availability 를 AVAILABLE 로 변경한 직후
+ */
+export async function matchSosRequestsForWorker(
+  workerProfileId: string,
+  workerUserId: string,
+): Promise<number> {
+  // 1. 워커 프로필 조회
+  const worker = await prisma.workerProfile.findUnique({
+    where: { id: workerProfileId },
+    select: {
+      id: true,
+      availability: true,
+      isProfilePublic: true,
+      workFields: true,
+      latitude: true,
+      longitude: true,
+      credentials: {
+        where: { status: CredentialStatus.APPROVED },
+        select: { type: true },
+      },
+    },
+  })
+
+  if (
+    !worker ||
+    worker.availability === AvailabilityStatus.UNAVAILABLE ||
+    !worker.isProfilePublic ||
+    worker.workFields.length === 0
+  ) {
+    return 0
+  }
+
+  // 2. 이미 알림이 발송된 SOS ID 목록
+  const existingMatches = await prisma.sosMatch.findMany({
+    where: { workerProfileId },
+    select: { sosRequestId: true },
+  })
+  const alreadyNotifiedSosIds = new Set(existingMatches.map((m) => m.sosRequestId))
+
+  // 3. 활성 SOS 요청 조회 (DISPATCHING · PENDING)
+  const activeSos = await prisma.sosRequest.findMany({
+    where: {
+      status: { in: [SosStatus.DISPATCHING, SosStatus.PENDING] },
+      requiredFields: { hasSome: worker.workFields },
+      id: alreadyNotifiedSosIds.size > 0
+        ? { notIn: [...alreadyNotifiedSosIds] }
+        : undefined,
+    },
+    select: {
+      id: true,
+      title: true,
+      latitude: true,
+      longitude: true,
+      radiusKm: true,
+      requiredCredentials: true,
+      scheduledAt: true,
+      scheduledEndAt: true,
+      scheduleDays: true,
+    },
+  })
+
+  if (activeSos.length === 0) return 0
+
+  // 4. 워커의 기존 ACCEPTED/CONFIRMED 매치 일정 조회 (충돌 방지)
+  const workerConflictMatches = await prisma.sosMatch.findMany({
+    where: {
+      workerProfileId,
+      status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
+      sosRequest: { status: { notIn: [SosStatus.CANCELLED, SosStatus.COMPLETED] } },
+    },
+    select: {
+      sosRequest: {
+        select: { scheduledAt: true, scheduledEndAt: true, scheduleDays: true },
+      },
+    },
+  })
+
+  const approvedCredTypes = new Set(worker.credentials.map((c) => c.type))
+
+  const matched: string[] = []
+
+  for (const sos of activeSos) {
+    // 자격증 조건
+    if (sos.requiredCredentials.length > 0) {
+      const allMet = sos.requiredCredentials.every((rc) => approvedCredTypes.has(rc as never))
+      if (!allMet) continue
+    }
+
+    // 일정 충돌 확인
+    const hasConflict = workerConflictMatches.some((m) =>
+      scheduleOverlaps(
+        sos.scheduledAt,
+        sos.scheduledEndAt ?? null,
+        sos.scheduleDays,
+        m.sosRequest.scheduledAt,
+        m.sosRequest.scheduledEndAt ?? null,
+        m.sosRequest.scheduleDays,
+      )
+    )
+    if (hasConflict) continue
+
+    // 반경 확인 (SOS에 위치 정보가 있을 때만)
+    if (sos.latitude != null && sos.longitude != null) {
+      const radiusMeters = sos.radiusKm * 1000
+      const lat = sos.latitude
+      const lon = sos.longitude
+
+      const inRadius = await prisma.$queryRaw<Array<{ ok: boolean }>>`
+        SELECT (
+          CASE
+            WHEN wp.location IS NOT NULL THEN
+              ST_DWithin(
+                wp.location::geography,
+                ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+                ${radiusMeters}
+              )
+            WHEN wp.latitude IS NOT NULL AND wp.longitude IS NOT NULL THEN
+              ST_DWithin(
+                ST_SetSRID(ST_MakePoint(wp.longitude, wp.latitude), 4326)::geography,
+                ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+                ${radiusMeters}
+              )
+            ELSE false
+          END
+        ) AS ok
+        FROM worker_profiles wp
+        WHERE wp.id = ${workerProfileId}
+      `
+      if (!inRadius[0]?.ok) continue
+    }
+
+    matched.push(sos.id)
+  }
+
+  if (matched.length === 0) return 0
+
+  // 5. SosMatch + 알림 생성
+  const now = new Date()
+  await prisma.sosMatch.createMany({
+    data: matched.map((sosRequestId) => ({
+      sosRequestId,
+      workerProfileId,
+      status: SosMatchStatus.NOTIFIED,
+      notifiedAt: now,
+    })),
+    skipDuplicates: true,
+  })
+
+  const { createNotifications } = await import("./notify")
+  await createNotifications(
+    matched.map((sosRequestId) => ({
+      userId: workerUserId,
+      sosRequestId,
+      type: "SOS_REQUEST",
+      title: "SOS 긴급 요청 알림",
+      body: "배치 조건에 맞는 긴급 경비 인력 요청이 있습니다. 지금 확인해 주세요.",
+      sentAt: now,
+    }))
+  )
+
+  return matched.length
 }

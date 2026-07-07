@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { WORK_FIELD_LABELS } from "@/lib/constants"
 
 interface DiffChange {
   field: string
@@ -60,11 +61,6 @@ function fmtDate(iso: string) {
   })
 }
 
-const FIELD_LABELS: Record<string, string> = {
-  SECURITY_GUARD: "일반경비", FACILITY_GUARD: "시설경비",
-  TRAFFIC_CONTROL: "교통통제", EVENT_SECURITY: "행사경비",
-  BODYGUARD: "신변보호", FIRE_WATCH: "소방감시",
-}
 const CRED_LABELS: Record<string, string> = {
   SECURITY_GUARD_1: "경비지도사 1급", SECURITY_GUARD_2: "경비지도사 2급",
   FIRE_SAFETY: "소방안전관리자", DRIVER_LICENSE: "운전면허",
@@ -168,9 +164,9 @@ export default function SystemNotificationCard({ title, body, isRead, createdAt,
               { label: "배치 일시", value: fmtDate(sosDetail.scheduledAt) },
               ...(sosDetail.scheduledEndAt ? [{ label: "종료 일시", value: fmtDate(sosDetail.scheduledEndAt) }] : []),
               { label: "필요 인원", value: `${sosDetail.requiredCount}명` },
-              { label: "시급", value: `${sosDetail.hourlyRate.toLocaleString()}원/시간` },
+              { label: "일급", value: `${sosDetail.hourlyRate.toLocaleString()}원/일` },
               ...(sosDetail.requiredFields.length > 0
-                ? [{ label: "업무 분야", value: sosDetail.requiredFields.map((f) => FIELD_LABELS[f] ?? f).join(", ") }]
+                ? [{ label: "업무 분야", value: sosDetail.requiredFields.map((f) => WORK_FIELD_LABELS[f as keyof typeof WORK_FIELD_LABELS] ?? f).join(", ") }]
                 : []),
               ...(sosDetail.requiredCredentials.length > 0
                 ? [{ label: "필요 자격증", value: sosDetail.requiredCredentials.map((c) => CRED_LABELS[c] ?? c).join(", ") }]

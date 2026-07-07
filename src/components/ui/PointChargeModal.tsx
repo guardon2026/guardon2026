@@ -4,29 +4,48 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { X, Coins, CheckCircle2 } from "lucide-react"
 
-const AMOUNTS = [10000, 30000, 50000, 100000, 300000, 500000, 1000000]
-
-export default function PointChargeModal({ onClose }: { onClose: () => void }) {
+export function PointChargeModal({
+  onClose,
+  onSuccess,
+  shortfall = 0,
+}: {
+  onClose: () => void
+  onSuccess?: () => void
+  shortfall?: number
+}) {
   const router = useRouter()
-  const [selected, setSelected] = useState<number | null>(null)
+  const [customRaw, setCustomRaw] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
+  const customAmount = customRaw ? parseInt(customRaw.replace(/,/g, ""), 10) : NaN
+  const finalAmount = !isNaN(customAmount) && customAmount > 0 ? customAmount : null
+
+  function fillShortfall() {
+    if (shortfall > 0) {
+      setCustomRaw(shortfall.toLocaleString())
+    }
+  }
+
   async function handleCharge() {
-    if (!selected) { setError("충전 금액을 선택해 주세요."); return }
+    if (!finalAmount || finalAmount < 1000) { setError("1,000P 이상 입력해 주세요."); return }
     setLoading(true)
     setError("")
     try {
       const res = await fetch("/api/points/self-charge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: selected }),
+        body: JSON.stringify({ amount: finalAmount }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? "충전 중 오류가 발생했습니다."); return }
-      setSuccess(`${selected.toLocaleString()}P 충전 완료! 새 잔액: ${data.balance.toLocaleString()}P`)
-      setTimeout(() => { router.refresh(); onClose() }, 1500)
+      setSuccess(`${finalAmount.toLocaleString()}P 충전 완료! 새 잔액: ${data.balance.toLocaleString()}P`)
+      setTimeout(() => {
+        router.refresh()
+        if (onSuccess) onSuccess()
+        else onClose()
+      }, 1500)
     } catch {
       setError("네트워크 오류가 발생했습니다.")
     } finally {
@@ -49,32 +68,42 @@ export default function PointChargeModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* 금액 선택 */}
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-400">충전 금액 선택</p>
-          <div className="grid grid-cols-2 gap-2">
-            {AMOUNTS.map((amt) => (
-              <button
-                key={amt}
-                type="button"
-                onClick={() => setSelected(amt)}
-                className={`py-3 rounded-xl text-sm font-semibold border transition-colors ${
-                  selected === amt
-                    ? "bg-brand text-white border-brand"
-                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
-                }`}
-              >
-                {amt.toLocaleString()}P
-              </button>
-            ))}
+        {/* 부족한 포인트 전액 버튼 */}
+        {shortfall > 0 && (
+          <button
+            type="button"
+            onClick={fillShortfall}
+            className="w-full py-3 rounded-xl border-2 border-amber-400 bg-amber-50 text-amber-700 text-sm font-bold hover:bg-amber-100 transition-colors flex items-center justify-center gap-2"
+          >
+            <Coins className="w-4 h-4" />
+            부족한 포인트 전액 충전 ({shortfall.toLocaleString()}P)
+          </button>
+        )}
+
+        {/* 직접 입력 */}
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-gray-400">충전 금액 직접 입력</p>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={customRaw}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "")
+                setCustomRaw(digits ? Number(digits).toLocaleString() : "")
+              }}
+              placeholder="금액 입력 (최소 1,000P)"
+              className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+            />
+            <span className="text-sm text-gray-500 shrink-0">P</span>
           </div>
         </div>
 
-        {/* 선택 금액 표시 */}
-        {selected && (
+        {/* 최종 충전 금액 표시 */}
+        {finalAmount && finalAmount > 0 && (
           <div className="bg-amber-50 rounded-xl px-4 py-3 text-center">
             <span className="text-xs text-gray-500">충전 예정 금액</span>
-            <p className="text-xl font-extrabold text-amber-600 mt-0.5">{selected.toLocaleString()}P</p>
+            <p className="text-xl font-extrabold text-amber-600 mt-0.5">{finalAmount.toLocaleString()}P</p>
           </div>
         )}
 
@@ -89,7 +118,7 @@ export default function PointChargeModal({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={handleCharge}
-          disabled={loading || !selected || !!success}
+          disabled={loading || !finalAmount || finalAmount < 1000 || !!success}
           className="w-full py-3 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? "처리 중..." : "충전하기"}
@@ -102,3 +131,5 @@ export default function PointChargeModal({ onClose }: { onClose: () => void }) {
     </div>
   )
 }
+
+export default PointChargeModal

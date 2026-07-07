@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { ERROR_MESSAGES } from "@/lib/constants"
+import { matchSosRequestsForWorker } from "@/lib/sos-matcher"
 
 export async function PATCH(req: NextRequest) {
   try {
@@ -31,6 +32,11 @@ export async function PATCH(req: NextRequest) {
       where: { userId: session.user.id },
       data: { availability },
     })
+
+    // AVAILABLE 전환 시 진행 중인 SOS 중 조건 맞는 것에 알림 발송 (fire-and-forget)
+    if (availability === "AVAILABLE") {
+      void matchSosRequestsForWorker(profile.id, session.user.id)
+    }
 
     return NextResponse.json({ availability: updated.availability })
   } catch (error) {

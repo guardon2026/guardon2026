@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Zap, MapPin, Calendar, Users, Minus, Plus, Search, Trash2 } from "lucide-react"
+import { Zap, MapPin, Calendar, Users, Minus, Plus, Search, Trash2, Coins } from "lucide-react"
 import { WorkField, CredentialType } from "@prisma/client"
 import { SOS_FORM, WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_WORK_FIELD_OPTIONS, SOS_CREDENTIAL_OPTIONS } from "@/lib/constants"
+import { PointChargeModal } from "@/components/ui/PointChargeModal"
 
 // ─────────────────────────────────────────
 // 날짜·시간 포맷 헬퍼
@@ -36,6 +37,7 @@ interface WorkDay {
   startTime: string
   endDate: string    // 종료 날짜 (다음 날이면 date+1)
   endTime: string
+  requiredCount: number
 }
 
 // ─────────────────────────────────────────
@@ -43,11 +45,11 @@ interface WorkDay {
 // ─────────────────────────────────────────
 
 // 초기 행은 고정 ID — SSR·클라이언트 hydration 일치를 위해 Math.random/Date.now 사용 금지
-const INITIAL_DAY: WorkDay = { id: 1, date: "", startTime: "", endDate: "", endTime: "" }
+const INITIAL_DAY: WorkDay = { id: 1, date: "", startTime: "", endDate: "", endTime: "", requiredCount: 1 }
 
 // 추가 행은 클라이언트 클릭 시에만 호출되므로 Date.now() 사용 가능
 function makeDay(): WorkDay {
-  return { id: Date.now(), date: "", startTime: "", endDate: "", endTime: "" }
+  return { id: Date.now(), date: "", startTime: "", endDate: "", endTime: "", requiredCount: 1 }
 }
 
 // 30분 단위 시간 옵션 생성 (오전 00:00~11:30, 오후 12:00~23:30)
@@ -208,7 +210,6 @@ export default function SosNewPage() {
   const startDateRefsMap = useRef<Map<number, HTMLInputElement>>(new Map())
   const endDateRefsMap = useRef<Map<number, HTMLInputElement>>(new Map())
 
-  const [requiredCount, setRequiredCount] = useState(1)
   const [requiredFields, setRequiredFields] = useState<WorkField[]>([])
   const [requiredCredentials, setRequiredCredentials] = useState<CredentialType[]>([])
   const [hourlyRate, setHourlyRate] = useState("")
@@ -220,6 +221,9 @@ export default function SosNewPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState("")
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [insufficientPoints, setInsufficientPoints] = useState(false)
+  const [chargeModalOpen, setChargeModalOpen] = useState(false)
+  const [pointShortfall, setPointShortfall] = useState(0)
 
   const workFieldOptions = SOS_WORK_FIELD_OPTIONS as unknown as WorkField[]
   const credentialOptions = SOS_CREDENTIAL_OPTIONS as unknown as CredentialType[]
@@ -282,13 +286,13 @@ export default function SosNewPage() {
     endDateRefsMap.current.delete(id)
   }
 
-  function updateDay(id: number, field: keyof Omit<WorkDay, "id">, value: string) {
+  function updateDay(id: number, field: keyof Omit<WorkDay, "id">, value: string | number) {
     setWorkDays((prev) =>
       prev.map((d) => {
         if (d.id !== id) return d
         const updated = { ...d, [field]: value }
         // 시작 날짜 변경 시 종료 날짜가 비어있으면 자동 동기화
-        if (field === "date" && !d.endDate) updated.endDate = value
+        if (field === "date" && !d.endDate) updated.endDate = value as string
         return updated
       })
     )
@@ -325,7 +329,6 @@ export default function SosNewPage() {
     else if (hasEmptyTime) newErrors.workDays = "모든 근무일의 시작·종료 시간을 입력해 주세요."
     else if (hasInvalidTime) newErrors.workDays = "종료 일시는 시작 일시보다 이후여야 합니다."
 
-    if (requiredCount < 1) newErrors.requiredCount = SOS_FORM.ERROR.REQUIRED_COUNT_INVALID
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
     if (!hourlyRate || Number(hourlyRate.replace(/,/g, "")) < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
 
@@ -364,8 +367,9 @@ export default function SosNewPage() {
             startTime: d.startTime,
             endDate: d.endDate || d.date,
             endTime: d.endTime,
+            requiredCount: d.requiredCount || 1,
           })),
-          requiredCount,
+          requiredCount: days.reduce((sum, d) => sum + (d.requiredCount || 1), 0),
           requiredFields,
           requiredCredentials,
           hourlyRate: Number(hourlyRate.replace(/,/g, "")),
@@ -379,9 +383,18 @@ export default function SosNewPage() {
       })
       if (!res.ok) {
         const data = await res.json()
-        setSubmitError(data.error ?? SOS_FORM.ERROR.SUBMIT_FAILED)
+        if (res.status === 402) {
+          setInsufficientPoints(true)
+          setSubmitError(data.error ?? "포인트가 부족합니다.")
+          const shortfall = (data.requiredPoints ?? 0) - (data.currentBalance ?? 0)
+          setPointShortfall(shortfall > 0 ? shortfall : 0)
+        } else {
+          setInsufficientPoints(false)
+          setSubmitError(data.error ?? SOS_FORM.ERROR.SUBMIT_FAILED)
+        }
         return
       }
+      setInsufficientPoints(false)
       const data = await res.json()
       setSubmitSuccess(true)
       setTimeout(() => router.push(`/sos/${data.sosRequestId}`), 1500)
@@ -391,6 +404,13 @@ export default function SosNewPage() {
       setSubmitting(false)
     }
   }
+
+  // 결제 금액 계산 (일별 인원 합산)
+  const rateNum = hourlyRate ? Number(hourlyRate.replace(/,/g, "")) : 0
+  const totalRequiredCount = workDays.reduce((sum, d) => sum + (d.requiredCount || 1), 0)
+  const laborCost = rateNum * totalRequiredCount
+  const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
+  const totalCharge = laborCost + serviceFee
 
   // 요약 표시
   const daysWithDates = workDays.filter((d) => d.date)
@@ -404,7 +424,7 @@ export default function SosNewPage() {
   const summaryItems = [
     { label: "배치 일정", value: scheduleSummary },
     { label: "장소", value: locationAddress ? `${locationAddress}${locationDetail ? " " + locationDetail : ""}` : "미입력" },
-    { label: "필요 인원", value: `${requiredCount}명` },
+    { label: "필요 인원", value: `총 ${totalRequiredCount}명` },
     {
       label: "분야",
       value: requiredFields.length > 0
@@ -476,11 +496,12 @@ export default function SosNewPage() {
                 {/* 근무일 테이블 */}
                 <div className="rounded-xl border border-gray-200 overflow-hidden">
                   {/* 헤더 */}
-                  <div className="grid grid-cols-[1fr_90px_1fr_90px_36px] bg-gray-50 px-3 py-2.5 text-xs font-semibold text-gray-500 border-b border-gray-200 gap-2">
+                  <div className="grid grid-cols-[1fr_80px_1fr_80px_72px_36px] bg-gray-50 px-3 py-2.5 text-xs font-semibold text-gray-500 border-b border-gray-200 gap-2">
                     <span>시작 날짜 <span className="text-sos">*</span></span>
                     <span>시작 시간 <span className="text-sos">*</span></span>
                     <span>종료 날짜 <span className="text-sos">*</span></span>
                     <span>종료 시간 <span className="text-sos">*</span></span>
+                    <span>필요 인원 <span className="text-sos">*</span></span>
                     <span />
                   </div>
 
@@ -493,7 +514,7 @@ export default function SosNewPage() {
                     return (
                       <div
                         key={day.id}
-                        className={`grid grid-cols-[1fr_90px_1fr_90px_36px] items-center px-3 py-2.5 gap-2
+                        className={`grid grid-cols-[1fr_80px_1fr_80px_72px_36px] items-center px-3 py-2.5 gap-2
                           ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
                           ${idx < workDays.length - 1 ? "border-b border-gray-100" : ""}
                         `}
@@ -548,6 +569,21 @@ export default function SosNewPage() {
                           placeholder="종료"
                           hasError={hasTimeError}
                         />
+
+                        {/* 필요 인원 */}
+                        <div className="flex items-center gap-1 border border-gray-200 rounded-lg overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => updateDay(day.id, "requiredCount", Math.max(1, (day.requiredCount || 1) - 1))}
+                            className="w-6 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm"
+                          >-</button>
+                          <span className="flex-1 text-center text-sm font-semibold text-gray-900">{day.requiredCount || 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => updateDay(day.id, "requiredCount", (day.requiredCount || 1) + 1)}
+                            className="w-6 h-7 flex items-center justify-center bg-gray-50 hover:bg-gray-100 text-gray-600 text-sm"
+                          >+</button>
+                        </div>
 
                         {/* 삭제 */}
                         <button
@@ -616,18 +652,6 @@ export default function SosNewPage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">
-                    {SOS_FORM.FIELDS.REQUIRED_COUNT_LABEL}
-                    <span className="text-sos ml-0.5">*</span>
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <NumberSpinner value={requiredCount} onChange={setRequiredCount} min={1} />
-                    <span className="text-sm text-gray-600">{SOS_FORM.FIELDS.REQUIRED_COUNT_UNIT}</span>
-                  </div>
-                  {errors.requiredCount && <p className="text-xs text-sos">{errors.requiredCount}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
                     {SOS_FORM.FIELDS.REQUIRED_FIELDS_LABEL}
                     <span className="text-sos ml-0.5">*</span>
                   </label>
@@ -675,7 +699,7 @@ export default function SosNewPage() {
               {/* 현장 담당자 연락처 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">현장 담당자 연락처</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">현장 담당자 연락처 <span className="text-sos normal-case">*</span></p>
                   <button
                     type="button"
                     onClick={() => setSiteManagers((prev) => [...prev, { id: Date.now(), name: "", phone: "", comment: "" }])}
@@ -774,9 +798,41 @@ export default function SosNewPage() {
                 </div>
               </div>
 
+              {/* 결제 내역 */}
+              {rateNum > 0 && (
+                <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-4 space-y-2 text-sm">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">결제 내역</p>
+                  <div className="flex justify-between text-gray-600">
+                    <span>인건비 (총 {totalRequiredCount}명 × {rateNum.toLocaleString()}원)</span>
+                    <span>{laborCost.toLocaleString()}P</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>가드온 수수료 (5%)</span>
+                    <span>{serviceFee.toLocaleString()}P</span>
+                  </div>
+                  <div className="h-px bg-gray-200" />
+                  <div className="flex justify-between font-bold text-gray-900">
+                    <span>총 결제 포인트</span>
+                    <span className="text-brand">{totalCharge.toLocaleString()}P</span>
+                  </div>
+                </div>
+              )}
+
               {submitError && (
-                <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-sos">
-                  {submitError}
+                <div className="space-y-3">
+                  <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-sos">
+                    {submitError}
+                  </div>
+                  {insufficientPoints && (
+                    <button
+                      type="button"
+                      onClick={() => setChargeModalOpen(true)}
+                      className="w-full h-12 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl transition-colors"
+                    >
+                      <Coins className="w-4 h-4" />
+                      포인트 즉시 충전하고 SOS 긴급 요청 발송하기
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -789,17 +845,19 @@ export default function SosNewPage() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full h-14 flex items-center justify-center gap-2
-                           bg-sos text-white font-bold text-base rounded-xl
-                           hover:bg-red-700 transition-colors
-                           disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                <Zap className="w-5 h-5" />
-                {submitting ? SOS_FORM.SUBMITTING : "SOS 긴급 요청 발송"}
-              </button>
+              {!insufficientPoints && (
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full h-14 flex items-center justify-center gap-2
+                             bg-sos text-white font-bold text-base rounded-xl
+                             hover:bg-red-700 transition-colors
+                             disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <Zap className="w-5 h-5" />
+                  {submitting ? SOS_FORM.SUBMITTING : "SOS 긴급 요청 발송"}
+                </button>
+              )}
             </div>
 
             {/* 우측 요약 카드 */}
@@ -862,6 +920,22 @@ export default function SosNewPage() {
             </div>
           </div>
         </form>
+
+        {/* 포인트 충전 모달 — 충전 완료 후 폼 자동 제출 */}
+        {chargeModalOpen && (
+          <PointChargeModal
+            shortfall={pointShortfall}
+            onClose={() => setChargeModalOpen(false)}
+            onSuccess={() => {
+              setChargeModalOpen(false)
+              setSubmitError("")
+              setInsufficientPoints(false)
+              // 충전 완료 후 폼 재제출
+              const form = document.querySelector<HTMLFormElement>("form")
+              form?.requestSubmit()
+            }}
+          />
+        )}
 
         {/* 주소 검색 모달 (팝업 대신 페이지 내 임베드) */}
         {addrModalOpen && (

@@ -19,6 +19,7 @@ function txTypeLabel(type: string) {
     case "ADMIN_CHARGE":  return "관리자 충전"
     case "SELF_CHARGE":   return "포인트 충전"
     case "WORKER_DEDUCT": return "SOS 수락 보증금"
+    case "WORKER_CREDIT": return "SOS 임무 완료 정산"
     case "REFUND":        return "환불"
     default:              return type
   }

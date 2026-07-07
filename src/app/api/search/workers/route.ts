@@ -74,6 +74,7 @@ export async function GET(req: NextRequest) {
       distance_m: number
     }
 
+    // location이 있는 인력은 PostGIS 반경 검색, NULL인 인력은 city/district 텍스트로 포함
     const rawResults = await prisma.$queryRaw<RawWorkerRow[]>`
       SELECT
         wp.id,
@@ -86,17 +87,27 @@ export async function GET(req: NextRequest) {
         wp.city,
         wp.district,
         u.name,
-        ST_Distance(
-          wp.location,
-          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
-        ) as distance_m
+        CASE
+          WHEN wp.location IS NOT NULL THEN
+            ST_Distance(
+              wp.location,
+              ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+            )
+          ELSE 999999
+        END as distance_m
       FROM worker_profiles wp
       JOIN users u ON u.id = wp."userId" AND u."deletedAt" IS NULL
-      WHERE ST_DWithin(
-          wp.location,
-          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
-          ${radiusKm * 1000}
+      WHERE (
+        (
+          wp.location IS NOT NULL
+          AND ST_DWithin(
+            wp.location,
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+            ${radiusKm * 1000}
+          )
         )
+        OR wp.location IS NULL
+      )
         AND wp.availability = ${availability}::text::"AvailabilityStatus"
         AND wp."isProfilePublic" = true
         AND wp."experienceYears" >= ${minExperience}
@@ -154,12 +165,21 @@ export async function GET(req: NextRequest) {
       credentialMap[cred.workerProfileId].push(cred)
     }
 
+    // PostgreSQL raw 쿼리에서 배열이 문자열로 올 수 있어 정규화
+    function toArray(value: unknown): string[] {
+      if (Array.isArray(value)) return value as string[]
+      if (typeof value === "string") {
+        return value.replace(/^{|}$/g, "").split(",").filter(Boolean)
+      }
+      return []
+    }
+
     // 응답 데이터 조합
     const workers = finalFiltered.map((w) => ({
       id: w.id,
       userId: w.userId,
       name: w.name,
-      workFields: w.workFields,
+      workFields: toArray(w.workFields),
       experienceYears: w.experienceYears,
       desiredHourlyRate: w.desiredHourlyRate,
       averageRating: w.averageRating,

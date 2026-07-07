@@ -14,11 +14,12 @@ interface NavLink {
 
 const NAV_LINKS: Record<Role, NavLink[]> = {
   COMPANY_OWNER: [
-    { label: "SOS 요청",      href: "/sos/new" },
-    { label: "SOS 요청 현황", href: "/sos" },
+    { label: "SOS 긴급 요청", href: "/sos/new" },
+    { label: "SOS 긴급 요청 현황", href: "/sos" },
     { label: "인력 검색",     href: "/search" },
     { label: "알림",          href: "/company-notifications" },
     { label: "포인트",        href: "/company-points" },
+    { label: "설정",          href: "/settings" },
   ],
   WORKER: [
     { label: "내 프로필", href: "/profile" },

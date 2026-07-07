@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const { name, licenseNumber, address, city, district, phone, description } =
+  const { name, licenseNumber, address, city, district, phone, description, kakaoOpenChatUrl } =
     body as {
       name?: string
       licenseNumber?: string
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
       district?: string
       phone?: string
       description?: string
+      kakaoOpenChatUrl?: string
     }
 
   // 5. 서버 사이드 검증 (클라이언트 우회 방어)
@@ -93,6 +94,7 @@ export async function POST(request: Request) {
         district,
         phone,
         description: description ?? null,
+        kakaoOpenChatUrl: kakaoOpenChatUrl?.trim() || null,
         status: "APPROVED",
         isActive: true,
         licenseVerified: false,

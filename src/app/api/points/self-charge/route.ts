@@ -3,8 +3,6 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole } from "@prisma/client"
 
-const ALLOWED_AMOUNTS = [10000, 30000, 50000, 100000, 300000, 500000, 1000000]
-
 // POST /api/points/self-charge — 유저 자가 포인트 충전 (결제 시뮬레이션)
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
@@ -21,8 +19,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { amount } = body as Record<string, unknown>
-  if (typeof amount !== "number" || !ALLOWED_AMOUNTS.includes(amount)) {
-    return NextResponse.json({ error: "올바른 충전 금액을 선택해 주세요." }, { status: 400 })
+  if (typeof amount !== "number" || !Number.isInteger(amount) || amount < 1000) {
+    return NextResponse.json({ error: "1,000P 이상 정수 금액을 입력해 주세요." }, { status: 400 })
   }
 
   const account = await prisma.pointAccount.upsert({

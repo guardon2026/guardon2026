@@ -37,6 +37,8 @@ interface ScheduleDay {
   date: string
   startTime: string
   endTime: string
+  endDate?: string
+  requiredCount?: number
 }
 
 interface SosRequestBody {
@@ -140,8 +142,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 3-1. 포인트 잔액 확인 (일급 × 필요 인원)
-  const requiredPoints = data.hourlyRate * data.requiredCount
+  // 3-1. 포인트 잔액 확인 (일급 × 필요 인원 + 5% 가드온 수수료)
+  const totalCount = data.scheduleDays
+    ? data.scheduleDays.reduce((sum, d) => sum + (d.requiredCount ?? 1), 0)
+    : data.requiredCount
+  const laborCost = data.hourlyRate * totalCount
+  const serviceFee = Math.ceil(laborCost * 0.05)
+  const requiredPoints = laborCost + serviceFee
   const pointAccount = await prisma.pointAccount.findUnique({
     where: { userId: authResult.userId },
   })
@@ -212,7 +219,7 @@ export async function POST(req: NextRequest) {
         accountId: pointAccount.id,
         amount: -requiredPoints,
         type: "SOS_DEDUCT",
-        description: `SOS 요청: ${data.title} (${data.requiredCount}명 × ${data.hourlyRate.toLocaleString()}원)`,
+        description: `SOS 요청: ${data.title} (인건비 ${laborCost.toLocaleString()}원 + 수수료 ${serviceFee.toLocaleString()}원)`,
         sosRequestId: sosRequest.id,
       },
     }),

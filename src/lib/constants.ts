@@ -336,7 +336,7 @@ export const SOS_FORM = {
     HOURLY_RATE_LABEL:    "일급",
     HOURLY_RATE_PLACEHOLDER: "숫자로만 기입",
     HOURLY_RATE_UNIT:     "원",
-    DESCRIPTION_LABEL:    "추가 설명 (선택)",
+    DESCRIPTION_LABEL:    "추가 설명",
     DESCRIPTION_PLACEHOLDER: "업무 내용, 준비물 등을 입력해 주세요.",
   },
 
