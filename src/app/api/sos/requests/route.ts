@@ -73,6 +73,7 @@ interface SosRequestBody {
   dressCode?: string | null
   dressCodeNote?: string | null
   description?: string | null
+  receiptInfo?: unknown | null
 }
 
 const VALID_DRESS_CODES = ["FORMAL", "TACTICAL", "CASUAL", "OTHER"]
@@ -152,6 +153,7 @@ function parseBody(body: unknown): SosRequestBody | null {
     dressCode: typeof b.dressCode === "string" ? b.dressCode.trim() || null : null,
     dressCodeNote: typeof b.dressCodeNote === "string" ? b.dressCodeNote.trim() || null : null,
     description: typeof b.description === "string" ? b.description.trim() || null : null,
+    receiptInfo: b.receiptInfo != null && typeof b.receiptInfo === "object" ? b.receiptInfo : null,
   }
 }
 
@@ -193,13 +195,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 3-1. 포인트 잔액 확인 (일급 × 필요 인원 + 5% 가드온 수수료)
+  // 3-1. 포인트 잔액 확인 (일급 × 필요 인원 + 5% 가드온 수수료 + 수수료 부가세 10%)
   const totalCount = data.scheduleDays
     ? data.scheduleDays.reduce((sum, d) => sum + (d.requiredCount ?? 1), 0)
     : data.requiredCount
   const laborCost = data.hourlyRate * totalCount
   const serviceFee = Math.ceil(laborCost * 0.05)
-  const requiredPoints = laborCost + serviceFee
+  const vat = Math.ceil((laborCost + serviceFee) * 0.1)
+  const requiredPoints = laborCost + serviceFee + vat
   const pointAccount = await prisma.pointAccount.findUnique({
     where: { userId: authResult.userId },
   })
@@ -218,6 +221,15 @@ export async function POST(req: NextRequest) {
   const scheduledAt = new Date(data.scheduledAt)
   if (isNaN(scheduledAt.getTime())) {
     return NextResponse.json({ error: "배치 날짜·시간 형식이 올바르지 않습니다." }, { status: 400 })
+  }
+
+  // 최소 12시간 전 신청 조건 검증
+  const minScheduledAt = new Date(Date.now() + 12 * 60 * 60 * 1000)
+  if (scheduledAt < minScheduledAt) {
+    return NextResponse.json(
+      { error: "배치 시작 일시는 현재 시각으로부터 최소 12시간 이후여야 합니다." },
+      { status: 400 }
+    )
   }
   let scheduledEndAt: Date | null = null
   if (data.scheduledEndAt) {
@@ -280,6 +292,7 @@ export async function POST(req: NextRequest) {
       dressCode: data.dressCode,
       dressCodeNote: data.dressCodeNote,
       description: data.description,
+      receiptInfo: data.receiptInfo != null ? (data.receiptInfo as Prisma.InputJsonValue) : Prisma.JsonNull,
       status: SosStatus.DISPATCHING,
       dispatchedAt: new Date(),
     },
@@ -296,7 +309,7 @@ export async function POST(req: NextRequest) {
         accountId: pointAccount.id,
         amount: -requiredPoints,
         type: "SOS_DEDUCT",
-        description: `SOS 요청: ${data.title} (인건비 ${laborCost.toLocaleString()}원 + 수수료 ${serviceFee.toLocaleString()}원)`,
+        description: `SOS 요청: ${data.title} (인건비 ${laborCost.toLocaleString()}원 + 서비스 비용 ${serviceFee.toLocaleString()}원 + 부가세 ${vat.toLocaleString()}원)`,
         sosRequestId: sosRequest.id,
       },
     }),

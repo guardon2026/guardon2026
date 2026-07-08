@@ -5,6 +5,7 @@ import { UserRole } from "@prisma/client"
 import { PageHeader } from "@/components/ui/page-header"
 import { Coins, TrendingDown, ArrowDownCircle } from "lucide-react"
 import ChargeButton from "./ChargeButton"
+import WithdrawButton from "./WithdrawButton"
 
 function relativeTime(date: Date): string {
   const diff = Math.floor((Date.now() - date.getTime()) / 1000)
@@ -21,6 +22,8 @@ function txTypeLabel(type: string) {
     case "WORKER_DEDUCT": return "SOS 수락 보증금"
     case "WORKER_CREDIT": return "SOS 임무 완료 정산"
     case "REFUND":        return "환불"
+    case "WITHDRAWAL":    return "출금 신청"
+    case "CANCEL_COMPENSATION": return "취소 수수료 수취"
     default:              return type
   }
 }
@@ -47,7 +50,10 @@ export default async function WorkerPointsPage() {
     <div className="space-y-6 pb-10">
       <div className="flex items-center justify-between">
         <PageHeader title="포인트 내역" />
-        <ChargeButton />
+        <div className="flex items-center gap-2">
+          <WithdrawButton balance={balance} />
+          <ChargeButton />
+        </div>
       </div>
 
       {/* 잔액 카드 */}

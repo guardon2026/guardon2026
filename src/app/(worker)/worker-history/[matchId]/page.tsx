@@ -7,6 +7,7 @@ import { UserRole, SosMatchStatus } from "@prisma/client"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_STATUS_LABELS } from "@/lib/constants"
 import MissionCompleteButton from "./MissionCompleteButton"
+import WorkerCancelButton from "./WorkerCancelButton"
 
 function fmtDate(date: Date) {
   return date.toLocaleString("ko-KR", {
@@ -92,6 +93,26 @@ export default async function WorkerSosDetailPage({
 
   const req = match.sosRequest
   const scheduleDays = (req.scheduleDays as unknown as ScheduleDay[] | null) ?? null
+
+  // 수락 취소 가능 여부 계산 (ACCEPTED 상태만)
+  const acceptedAt = match.respondedAt ?? match.notifiedAt
+  const elapsedMs = Date.now() - new Date(acceptedAt).getTime()
+  const withinOneHour = elapsedMs <= 60 * 60 * 1000
+
+  // 보증 포인트 조회 (WORKER_DEDUCT 거래)
+  const workerProfile2 = await prisma.workerProfile.findUnique({
+    where: { id: workerProfile.id },
+    select: { userId: true },
+  })
+  const workerAccount = workerProfile2
+    ? await prisma.pointAccount.findUnique({ where: { userId: workerProfile2.userId } })
+    : null
+  const workerDeductTx = workerAccount
+    ? await prisma.pointTransaction.findFirst({
+        where: { sosRequestId: req.id, type: "WORKER_DEDUCT", accountId: workerAccount.id },
+      })
+    : null
+  const workerFee = workerDeductTx ? Math.abs(workerDeductTx.amount) : 0
 
   return (
     <div className="space-y-5 pb-10">
@@ -214,6 +235,15 @@ export default async function WorkerSosDetailPage({
         <InfoSection title="상세 설명" icon={FileText}>
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{req.description}</p>
         </InfoSection>
+      )}
+
+      {/* 수락 취소 버튼 — ACCEPTED 상태일 때만 표시 */}
+      {match.status === SosMatchStatus.ACCEPTED && (
+        <WorkerCancelButton
+          matchId={match.id}
+          withinOneHour={withinOneHour}
+          workerFee={workerFee}
+        />
       )}
 
       {/* 임무 완료 보고 버튼 — CONFIRMED 매치이고 SOS가 진행 중일 때만 표시 */}

@@ -1,11 +1,12 @@
-import { prisma } from "@/lib/prisma"
+﻿import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { redirect } from "next/navigation"
+import Link from "next/link"
 import { PageHeader } from "@/components/ui/page-header"
 import { DataTable } from "@/components/ui/data-table"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Zap } from "lucide-react"
+import { Zap, Receipt } from "lucide-react"
 import { ADMIN_LABELS, SOS_STATUS_LABELS, WORK_FIELD_LABELS } from "@/lib/constants"
 import type { StatusVariant } from "@/components/ui/status-badge"
 import { AdminPatchButton } from "@/components/admin/AdminPatchButton"
@@ -48,6 +49,7 @@ export default async function SosMonitorPage() {
     field: string
     requestedAt: string
     matchStatus: React.ReactNode
+    receipt: React.ReactNode
     status: React.ReactNode
     applications: string
     actions: React.ReactNode
@@ -59,6 +61,8 @@ export default async function SosMonitorPage() {
       (m) => m.status === "ACCEPTED" || m.status === "CONFIRMED"
     ).length
     const isFulfilled = acceptedCount >= sos.requiredCount
+    const hasReceipt = sos.receiptInfo != null && typeof sos.receiptInfo === "object" &&
+      (sos.receiptInfo as Record<string, unknown>).type !== undefined
 
     let rowClass = ""
     if (sos.status === "CONFIRMED" || sos.status === "COMPLETED") rowClass = "bg-green-50/30"
@@ -82,6 +86,11 @@ export default async function SosMonitorPage() {
         <span className={isFulfilled ? "text-green-600 font-medium text-sm" : "text-gray-500 text-sm"}>
           {acceptedCount}/{sos.requiredCount}명
         </span>
+      ),
+      receipt: hasReceipt ? (
+        <Receipt className="w-4 h-4 text-amber-500" />
+      ) : (
+        <span className="text-gray-300 text-xs">—</span>
       ),
       status: (
         <StatusBadge
@@ -140,9 +149,22 @@ export default async function SosMonitorPage() {
               { key: "field", label: "분야" },
               { key: "requestedAt", label: "요청 시각" },
               { key: "matchStatus", label: "매칭 현황", render: (row) => row.matchStatus },
+              { key: "receipt", label: "영수증", render: (row) => row.receipt },
               { key: "applications", label: "신청" },
               { key: "status", label: "상태", render: (row) => row.status },
               { key: "actions", label: "운영 처리", render: (row) => row.actions },
+              {
+                key: "id",
+                label: "",
+                render: (row) => (
+                  <Link
+                    href={`/sos-monitor/${row.id}`}
+                    className="text-xs text-brand hover:underline font-medium"
+                  >
+                    상세
+                  </Link>
+                ),
+              },
             ]}
             data={rows}
             emptyMessage={ADMIN_LABELS.SOS_MONITOR_EMPTY}

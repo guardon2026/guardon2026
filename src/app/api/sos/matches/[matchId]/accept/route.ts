@@ -91,7 +91,7 @@ export async function POST(
     }),
   ])
 
-  // 6. 업체 대표에게 수락 알림 발송
+  // 6. 업체 대표에게 수락 알림 + 경비 인력에게 안내 알림 발송
   const workerName = session.user.name ?? "경비 인력"
   const sosTitle = match.sosRequest.title
   const companyOwnerId = match.sosRequest.company.ownerId

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 })
   }
 
-  const { amount } = body as Record<string, unknown>
+  const { amount, receiptInfo } = body as Record<string, unknown>
   if (typeof amount !== "number" || !Number.isInteger(amount) || amount < 1000) {
     return NextResponse.json({ error: "1,000P 이상 정수 금액을 입력해 주세요." }, { status: 400 })
   }
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
         amount,
         type: "SELF_CHARGE",
         description: `포인트 충전 ${amount.toLocaleString()}원`,
+        ...(receiptInfo && typeof receiptInfo === "object" ? { receiptInfo } : {}),
       },
     }),
   ])

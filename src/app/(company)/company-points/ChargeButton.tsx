@@ -16,7 +16,7 @@ export default function ChargeButton() {
         <Coins className="w-4 h-4" />
         포인트 충전
       </button>
-      {open && <PointChargeModal onClose={() => setOpen(false)} />}
+      {open && <PointChargeModal onClose={() => setOpen(false)} showReceipt />}
     </>
   )
 }

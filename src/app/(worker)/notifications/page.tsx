@@ -316,6 +316,7 @@ type SystemItem = {
   id: string
   title: string
   body: string
+  type: string
   isRead: boolean
   createdAt: Date
   sosRequestId: string | null
@@ -398,6 +399,7 @@ export default async function NotificationsPage() {
     id: n.id,
     title: n.title,
     body: n.body,
+    type: n.type,
     isRead: n.isRead,
     createdAt: new Date(n.createdAt),
     sosRequestId: n.sosRequestId,
@@ -440,6 +442,7 @@ export default async function NotificationsPage() {
                 id={item.id}
                 title={item.title}
                 body={item.body}
+                type={item.type}
                 isRead={item.isRead}
                 createdAt={item.createdAt}
                 sosRequestId={item.sosRequestId}

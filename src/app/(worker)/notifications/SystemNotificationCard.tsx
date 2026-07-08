@@ -70,12 +70,13 @@ interface Props {
   id: string
   title: string
   body: string
+  type?: string
   isRead: boolean
   createdAt: Date
   sosRequestId: string | null
 }
 
-export default function SystemNotificationCard({ title, body, isRead, createdAt, sosRequestId }: Props) {
+export default function SystemNotificationCard({ title, body, type, isRead, createdAt, sosRequestId }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [sosDetail, setSosDetail] = useState<SosDetail | null>(null)
@@ -120,7 +121,7 @@ export default function SystemNotificationCard({ title, body, isRead, createdAt,
           <p className="text-xs text-gray-400">{relativeTime(createdAt)}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0 pt-0.5">
-          <StatusBadge variant="sos" label="변경 안내" />
+          <StatusBadge variant="sos" label={type === "SYSTEM_NOTICE" ? "시스템 안내" : "변경 안내"} />
           {loading && <Loader2 size={15} className="animate-spin text-gray-400" />}
           {!loading && canExpand && (
             <span className="text-gray-400">

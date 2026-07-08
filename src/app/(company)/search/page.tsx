@@ -181,6 +181,10 @@ export default function SearchPage() {
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     setError("")
+    if (!centerAddress.trim() && !centerCoords) {
+      setError("검색 기준지를 설정해 주세요.")
+      return
+    }
     setSearching(true)
 
     try {

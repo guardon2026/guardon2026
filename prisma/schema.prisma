@@ -350,6 +350,7 @@ model SosRequest {
   dressCode           String?                        // 복장 규정: FORMAL | TACTICAL | CASUAL | OTHER
   dressCodeNote       String?                        // 기타 복장 규정 설명
   description         String?
+  receiptInfo         Json?                              // 현금영수증/세금계산서 발행 정보
   status              SosStatus   @default(DISPATCHING)  // FR23
   radiusKm            Float       @default(20)           // 현재 발송 반경 (FR19)
   dispatchedAt        DateTime?                          // 알림 최초 발송 시각
@@ -634,6 +635,7 @@ model PointTransaction {
   type         String   // ADMIN_CHARGE | SOS_DEDUCT | WORKER_DEDUCT | REFUND
   description  String
   sosRequestId String?
+  receiptInfo  Json?
   createdAt    DateTime @default(now())
 
   account PointAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)

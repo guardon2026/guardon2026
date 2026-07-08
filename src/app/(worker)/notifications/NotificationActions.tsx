@@ -2,8 +2,11 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Coins, Zap } from "lucide-react"
+import { Coins, Zap, AlertTriangle } from "lucide-react"
 import { SOS_NOTIFICATION_LABELS } from "@/lib/constants"
+
+const ACCEPT_NOTICE =
+  "알고 계신가요? 특수한 상황이 발생해 SOS 긴급 요청 수락 후 1시간 이내에 취소하지 않으면, 보증 포인트는 업체 대표에게 취소 수수료로 자동 지급됩니다."
 
 export default function NotificationActions({ matchId }: { matchId: string }) {
   const router = useRouter()
@@ -11,6 +14,7 @@ export default function NotificationActions({ matchId }: { matchId: string }) {
   const [actionType, setActionType] = useState<"accept" | "reject" | "charge-accept" | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [shortfall, setShortfall] = useState<number>(0)
+  const [showNotice, setShowNotice] = useState(false)
 
   async function tryAccept() {
     const res = await fetch(`/api/sos/matches/${matchId}/accept`, { method: "POST" })
@@ -28,10 +32,15 @@ export default function NotificationActions({ matchId }: { matchId: string }) {
     return true
   }
 
-  async function handleAccept() {
-    setActionType("accept")
+  function handleAcceptClick() {
     setError(null)
     setShortfall(0)
+    setShowNotice(true)
+  }
+
+  async function handleAcceptConfirm() {
+    setShowNotice(false)
+    setActionType("accept")
     const ok = await tryAccept()
     if (ok) startTransition(() => router.refresh())
     else setActionType(null)
@@ -79,6 +88,35 @@ export default function NotificationActions({ matchId }: { matchId: string }) {
 
   return (
     <div className="space-y-2">
+      {/* 수락 전 안내 팝업 */}
+      {showNotice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-gray-800 leading-relaxed">{ACCEPT_NOTICE}</p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowNotice(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleAcceptConfirm}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                수락하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 포인트 부족 시 — 즉시 충전 + 수락 버튼 */}
       {shortfall > 0 && (
         <button
@@ -103,7 +141,7 @@ export default function NotificationActions({ matchId }: { matchId: string }) {
         <button
           type="button"
           disabled={isLoading}
-          onClick={handleAccept}
+          onClick={handleAcceptClick}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
           <Zap className="w-3.5 h-3.5" />

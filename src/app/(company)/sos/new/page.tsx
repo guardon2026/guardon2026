@@ -183,6 +183,13 @@ function formatComma(raw: string): string {
   return Number(digits).toLocaleString("ko-KR")
 }
 
+function formatBusinessNumber(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 10)
+  if (digits.length <= 3) return digits
+  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`
+  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`
+}
+
 function formatPhoneNumber(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 11)
   if (digits.startsWith("02")) {
@@ -206,6 +213,13 @@ export default function SosNewPage() {
 
   // 근무일 목록 — 초기값은 고정 ID (hydration 일치)
   const [workDays, setWorkDays] = useState<WorkDay[]>([INITIAL_DAY])
+  // 로컬 날짜 (UTC 아님 — UTC 기준 시 한국 시간과 날짜가 달라질 수 있음)
+  const localToday = new Date()
+  const todayStr = [
+    localToday.getFullYear(),
+    String(localToday.getMonth() + 1).padStart(2, "0"),
+    String(localToday.getDate()).padStart(2, "0"),
+  ].join("-")
   // 날짜 입력 ref 배열 (submit 시 직접 읽기 — onChange 미발생 대비)
   const startDateRefsMap = useRef<Map<number, HTMLInputElement>>(new Map())
   const endDateRefsMap = useRef<Map<number, HTMLInputElement>>(new Map())
@@ -231,9 +245,56 @@ export default function SosNewPage() {
   const [insufficientPoints, setInsufficientPoints] = useState(false)
   const [chargeModalOpen, setChargeModalOpen] = useState(false)
   const [pointShortfall, setPointShortfall] = useState(0)
+  const [pointRequired, setPointRequired] = useState(0)
+  const [pointCurrent, setPointCurrent] = useState(0)
 
   const workFieldOptions = SOS_WORK_FIELD_OPTIONS as unknown as WorkField[]
   const credentialOptions = SOS_CREDENTIAL_OPTIONS as unknown as CredentialType[]
+
+  // 영수증/세금계산서
+  const [receiptType, setReceiptType] = useState<"CASH_RECEIPT" | "TAX_INVOICE">("CASH_RECEIPT")
+  // 현금영수증
+  const [cashReceiptPurpose, setCashReceiptPurpose] = useState<"INCOME" | "EXPENSE">("INCOME")
+  const [cashReceiptNumber, setCashReceiptNumber] = useState("")
+  // 세금계산서
+  const [taxBusinessNumber, setTaxBusinessNumber] = useState("")
+  const [taxCompanyName, setTaxCompanyName] = useState("")
+  const [taxCeoName, setTaxCeoName] = useState("")
+  const [taxEmail, setTaxEmail] = useState("")
+  const [taxEmailError, setTaxEmailError] = useState("")
+
+  // 직전 충전 영수증 자동 적용
+  const [lastReceipt, setLastReceipt] = useState<Record<string, string> | null>(null)
+  const [lastReceiptDate, setLastReceiptDate] = useState<string | null>(null)
+  const [receiptBannerDismissed, setReceiptBannerDismissed] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/points/last-receipt")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.receiptInfo) {
+          setLastReceipt(data.receiptInfo)
+          setLastReceiptDate(data.createdAt ?? null)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  function applyLastReceipt() {
+    if (!lastReceipt) return
+    setReceiptType(lastReceipt.type as "CASH_RECEIPT" | "TAX_INVOICE")
+    if (lastReceipt.type === "CASH_RECEIPT") {
+      setCashReceiptPurpose((lastReceipt.purpose ?? "INCOME") as "INCOME" | "EXPENSE")
+      setCashReceiptNumber(lastReceipt.number ?? "")
+    } else {
+      setTaxBusinessNumber(lastReceipt.businessNumber ?? "")
+      setTaxCompanyName(lastReceipt.companyName ?? "")
+      setTaxCeoName(lastReceipt.ceoName ?? "")
+      setTaxEmail(lastReceipt.email ?? "")
+      setTaxEmailError("")
+    }
+    setReceiptBannerDismissed(true)
+  }
 
   const [addrModalOpen, setAddrModalOpen] = useState(false)
   const [daumLoading, setDaumLoading] = useState(false)
@@ -331,10 +392,17 @@ export default function SosNewPage() {
       if (!d.date || !d.endDate || !d.startTime || !d.endTime) return false
       return new Date(`${d.endDate}T${d.endTime}`) <= new Date(`${d.date}T${d.startTime}`)
     })
+    // 최소 12시간 전 신청 조건
+    const minStart = new Date(Date.now() + 12 * 60 * 60 * 1000)
+    const hasTooSoon = days.some((d) => {
+      if (!d.date || !d.startTime) return false
+      return new Date(`${d.date}T${d.startTime}`) < minStart
+    })
 
     if (hasEmptyDate) newErrors.workDays = "모든 근무일의 날짜를 입력해 주세요."
     else if (hasEmptyTime) newErrors.workDays = "모든 근무일의 시작·종료 시간을 입력해 주세요."
     else if (hasInvalidTime) newErrors.workDays = "종료 일시는 시작 일시보다 이후여야 합니다."
+    else if (hasTooSoon) newErrors.workDays = "배치 시작 일시는 현재 시각으로부터 최소 12시간 이후여야 합니다."
 
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
     if (!hourlyRate || Number(hourlyRate.replace(/,/g, "")) < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
@@ -399,14 +467,21 @@ export default function SosNewPage() {
             .filter(Boolean)
             .join("\n") || null,
           description: description.trim() || null,
+          receiptInfo: receiptType === "CASH_RECEIPT"
+            ? { type: "CASH_RECEIPT", purpose: cashReceiptPurpose, number: cashReceiptNumber.trim() }
+            : { type: "TAX_INVOICE", businessNumber: taxBusinessNumber.trim(), companyName: taxCompanyName.trim(), ceoName: taxCeoName.trim(), email: taxEmail.trim() },
         }),
       })
       if (!res.ok) {
         const data = await res.json()
         if (res.status === 402) {
           setInsufficientPoints(true)
-          setSubmitError(data.error ?? "포인트가 부족합니다.")
-          const shortfall = (data.requiredPoints ?? 0) - (data.currentBalance ?? 0)
+          setSubmitError("")
+          const req = data.requiredPoints ?? 0
+          const cur = data.currentBalance ?? 0
+          setPointRequired(req)
+          setPointCurrent(cur)
+          const shortfall = req - cur
           setPointShortfall(shortfall > 0 ? shortfall : 0)
         } else {
           setInsufficientPoints(false)
@@ -430,7 +505,8 @@ export default function SosNewPage() {
   const totalRequiredCount = workDays.reduce((sum, d) => sum + (d.requiredCount || 1), 0)
   const laborCost = rateNum * totalRequiredCount
   const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
-  const totalCharge = laborCost + serviceFee
+  const vat = rateNum > 0 ? Math.ceil((laborCost + serviceFee) * 0.1) : 0
+  const totalCharge = laborCost + serviceFee + vat
 
   // 요약 표시
   const daysWithDates = workDays.filter((d) => d.date)
@@ -591,6 +667,9 @@ export default function SosNewPage() {
                     날짜 추가
                   </button>
                 </div>
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  ⏰ 배치 시작 일시는 현재 시각으로부터 <span className="font-semibold">최소 12시간 이후</span>부터 신청 가능합니다.
+                </p>
 
                 {/* 근무일 테이블 */}
                 <div className="rounded-xl border border-gray-200 overflow-hidden">
@@ -610,19 +689,31 @@ export default function SosNewPage() {
                       day.date && day.endDate && day.startTime && day.endTime &&
                       new Date(`${day.endDate}T${day.endTime}`) <= new Date(`${day.date}T${day.startTime}`)
                     )
+                    const minAllowed = new Date(Date.now() + 12 * 60 * 60 * 1000)
+                    const isTooSoon = !!(
+                      day.date && day.startTime &&
+                      new Date(`${day.date}T${day.startTime}`) < minAllowed
+                    )
+                    const minAllowedStr = isTooSoon
+                      ? minAllowed.toLocaleString("ko-KR", {
+                          month: "numeric", day: "numeric",
+                          hour: "2-digit", minute: "2-digit", hour12: true,
+                        })
+                      : ""
                     return (
-                      <div
-                        key={day.id}
-                        className={`grid grid-cols-[1fr_80px_1fr_80px_72px_36px] items-center px-3 py-2.5 gap-2
-                          ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
-                          ${idx < workDays.length - 1 ? "border-b border-gray-100" : ""}
-                        `}
-                      >
+                      <div key={day.id}>
+                        <div
+                          className={`grid grid-cols-[1fr_80px_1fr_80px_72px_36px] items-center px-3 py-2.5 gap-2
+                            ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}
+                            ${idx < workDays.length - 1 && !isTooSoon ? "border-b border-gray-100" : ""}
+                          `}
+                        >
                         {/* 시작 날짜 */}
                         <input
                           type="date"
                           ref={(el) => { if (el) startDateRefsMap.current.set(day.id, el) }}
                           defaultValue={day.date}
+                          min={todayStr}
                           onChange={(e) => updateDay(day.id, "date", e.target.value)}
                           className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm w-full focus:outline-none focus:ring-2 focus:ring-brand"
                         />
@@ -694,6 +785,13 @@ export default function SosNewPage() {
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
+                        </div>
+                        {isTooSoon && (
+                          <p className={`text-xs text-red-600 px-3 py-1.5 bg-red-50 border-t border-red-100
+                            ${idx < workDays.length - 1 ? "border-b border-b-gray-100" : ""}`}>
+                            ⚠️ 현재 시각으로부터 12시간 이내입니다. {minAllowedStr} 이후로 시작 일시를 조정해 주세요.
+                          </p>
+                        )}
                       </div>
                     )
                   })}
@@ -897,6 +995,160 @@ export default function SosNewPage() {
                 </div>
               </div>
 
+              {/* 영수증 / 세금계산서 발행 */}
+              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">지출 영수증 발행</p>
+                <p className="text-xs text-gray-500 -mt-2">SOS 확정 후 인건비 + 가드온 수수료 합산 금액에 대한 지출 영수증(현금영수증 또는 세금계산서)을 발행해 드립니다.</p>
+
+                {/* 직전 충전 영수증 자동 적용 배너 */}
+                {lastReceipt && !receiptBannerDismissed && (
+                  <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-blue-800">직전 지출 영수증 발행 정보를 적용하시겠습니까?</p>
+                      <p className="text-xs text-blue-600 mt-0.5">
+                        {lastReceipt.type === "CASH_RECEIPT"
+                          ? `현금영수증 · ${lastReceipt.purpose === "INCOME" ? "소득공제용" : "지출증빙용"} · ${lastReceipt.number ?? ""}`
+                          : `세금계산서 · ${lastReceipt.companyName ?? ""} · ${lastReceipt.businessNumber ?? ""}`}
+                        {lastReceiptDate && (
+                          <span className="ml-1 text-blue-400">
+                            ({new Date(lastReceiptDate).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 충전 시 등록)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={applyLastReceipt}
+                        className="text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors"
+                      >
+                        적용
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReceiptBannerDismissed(true)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 rounded-lg px-2 py-1.5 transition-colors"
+                      >
+                        닫기
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 발행 유형 선택 */}
+                <div className="flex gap-3">
+                  {([
+                    { value: "CASH_RECEIPT", label: "현금영수증" },
+                    { value: "TAX_INVOICE", label: "세금계산서" },
+                  ] as const).map(({ value, label }) => (
+                    <label key={value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="receiptType"
+                        value={value}
+                        checked={receiptType === value}
+                        onChange={() => setReceiptType(value)}
+                        className="accent-brand"
+                      />
+                      <span className="text-sm text-gray-700">{label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* 현금영수증 */}
+                {receiptType === "CASH_RECEIPT" && (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex gap-4">
+                      {([
+                        { value: "INCOME", label: "소득공제용 (휴대폰번호)" },
+                        { value: "EXPENSE", label: "지출증빙용 (사업자번호)" },
+                      ] as const).map(({ value, label }) => (
+                        <label key={value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="cashReceiptPurpose"
+                            value={value}
+                            checked={cashReceiptPurpose === value}
+                            onChange={() => { setCashReceiptPurpose(value); setCashReceiptNumber("") }}
+                            className="accent-brand"
+                          />
+                          <span className="text-sm text-gray-700">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={cashReceiptNumber}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^\d]/g, "")
+                        setCashReceiptNumber(
+                          cashReceiptPurpose === "INCOME" ? formatPhoneNumber(raw) : formatBusinessNumber(raw)
+                        )
+                      }}
+                      placeholder={cashReceiptPurpose === "INCOME" ? "예) 010-1234-5678" : "예) 123-45-67890"}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </div>
+                )}
+
+                {/* 세금계산서 */}
+                {receiptType === "TAX_INVOICE" && (
+                  <div className="space-y-3 pt-1">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-600">사업자등록번호 <span className="text-sos">*</span></label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={taxBusinessNumber}
+                          onChange={(e) => setTaxBusinessNumber(formatBusinessNumber(e.target.value.replace(/\D/g, "")))}
+                          placeholder="000-00-00000"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-600">상호 <span className="text-sos">*</span></label>
+                        <input
+                          type="text"
+                          value={taxCompanyName}
+                          onChange={(e) => setTaxCompanyName(e.target.value)}
+                          placeholder="법인명 또는 상호"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-600">대표자명 <span className="text-sos">*</span></label>
+                        <input
+                          type="text"
+                          value={taxCeoName}
+                          onChange={(e) => setTaxCeoName(e.target.value)}
+                          placeholder="홍길동"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-gray-600">이메일 <span className="text-sos">*</span></label>
+                        <input
+                          type="text"
+                          inputMode="email"
+                          value={taxEmail}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            setTaxEmail(v)
+                            setTaxEmailError(v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "올바른 이메일 형식이 아닙니다." : "")
+                          }}
+                          placeholder="tax@example.com"
+                          className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${taxEmailError ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                        />
+                        {taxEmailError && <p className="text-xs text-red-500 mt-1">{taxEmailError}</p>}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">입력하신 이메일로 세금계산서가 발송됩니다.</p>
+                  </div>
+                )}
+              </div>
+
               {/* 결제 내역 */}
               {rateNum > 0 && (
                 <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-4 space-y-2 text-sm">
@@ -906,8 +1158,12 @@ export default function SosNewPage() {
                     <span>{laborCost.toLocaleString()}P</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
-                    <span>가드온 수수료 (5%)</span>
+                    <span>SOS 긴급 요청 서비스 비용 (5%)</span>
                     <span>{serviceFee.toLocaleString()}P</span>
+                  </div>
+                  <div className="flex justify-between text-gray-600">
+                    <span>부가세 (인건비 + 서비스 비용의 10%)</span>
+                    <span>{vat.toLocaleString()}P</span>
                   </div>
                   <div className="h-px bg-gray-200" />
                   <div className="flex justify-between font-bold text-gray-900">
@@ -917,20 +1173,38 @@ export default function SosNewPage() {
                 </div>
               )}
 
-              {submitError && (
+              {(submitError || insufficientPoints) && (
                 <div className="space-y-3">
-                  <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-sos">
-                    {submitError}
-                  </div>
-                  {insufficientPoints && (
-                    <button
-                      type="button"
-                      onClick={() => setChargeModalOpen(true)}
-                      className="w-full h-12 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl transition-colors"
-                    >
-                      <Coins className="w-4 h-4" />
-                      포인트 즉시 충전하고 SOS 긴급 요청 발송하기
-                    </button>
+                  {insufficientPoints ? (
+                    <div className="rounded-xl bg-red-50 border border-red-200 p-4 space-y-3">
+                      <p className="text-sm font-semibold text-sos">포인트가 부족합니다.</p>
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">보유 포인트</span>
+                          <span className="font-medium text-gray-800">{pointCurrent.toLocaleString()}P</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">필요 포인트</span>
+                          <span className="font-medium text-gray-800">{pointRequired.toLocaleString()}P</span>
+                        </div>
+                        <div className="flex justify-between border-t border-red-200 pt-1.5">
+                          <span className="font-semibold text-sos">부족 포인트</span>
+                          <span className="font-bold text-sos">{(pointRequired - pointCurrent).toLocaleString()}P</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setChargeModalOpen(true)}
+                        className="w-full h-11 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm rounded-xl transition-colors"
+                      >
+                        <Coins className="w-4 h-4" />
+                        포인트 즉시 충전하고 SOS 긴급 요청 발송하기
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-sos">
+                      {submitError}
+                    </div>
                   )}
                 </div>
               )}
@@ -1024,6 +1298,7 @@ export default function SosNewPage() {
         {chargeModalOpen && (
           <PointChargeModal
             shortfall={pointShortfall}
+            showReceipt
             onClose={() => setChargeModalOpen(false)}
             onSuccess={() => {
               setChargeModalOpen(false)
