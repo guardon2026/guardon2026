@@ -41,7 +41,7 @@ export async function createNotifications(items: NotificationInput[]): Promise<v
   })
 
   // 카카오 로그인 유저 필터링 후 메시지 발송 (fire-and-forget)
-  const userIds = [...new Set(items.map((n) => n.userId))]
+  const userIds = Array.from(new Set(items.map((n) => n.userId)))
   const kakaoAccounts = await prisma.account.findMany({
     where: { userId: { in: userIds }, provider: "kakao" },
     select: { userId: true },

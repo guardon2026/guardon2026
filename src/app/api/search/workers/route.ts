@@ -3,6 +3,15 @@ import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { AvailabilityStatus, CredentialStatus } from "@prisma/client"
 
+// PostgreSQL raw 쿼리에서 배열이 문자열로 올 수 있어 정규화
+function toArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value as string[]
+  if (typeof value === "string") {
+    return value.replace(/^{|}$/g, "").split(",").filter(Boolean)
+  }
+  return []
+}
+
 // GET /api/search/workers
 // 쿼리 파라미터: lat, lng, radiusKm(default 20), workField, credentialType,
 //               availability(default AVAILABLE), minExperience(default 0)
@@ -163,15 +172,6 @@ export async function GET(req: NextRequest) {
         credentialMap[cred.workerProfileId] = []
       }
       credentialMap[cred.workerProfileId].push(cred)
-    }
-
-    // PostgreSQL raw 쿼리에서 배열이 문자열로 올 수 있어 정규화
-    function toArray(value: unknown): string[] {
-      if (Array.isArray(value)) return value as string[]
-      if (typeof value === "string") {
-        return value.replace(/^{|}$/g, "").split(",").filter(Boolean)
-      }
-      return []
     }
 
     // 응답 데이터 조합

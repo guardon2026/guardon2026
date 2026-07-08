@@ -11,7 +11,14 @@ export default async function PendingPage() {
 
   const company = await prisma.company.findUnique({
     where: { ownerId: session.user.id },
-    select: { status: true, name: true, licenseNumber: true, createdAt: true },
+    select: {
+      status: true,
+      name: true,
+      licenseNumber: true,
+      businessRegistrationNumber: true,
+      rejectionReason: true,
+      createdAt: true,
+    },
   })
 
   if (!company) redirect("/register")
@@ -107,6 +114,9 @@ export default async function PendingPage() {
           {isRejected && (
             <div className="mt-2 p-4 bg-red-50 border border-red-100 rounded-xl">
               <p className="text-sm text-sos font-medium">{COMPANY_PENDING.REJECTED_NOTICE}</p>
+              {company.rejectionReason && (
+                <p className="mt-2 text-sm text-red-800">반려 사유: {company.rejectionReason}</p>
+              )}
             </div>
           )}
         </div>
@@ -124,6 +134,11 @@ export default async function PendingPage() {
               <div className="w-4 h-4 shrink-0" />
               <span className="text-gray-500">허가번호</span>
               <span className="font-medium ml-auto">{company.licenseNumber}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 shrink-0" />
+              <span className="text-gray-500">사업자등록번호</span>
+              <span className="font-medium ml-auto">{company.businessRegistrationNumber ?? "-"}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 shrink-0" />

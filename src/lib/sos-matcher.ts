@@ -319,7 +319,7 @@ export async function matchSosRequestsForWorker(
       status: { in: [SosStatus.DISPATCHING, SosStatus.PENDING] },
       requiredFields: { hasSome: worker.workFields },
       id: alreadyNotifiedSosIds.size > 0
-        ? { notIn: [...alreadyNotifiedSosIds] }
+        ? { notIn: Array.from(alreadyNotifiedSosIds) }
         : undefined,
     },
     select: {

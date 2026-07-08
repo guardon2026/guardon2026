@@ -1,5 +1,6 @@
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
+import { saveCompanyDocument } from "@/lib/company-documents"
 
 // POST /api/company/register
 export async function POST(request: Request) {
@@ -17,42 +18,45 @@ export async function POST(request: Request) {
     )
   }
 
-  // 3. 이미 업체 등록 여부 확인 (ownerId unique constraint 사전 방어)
+  // 3. 이미 승인된 업체 등록 여부 확인 (ownerId unique constraint 사전 방어)
   const existing = await prisma.company.findUnique({
     where: { ownerId: session.user.id },
   })
-  if (existing) {
+  if (existing?.status === "APPROVED") {
     return Response.json(
-      { error: "이미 업체가 등록되어 있습니다.", code: "ALREADY_REGISTERED" },
+      { error: "이미 승인된 업체가 등록되어 있습니다.", code: "ALREADY_REGISTERED" },
       { status: 409 }
     )
   }
 
-  // 4. 요청 바디 파싱
-  let body: Record<string, unknown>
+  // 4. 요청 바디 파싱 (사업자등록증·경비업 증빙 파일 포함)
+  let formData: FormData
   try {
-    body = await request.json()
+    formData = await request.formData()
   } catch {
     return Response.json(
-      { error: "요청 형식이 올바르지 않습니다.", code: "INVALID_JSON" },
+      { error: "요청 형식이 올바르지 않습니다.", code: "INVALID_FORM_DATA" },
       { status: 400 }
     )
   }
 
-  const { name, licenseNumber, address, city, district, phone, description, kakaoOpenChatUrl } =
-    body as {
-      name?: string
-      licenseNumber?: string
-      address?: string
-      city?: string
-      district?: string
-      phone?: string
-      description?: string
-      kakaoOpenChatUrl?: string
-    }
+  const name = String(formData.get("name") ?? "").trim()
+  const licenseNumber = String(formData.get("licenseNumber") ?? "").trim()
+  const businessRegistrationNumber = String(formData.get("businessRegistrationNumber") ?? "").trim()
+  const address = String(formData.get("address") ?? "").trim()
+  const city = String(formData.get("city") ?? "").trim()
+  const district = String(formData.get("district") ?? "").trim()
+  const phone = String(formData.get("phone") ?? "").trim()
+  const description = String(formData.get("description") ?? "").trim()
+  const kakaoOpenChatUrl = String(formData.get("kakaoOpenChatUrl") ?? "").trim()
+  const businessRegistrationFile = formData.get("businessRegistrationFile")
+  const securityLicenseFile = formData.get("securityLicenseFile")
+  const additionalProofFiles = formData
+    .getAll("additionalProofFiles")
+    .filter((file): file is File => file instanceof File && file.size > 0)
 
   // 5. 서버 사이드 검증 (클라이언트 우회 방어)
-  if (!name || !licenseNumber || !address || !city || !district || !phone) {
+  if (!name || !licenseNumber || !businessRegistrationNumber || !address || !city || !district || !phone) {
     return Response.json(
       { error: "필수 항목을 모두 입력해 주세요.", code: "MISSING_FIELDS" },
       { status: 400 }
@@ -71,40 +75,128 @@ export async function POST(request: Request) {
     )
   }
 
+  const businessNumberRegex = /^\d{3}-?\d{2}-?\d{5}$/
+  if (!businessNumberRegex.test(businessRegistrationNumber)) {
+    return Response.json(
+      {
+        error: "사업자등록번호 형식이 올바르지 않습니다.",
+        field: "businessRegistrationNumber",
+        code: "INVALID_BUSINESS_NUMBER_FORMAT",
+      },
+      { status: 400 }
+    )
+  }
+
+  if (!(businessRegistrationFile instanceof File) || businessRegistrationFile.size === 0) {
+    return Response.json(
+      {
+        error: "사업자등록증 파일을 업로드해 주세요.",
+        field: "businessRegistrationFile",
+        code: "BUSINESS_DOCUMENT_REQUIRED",
+      },
+      { status: 400 }
+    )
+  }
+
+  if (!(securityLicenseFile instanceof File) || securityLicenseFile.size === 0) {
+    return Response.json(
+      {
+        error: "경비업 허가 또는 경호 가능 증빙 파일을 업로드해 주세요.",
+        field: "securityLicenseFile",
+        code: "SECURITY_DOCUMENT_REQUIRED",
+      },
+      { status: 400 }
+    )
+  }
+
   // 6. 허가번호 중복 확인
   const duplicate = await prisma.company.findUnique({
     where: { licenseNumber },
   })
-  if (duplicate) {
+  if (duplicate && duplicate.ownerId !== session.user.id) {
     return Response.json(
       { error: "이미 등록된 허가번호입니다.", code: "LICENSE_DUPLICATE" },
       { status: 409 }
     )
   }
 
-  // 7. Company 생성 (status=PENDING, isActive=false)
+  // 7. Company 생성 또는 재신청 갱신 (status=PENDING, isActive=false)
   try {
-    const company = await prisma.company.create({
-      data: {
-        ownerId: session.user.id,
-        name,
-        licenseNumber,
-        address,
-        city,
-        district,
-        phone,
-        description: description ?? null,
-        kakaoOpenChatUrl: kakaoOpenChatUrl?.trim() || null,
-        status: "APPROVED",
-        isActive: true,
-        licenseVerified: false,
-        approvedAt: new Date(),
-      },
-    })
+    const [businessRegistrationFileUrl, securityLicenseFileUrl, ...additionalProofFileUrls] =
+      await Promise.all([
+        saveCompanyDocument(businessRegistrationFile, session.user.id, "business-registration"),
+        saveCompanyDocument(securityLicenseFile, session.user.id, "security-proof"),
+        ...additionalProofFiles.map((file, index) =>
+          saveCompanyDocument(file, session.user.id, `additional-proof-${index + 1}`)
+        ),
+      ])
+
+    const data = {
+      name,
+      licenseNumber,
+      businessRegistrationNumber,
+      businessRegistrationFileUrl,
+      securityLicenseFileUrl,
+      additionalProofFileUrls,
+      address,
+      city,
+      district,
+      phone,
+      description: description || null,
+      kakaoOpenChatUrl: kakaoOpenChatUrl || null,
+      status: "PENDING" as const,
+      isActive: false,
+      licenseVerified: false,
+      approvedAt: null,
+      rejectedAt: null,
+      rejectionReason: null,
+      reviewedAt: null,
+    }
+
+    const company = existing
+      ? await prisma.company.update({
+          where: { ownerId: session.user.id },
+          data,
+        })
+      : await prisma.company.create({
+          data: {
+            ownerId: session.user.id,
+            ...data,
+          },
+        })
+
+    await prisma.$transaction([
+      prisma.companyDocument.deleteMany({ where: { companyId: company.id } }),
+      prisma.companyDocument.createMany({
+        data: [
+          {
+            companyId: company.id,
+            type: "BUSINESS_REGISTRATION",
+            fileUrl: businessRegistrationFileUrl,
+            fileName: businessRegistrationFile.name,
+            mimeType: businessRegistrationFile.type,
+          },
+          {
+            companyId: company.id,
+            type: "SECURITY_LICENSE",
+            fileUrl: securityLicenseFileUrl,
+            fileName: securityLicenseFile.name,
+            mimeType: securityLicenseFile.type,
+          },
+          ...additionalProofFiles.map((file, index) => ({
+            companyId: company.id,
+            type: "ADDITIONAL_PROOF",
+            fileUrl: additionalProofFileUrls[index],
+            fileName: file.name,
+            mimeType: file.type,
+          })),
+        ],
+      }),
+    ])
 
     return Response.json(
       { id: company.id, status: company.status },
-      { status: 201 }
+      { status: existing ? 200 : 201 }
     )
   } catch (err: unknown) {
     // DB unique constraint 위반 (race condition 방어)
@@ -119,6 +211,14 @@ export async function POST(request: Request) {
         { status: 409 }
       )
     }
+
+    if (err instanceof Error) {
+      return Response.json(
+        { error: err.message },
+        { status: 400 }
+      )
+    }
+
     console.error("[company/register] DB error:", err)
     return Response.json(
       { error: "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." },

@@ -5,7 +5,7 @@ import { ExternalLink } from "lucide-react"
 import { ADMIN_LABELS, CREDENTIAL_TYPE_LABELS } from "@/lib/constants"
 
 interface WorkerUser {
-  name: string
+  name: string | null
   phone: string | null
 }
 
@@ -81,7 +81,7 @@ export function CredentialReviewList({ credentials }: CredentialReviewListProps)
                 {CREDENTIAL_TYPE_LABELS[cred.type] ?? cred.type}
               </p>
               <p className="text-sm text-gray-600 mt-1">
-                {cred.workerProfile.user.name}
+                {cred.workerProfile.user.name ?? "이름 미등록"}
                 {cred.workerProfile.user.phone && (
                   <span className="text-gray-400"> · {cred.workerProfile.user.phone}</span>
                 )}

@@ -40,6 +40,10 @@ function matchStatusVariant(status: string) {
   }
 }
 
+function credentialLabel(type: string) {
+  return CREDENTIAL_LABELS[type as keyof typeof CREDENTIAL_LABELS] ?? type
+}
+
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex gap-3 text-sm">
@@ -98,7 +102,7 @@ function WorkerCard({
               <div className="flex flex-wrap gap-1 mt-1">
                 {wp.credentials.map((c) => (
                   <span key={c.type} className="text-xs px-1.5 py-0.5 bg-blue-50 text-brand rounded-md">
-                    {CREDENTIAL_LABELS[c.type] ?? c.type}
+                    {credentialLabel(c.type)}
                   </span>
                 ))}
               </div>

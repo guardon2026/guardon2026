@@ -69,6 +69,48 @@ enum SosMatchStatus {
   CONFIRMED  // 업체 최종 확정 (FR21)
 }
 
+enum SosUrgency {
+  NORMAL    // 일반
+  FAST      // 빠른 모집
+  URGENT    // 긴급
+  CRITICAL  // 즉시
+}
+
+enum SosVisibility {
+  APPROVED_USERS  // 승인 업체와 프로필 완료 인력
+  COMPANIES_ONLY  // 승인 업체만
+  PRIVATE_LINK    // 링크 공유 대상
+}
+
+enum SosApplicationStatus {
+  NEW
+  REVIEWING
+  CONTACTED
+  SELECTED
+  REJECTED
+  CANCELLED
+  REPORTED
+}
+
+enum SosApplicantType {
+  COMPANY
+  GUARD
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
 enum NotificationChannel {
   KAKAO_ALIMTALK  // 카카오 알림톡 (FR25)
   SMS             // SMS 폴백 (FR26)
@@ -112,6 +154,11 @@ model User {
   sessions      Session[]
   consentLogs   ConsentLog[]
   pointAccount  PointAccount?
+  sosApplications SosApplication[] @relation("SosApplicantUser")
+  contactViewLogs ContactViewLog[] @relation("ContactViewer")
+  ownedContactViewLogs ContactViewLog[] @relation("ContactOwner")
+  reportsMade    Report[] @relation("ReportsMade")
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -160,6 +207,10 @@ model Company {
   ownerId         String        @unique  // FR4, 업체 대표
   name            String
   licenseNumber   String        @unique  // 경비업 허가번호 (FR1, FR40)
+  businessRegistrationNumber String?      // 사업자등록번호
+  businessRegistrationFileUrl String?      // 사업자등록증 파일 URL
+  securityLicenseFileUrl String?           // 경비업 허가·경호 가능 증빙 파일 URL
+  additionalProofFileUrls Json?            // 추가 증빙 서류 URL 목록
   licenseVerified Boolean       @default(false)  // 관리자 승인 여부 (FR7)
   description     String?
   address         String
@@ -169,12 +220,19 @@ model Company {
   kakaoOpenChatUrl String?                         // 카카오 오픈채팅 링크 (경비 인력 문의용)
   status          CompanyStatus @default(PENDING)
   isActive        Boolean       @default(false)   // 관리자 승인 후 활성화
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  reviewedAt      DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   // Relations
   owner       User         @relation("CompanyOwner", fields: [ownerId], references: [id])
   sosRequests SosRequest[]
+  sosApplications SosApplication[]
+  companyDocuments CompanyDocument[]
+  subscriptions Subscription[]
   ratings     Rating[]     @relation("CompanyRating")
 
   @@map("companies")
@@ -188,7 +246,7 @@ model WorkerProfile {
   id               String             @id @default(cuid())
   userId           String             @unique
   workFields            WorkField[]        // 분야 (FR13)
-  declaredCredentials   CredentialType[]   // 자기신고 자격증 (UI 표시용)
+  declaredCredentials   CredentialType[]   @default([]) // 자기신고 자격증 (UI 표시용)
   experienceYears       Int                @default(0)  // 경력 연수 (FR14)
   profileImageUrl       String?            // 프로필 사진
   height                Int?               // 키 (cm)
@@ -213,7 +271,9 @@ model WorkerProfile {
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   credentials Credential[] // FR8~FR11
+  projects    GuardProject[]
   sosMatches  SosMatch[]
+  sosApplications SosApplication[]
   ratings     Rating[]     @relation("WorkerRatings")
 
   @@map("worker_profiles")
@@ -267,6 +327,25 @@ model SosRequest {
   requiredFields      WorkField[]                    // 필요 분야 (FR17)
   requiredCredentials CredentialType[]               // 필요 자격증 (FR17)
   hourlyRate          Int                            // 시급 (FR17)
+  urgencyLevel        SosUrgency  @default(URGENT)   // 게시판 긴급도
+  serviceType         String?                        // 경호·행사·의전 등 표시용
+  region              String?                        // 게시판 지역 표기
+  addressDetail       String?
+  addressVisibility   String       @default("APPLICANTS_ONLY")
+  applicationDeadline DateTime?
+  budgetTotal         Int?
+  budgetPerPerson     Int?
+  budgetType          String       @default("DAILY")
+  paymentMethod       String?
+  requirements        Json?
+  visibility          SosVisibility @default(APPROVED_USERS)
+  allowCompanyApplicants Boolean   @default(true)
+  allowGuardApplicants   Boolean   @default(true)
+  ownerContactVisible    Boolean   @default(false)
+  isAdConfirmed          Boolean   @default(false)
+  viewCount              Int       @default(0)
+  applicationCount       Int       @default(0)
+  closedAt               DateTime?
   siteManagerContact  String?                        // 현장 담당자 연락처
   dressCode           String?                        // 복장 규정: FORMAL | TACTICAL | CASUAL | OTHER
   dressCodeNote       String?                        // 기타 복장 규정 설명
@@ -284,11 +363,15 @@ model SosRequest {
   // 테넌트 격리: company에서만 접근 가능
   company       Company        @relation(fields: [companyId], references: [id])
   sosMatches    SosMatch[]
+  sosApplications SosApplication[]
   notifications Notification[]
+  contactViewLogs ContactViewLog[]
 
   @@index([companyId])
   @@index([status])
   @@index([scheduledAt])
+  @@index([applicationDeadline])
+  @@index([urgencyLevel])
   @@map("sos_requests")
 }
 
@@ -337,6 +420,167 @@ model Rating {
 
   @@index([workerProfileId])  // 평점 집계 (FR31)
   @@map("ratings")
+}
+
+// ─────────────────────────────────────────
+// SOS APPLICATION (업체·개인 경호인 지원서)
+// ─────────────────────────────────────────
+
+model SosApplication {
+  id              String               @id @default(cuid())
+  sosRequestId    String
+  applicantUserId String
+  applicantType   SosApplicantType
+  companyId       String?
+  workerProfileId String?
+  status          SosApplicationStatus @default(NEW)
+  availableHeadcount Int?
+  availableStartAt   DateTime?
+  availableEndAt     DateTime?
+  proposedRate       Int?
+  proposedTotal      Int?
+  contactName        String?
+  contactPhone       String?
+  contactEmail       String?
+  message            String?
+  introFileUrl       String?
+  experienceSummary  String?
+  profileConsent     Boolean          @default(false)
+  adminMemo          String?
+  contactedAt        DateTime?
+  selectedAt         DateTime?
+  rejectedAt         DateTime?
+  cancelledAt        DateTime?
+  reportedAt         DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  sosRequest    SosRequest     @relation(fields: [sosRequestId], references: [id], onDelete: Cascade)
+  applicantUser User           @relation("SosApplicantUser", fields: [applicantUserId], references: [id], onDelete: Cascade)
+  company       Company?       @relation(fields: [companyId], references: [id])
+  workerProfile WorkerProfile? @relation(fields: [workerProfileId], references: [id])
+  contactViewLogs ContactViewLog[]
+
+  @@unique([sosRequestId, applicantUserId])
+  @@index([sosRequestId])
+  @@index([applicantUserId])
+  @@index([companyId])
+  @@index([workerProfileId])
+  @@index([status])
+  @@map("sos_applications")
+}
+
+model CompanyDocument {
+  id          String   @id @default(cuid())
+  companyId   String
+  type        String   // BUSINESS_REGISTRATION | SECURITY_LICENSE | INSURANCE | OTHER
+  fileUrl     String
+  fileName    String?
+  mimeType    String?
+  status      String   @default("SUBMITTED")
+  adminMemo   String?
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([type])
+  @@map("company_documents")
+}
+
+model GuardProject {
+  id              String   @id @default(cuid())
+  workerProfileId String
+  title           String
+  role            String?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workerProfile WorkerProfile @relation(fields: [workerProfileId], references: [id], onDelete: Cascade)
+
+  @@index([workerProfileId])
+  @@map("guard_projects")
+}
+
+model ContactViewLog {
+  id                 String   @id @default(cuid())
+  viewerUserId       String
+  contactOwnerUserId String?
+  sosRequestId       String?
+  applicationId      String?
+  reason             String?
+  viewedAt           DateTime @default(now())
+
+  viewer       User            @relation("ContactViewer", fields: [viewerUserId], references: [id], onDelete: Cascade)
+  contactOwner User?           @relation("ContactOwner", fields: [contactOwnerUserId], references: [id])
+  sosRequest   SosRequest?     @relation(fields: [sosRequestId], references: [id], onDelete: Cascade)
+  application  SosApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([viewerUserId])
+  @@index([contactOwnerUserId])
+  @@index([sosRequestId])
+  @@index([applicationId])
+  @@map("contact_view_logs")
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  reporterUserId String
+  targetType     String
+  targetId       String
+  reason         String
+  description    String?
+  status         ReportStatus @default(OPEN)
+  adminMemo      String?
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+
+  reporter User @relation("ReportsMade", fields: [reporterUserId], references: [id], onDelete: Cascade)
+
+  @@index([reporterUserId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@map("reports")
+}
+
+model Subscription {
+  id            String           @id @default(cuid())
+  companyId     String
+  plan          SubscriptionPlan @default(FREE)
+  status        String           @default("ACTIVE")
+  startedAt     DateTime         @default(now())
+  endedAt       DateTime?
+  nextBillingAt DateTime?
+  metadata      Json?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([actorUserId])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 // ─────────────────────────────────────────

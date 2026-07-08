@@ -49,7 +49,8 @@ export async function POST(
   if (sosRequest.companyId !== company.id) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
   }
-  if ([SosStatus.CANCELLED, SosStatus.COMPLETED].includes(sosRequest.status as SosStatus)) {
+  const terminalStatuses: SosStatus[] = [SosStatus.CANCELLED, SosStatus.COMPLETED]
+  if (terminalStatuses.includes(sosRequest.status)) {
     return NextResponse.json({ error: "이미 완료되거나 취소된 요청입니다." }, { status: 409 })
   }
 

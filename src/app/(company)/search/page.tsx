@@ -19,6 +19,7 @@ declare global {
       Postcode: new (options: {
         oncomplete: (data: {
           roadAddress: string
+          jibunAddress: string
           sido: string
           sigungu: string
         }) => void
@@ -157,7 +158,7 @@ export default function SearchPage() {
         try {
           const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
           const json = await res.json() as { lat?: number; lng?: number; addressName?: string; error?: string }
-          if (!res.ok || !json.lat) {
+          if (!res.ok || typeof json.lat !== "number" || typeof json.lng !== "number") {
             setGeocodeError(json.error ?? "주소 변환에 실패했습니다.")
           } else {
             setCenterCoords({ lat: json.lat, lng: json.lng })

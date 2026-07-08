@@ -10,6 +10,8 @@ import {
   CredentialType,
   SosStatus,
   SosMatchStatus,
+  SosUrgency,
+  SosVisibility,
   UserRole,
   Prisma,
 } from "@prisma/client"
@@ -53,6 +55,20 @@ interface SosRequestBody {
   requiredFields: WorkField[]
   requiredCredentials: CredentialType[]
   hourlyRate: number
+  urgencyLevel?: SosUrgency
+  serviceType?: string | null
+  addressDetail?: string | null
+  applicationDeadline?: string | null
+  budgetTotal?: number | null
+  budgetPerPerson?: number | null
+  budgetType?: string | null
+  paymentMethod?: string | null
+  requirements?: Record<string, unknown> | null
+  visibility?: SosVisibility
+  allowCompanyApplicants?: boolean
+  allowGuardApplicants?: boolean
+  ownerContactVisible?: boolean
+  isAdConfirmed?: boolean
   siteManagerContact?: string | null
   dressCode?: string | null
   dressCodeNote?: string | null
@@ -86,6 +102,24 @@ function parseBody(body: unknown): SosRequestBody | null {
     }
   }
 
+  const validUrgencies = Object.values(SosUrgency) as string[]
+  const urgencyLevel =
+    typeof b.urgencyLevel === "string" && validUrgencies.includes(b.urgencyLevel)
+      ? (b.urgencyLevel as SosUrgency)
+      : SosUrgency.URGENT
+
+  const validVisibilities = Object.values(SosVisibility) as string[]
+  const visibility =
+    typeof b.visibility === "string" && validVisibilities.includes(b.visibility)
+      ? (b.visibility as SosVisibility)
+      : SosVisibility.APPROVED_USERS
+
+  const readOptionalNumber = (value: unknown) => {
+    if (value === null || value === undefined || value === "") return null
+    const num = Number(value)
+    return Number.isFinite(num) && num >= 0 ? Math.round(num) : null
+  }
+
   return {
     title: (b.title as string).trim(),
     locationAddress: (b.locationAddress as string).trim(),
@@ -98,8 +132,25 @@ function parseBody(body: unknown): SosRequestBody | null {
     requiredFields: b.requiredFields as WorkField[],
     requiredCredentials,
     hourlyRate: b.hourlyRate as number,
+    urgencyLevel,
+    serviceType: typeof b.serviceType === "string" ? b.serviceType.trim() || null : null,
+    addressDetail: typeof b.addressDetail === "string" ? b.addressDetail.trim() || null : null,
+    applicationDeadline: typeof b.applicationDeadline === "string" ? b.applicationDeadline : null,
+    budgetTotal: readOptionalNumber(b.budgetTotal),
+    budgetPerPerson: readOptionalNumber(b.budgetPerPerson),
+    budgetType: typeof b.budgetType === "string" ? b.budgetType.trim() || "DAILY" : "DAILY",
+    paymentMethod: typeof b.paymentMethod === "string" ? b.paymentMethod.trim() || null : null,
+    requirements: typeof b.requirements === "object" && b.requirements !== null
+      ? (b.requirements as Record<string, unknown>)
+      : null,
+    visibility,
+    allowCompanyApplicants: typeof b.allowCompanyApplicants === "boolean" ? b.allowCompanyApplicants : true,
+    allowGuardApplicants: typeof b.allowGuardApplicants === "boolean" ? b.allowGuardApplicants : true,
+    ownerContactVisible: typeof b.ownerContactVisible === "boolean" ? b.ownerContactVisible : false,
+    isAdConfirmed: typeof b.isAdConfirmed === "boolean" ? b.isAdConfirmed : false,
     siteManagerContact: typeof b.siteManagerContact === "string" ? b.siteManagerContact.trim() || null : null,
     dressCode: typeof b.dressCode === "string" ? b.dressCode.trim() || null : null,
+    dressCodeNote: typeof b.dressCodeNote === "string" ? b.dressCodeNote.trim() || null : null,
     description: typeof b.description === "string" ? b.description.trim() || null : null,
   }
 }
@@ -175,11 +226,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "종료 일시는 시작 일시보다 이후여야 합니다." }, { status: 400 })
     }
   }
+  let applicationDeadline: Date | null = null
+  if (data.applicationDeadline) {
+    applicationDeadline = new Date(data.applicationDeadline)
+    if (isNaN(applicationDeadline.getTime())) {
+      return NextResponse.json({ error: "신청 마감 시간 형식이 올바르지 않습니다." }, { status: 400 })
+    }
+  }
 
   // 5. 집결지 주소에서 city/district 파싱 (간단 파싱 — 정확한 값은 추후 주소 API 연동)
   const addressParts = data.locationAddress.split(" ")
   const city = addressParts[0] ?? ""
   const district = addressParts[1] ?? ""
+  const region = [city, district].filter(Boolean).join(" ")
 
   // 6. SOS 요청 생성
   const sosRequest = await prisma.sosRequest.create({
@@ -200,8 +259,26 @@ export async function POST(req: NextRequest) {
       requiredFields: data.requiredFields,
       requiredCredentials: data.requiredCredentials,
       hourlyRate: data.hourlyRate,
+      urgencyLevel: data.urgencyLevel,
+      serviceType: data.serviceType ?? "경호·보안",
+      region,
+      addressDetail: data.addressDetail,
+      applicationDeadline,
+      budgetTotal: data.budgetTotal ?? data.hourlyRate * data.requiredCount,
+      budgetPerPerson: data.budgetPerPerson ?? data.hourlyRate,
+      budgetType: data.budgetType ?? "DAILY",
+      paymentMethod: data.paymentMethod,
+      requirements: data.requirements
+        ? (data.requirements as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
+      visibility: data.visibility,
+      allowCompanyApplicants: data.allowCompanyApplicants,
+      allowGuardApplicants: data.allowGuardApplicants,
+      ownerContactVisible: data.ownerContactVisible,
+      isAdConfirmed: data.isAdConfirmed,
       siteManagerContact: data.siteManagerContact,
       dressCode: data.dressCode,
+      dressCodeNote: data.dressCodeNote,
       description: data.description,
       status: SosStatus.DISPATCHING,
       dispatchedAt: new Date(),

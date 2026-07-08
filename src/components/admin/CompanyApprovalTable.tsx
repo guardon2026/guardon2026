@@ -29,12 +29,27 @@ export function CompanyApprovalTable({ companies }: CompanyApprovalTableProps) {
   const [localCompanies, setLocalCompanies] = useState(companies)
 
   const handleAction = async (id: string, approve: boolean) => {
+    const rejectionReason = approve
+      ? ""
+      : window.prompt("반려 사유를 입력해 주세요.")?.trim()
+
+    if (!approve && !rejectionReason) return
+
     setProcessing(id)
     try {
       const endpoint = approve
         ? `/api/admin/companies/${id}/approve`
         : `/api/admin/companies/${id}/reject`
-      await fetch(endpoint, { method: "POST" })
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: approve ? undefined : { "Content-Type": "application/json" },
+        body: approve ? undefined : JSON.stringify({ rejectionReason }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        window.alert(data?.error ?? "처리 중 오류가 발생했습니다.")
+        return
+      }
       setLocalCompanies((prev) =>
         prev.map((c) =>
           c.id === id

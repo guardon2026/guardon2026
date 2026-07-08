@@ -7,6 +7,7 @@ import {
   Building2,
   FileCheck2,
   Zap,
+  AlertTriangle,
   BarChart3,
   LogOut,
 } from "lucide-react"
@@ -41,6 +42,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: "운영",
     items: [
       { href: "/sos-monitor", label: "SOS 모니터", icon: Zap },
+      { href: "/reports", label: "신고 관리", icon: AlertTriangle },
       { href: "/stats", label: "통계", icon: BarChart3 },
     ],
   },

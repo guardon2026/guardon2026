@@ -63,6 +63,7 @@ export default async function AdminMembersPage({
     name: string
     licenseNumber: string
     city: string
+    documents: React.ReactNode
     createdAt: string
     status: React.ReactNode
     action: React.ReactNode
@@ -74,6 +75,15 @@ export default async function AdminMembersPage({
     name: c.name,
     licenseNumber: c.licenseNumber,
     city: `${c.city} ${c.district}`,
+    documents: (
+      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+        c.businessRegistrationFileUrl && c.securityLicenseFileUrl
+          ? "bg-green-50 text-green-700"
+          : "bg-amber-50 text-amber-700"
+      }`}>
+        {c.businessRegistrationFileUrl && c.securityLicenseFileUrl ? "제출 완료" : "서류 부족"}
+      </span>
+    ),
     createdAt: c.createdAt.toLocaleDateString("ko-KR"),
     status: (
       <StatusBadge
@@ -140,6 +150,7 @@ export default async function AdminMembersPage({
               { key: "name", label: "업체명" },
               { key: "licenseNumber", label: "허가번호" },
               { key: "city", label: "지역" },
+              { key: "documents", label: "서류", render: (row) => row.documents },
               { key: "createdAt", label: "신청일" },
               { key: "status", label: "상태", render: (row) => row.status },
               { key: "action", label: "액션", render: (row) => row.action },

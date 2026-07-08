@@ -1,10 +1,10 @@
-export const WORK_FIELD_LABELS = {
+export const WORK_FIELD_LABELS: Record<string, string> = {
   GENERAL_SECURITY:     "일반경비",
   BODYGUARD_SERVICE:    "신변보호",
   SPECIAL_SECURITY:     "특수경비",
   KRAV_MAGA_INSTRUCTOR: "크라브마가강사",
   EVENT_SECURITY:       "행사경비",
-} as const
+}
 
 // SOS 폼에서 표시할 업무 분야 순서
 export const SOS_WORK_FIELD_OPTIONS = [
@@ -87,7 +87,7 @@ export const WORKER_PUBLIC_PROFILE = {
   TOTAL_MATCHES_UNIT:   "회",
 } as const
 
-export const CREDENTIAL_LABELS = {
+export const CREDENTIAL_LABELS: Record<string, string> = {
   SECURITY_INSTRUCTOR: "경비지도사",
   BODYGUARD:           "신변보호사",
   SECURITY_TRAINING:   "신임교육이수증",
@@ -95,7 +95,7 @@ export const CREDENTIAL_LABELS = {
   CIVIL_POLICE:        "청원경찰",
   KRAV_MAGA:           "크라브마가",
   CPR:                 "CPR",
-} as const
+}
 
 // SOS 폼에서 표시할 자격증 순서
 export const SOS_CREDENTIAL_OPTIONS = [
@@ -207,6 +207,14 @@ export const COMPANY_ONBOARDING = {
     LICENSE_LABEL:        "경비업 허가번호",
     LICENSE_PLACEHOLDER:  "예) 2024-서울-0001",
     LICENSE_HINT:         "경비업법에 따른 허가번호를 입력해 주세요. (숫자, 하이픈 허용)",
+    BUSINESS_NUMBER_LABEL:       "사업자등록번호",
+    BUSINESS_NUMBER_PLACEHOLDER: "예) 123-45-67890",
+    BUSINESS_NUMBER_HINT:        "국세청 사업자등록증에 표시된 번호를 입력해 주세요.",
+    BUSINESS_FILE_LABEL:         "사업자등록증",
+    SECURITY_FILE_LABEL:         "경비업 허가증 또는 경호 가능 증빙",
+    ADDITIONAL_FILES_LABEL:      "추가 증빙 서류 (선택)",
+    ADDITIONAL_FILES_PLACEHOLDER:"위임장, 보험 가입 증명, 협약서 등 추가 서류",
+    FILE_PLACEHOLDER:            "파일을 선택해 주세요.",
     ADDRESS_LABEL:        "주소",
     ADDRESS_PLACEHOLDER:  "도로명 주소를 입력해 주세요.",
     CITY_LABEL:           "시·도",
@@ -226,6 +234,10 @@ export const COMPANY_ONBOARDING = {
     NAME_REQUIRED:      "업체명을 입력해 주세요.",
     LICENSE_REQUIRED:   "경비업 허가번호를 입력해 주세요.",
     LICENSE_FORMAT:     "허가번호 형식이 올바르지 않습니다. (예: 2024-서울-0001, 숫자와 하이픈만 허용)",
+    BUSINESS_NUMBER_REQUIRED: "사업자등록번호를 입력해 주세요.",
+    BUSINESS_NUMBER_FORMAT:   "사업자등록번호 형식이 올바르지 않습니다. (예: 123-45-67890)",
+    BUSINESS_FILE_REQUIRED:   "사업자등록증 파일을 업로드해 주세요.",
+    SECURITY_FILE_REQUIRED:   "경비업 허가 또는 경호 가능 증빙 파일을 업로드해 주세요.",
     ADDRESS_REQUIRED:   "주소를 입력해 주세요.",
     CITY_REQUIRED:      "시·도를 입력해 주세요.",
     DISTRICT_REQUIRED:  "구·군을 입력해 주세요.",
@@ -535,7 +547,7 @@ export const CREDENTIAL_PAGE_LABELS = {
   SECTION_LIST:   "보유 자격증",
   SECTION_UPLOAD: "자격증 업로드",
   SELECT_TYPE:    "자격증 종류를 선택해 주세요",
-  SELECT_FILE:    "파일 선택 (JPG, PNG, WEBP, PDF, 최대 10MB)",
+  SELECT_FILE:    "파일 선택 (JPG, PNG, WEBP, PDF, DOCX, 최대 20MB)",
   ISSUED_DATE:    "발급일 (선택)",
   UPLOAD_BTN:     "업로드",
   UPLOADING:      "업로드 중...",
@@ -548,4 +560,3 @@ export const CREDENTIAL_PAGE_LABELS = {
     REJECTED: "반려",
   },
 } as const
-

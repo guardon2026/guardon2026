@@ -8,7 +8,7 @@ interface UserItem {
   id: string
   name: string | null
   email: string | null
-  role: string
+  role: string | null
   phone: string | null
   pointAccount: { balance: number } | null
 }
@@ -16,6 +16,11 @@ interface UserItem {
 const ROLE_LABELS: Record<string, string> = {
   COMPANY_OWNER: "업체 대표",
   WORKER: "경비 인력",
+}
+
+function getRoleLabel(role: string | null) {
+  if (!role) return "역할 미지정"
+  return ROLE_LABELS[role] ?? role
 }
 
 const QUICK_AMOUNTS = [10000, 50000, 100000, 500000, 1000000]
@@ -87,7 +92,7 @@ export default function PointChargeForm({ users }: { users: UserItem[] }) {
             <option value="">— 유저를 선택하세요 —</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                [{ROLE_LABELS[u.role] ?? u.role}] {u.name ?? "이름 없음"} ({u.email ?? u.phone ?? u.id.slice(0, 8)}) — {(u.pointAccount?.balance ?? 0).toLocaleString()}P
+                [{getRoleLabel(u.role)}] {u.name ?? "이름 없음"} ({u.email ?? u.phone ?? u.id.slice(0, 8)}) — {(u.pointAccount?.balance ?? 0).toLocaleString()}P
               </option>
             ))}
           </select>
@@ -179,7 +184,7 @@ export default function PointChargeForm({ users }: { users: UserItem[] }) {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 font-medium">
-                    {ROLE_LABELS[u.role] ?? u.role}
+                    {getRoleLabel(u.role)}
                   </span>
                   <span className="text-sm font-semibold text-gray-900">{u.name ?? "이름 없음"}</span>
                 </div>

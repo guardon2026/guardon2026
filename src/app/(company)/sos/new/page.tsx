@@ -216,6 +216,13 @@ export default function SosNewPage() {
   const [dressCode, setDressCode] = useState("")
   const [siteManagers, setSiteManagers] = useState([{ id: 1, name: "", phone: "", comment: "" }])
   const [description, setDescription] = useState("")
+  const [urgencyLevel, setUrgencyLevel] = useState("URGENT")
+  const [serviceType, setServiceType] = useState("경호·보안")
+  const [applicationDeadline, setApplicationDeadline] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("협의 후 정산")
+  const [allowCompanyApplicants, setAllowCompanyApplicants] = useState(true)
+  const [allowGuardApplicants, setAllowGuardApplicants] = useState(true)
+  const [isAdConfirmed, setIsAdConfirmed] = useState(false)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -333,10 +340,13 @@ export default function SosNewPage() {
     if (!hourlyRate || Number(hourlyRate.replace(/,/g, "")) < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
 
     if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
+    if (!allowCompanyApplicants && !allowGuardApplicants) newErrors.applicantTypes = "업체 또는 개인 경호 인력 중 하나 이상을 허용해 주세요."
+    if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newErrors.applicationDeadline = "신청 마감은 현재 이후로 입력해 주세요."
 
     const hasContact = siteManagers.some((m) => m.name.trim() || m.phone.trim())
     if (!hasContact) newErrors.siteManagers = "현장 담당자 연락처를 입력해 주세요."
     if (!description.trim()) newErrors.description = "추가 설명을 입력해 주세요."
+    if (!isAdConfirmed) newErrors.isAdConfirmed = "허위·광고성 게시글이 아님을 확인해 주세요."
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -373,6 +383,16 @@ export default function SosNewPage() {
           requiredFields,
           requiredCredentials,
           hourlyRate: Number(hourlyRate.replace(/,/g, "")),
+          urgencyLevel,
+          serviceType: serviceType.trim() || "경호·보안",
+          applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : null,
+          budgetTotal: totalCharge,
+          budgetPerPerson: Number(hourlyRate.replace(/,/g, "")),
+          budgetType: "DAILY",
+          paymentMethod: paymentMethod.trim() || null,
+          allowCompanyApplicants,
+          allowGuardApplicants,
+          isAdConfirmed,
           dressCode: dressCode.trim() || null,
           siteManagerContact: siteManagers
             .map((m) => [m.name.trim(), m.phone.trim(), m.comment.trim()].filter(Boolean).join(" "))
@@ -474,6 +494,85 @@ export default function SosNewPage() {
                   />
                   {errors.title && <p className="text-xs text-sos mt-1">{errors.title}</p>}
                 </div>
+              </div>
+
+              {/* 게시 조건 */}
+              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">게시 조건</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-gray-600">긴급도</span>
+                    <select
+                      value={urgencyLevel}
+                      onChange={(e) => setUrgencyLevel(e.target.value)}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand"
+                    >
+                      <option value="CRITICAL">즉시 투입</option>
+                      <option value="URGENT">긴급</option>
+                      <option value="FAST">빠른 모집</option>
+                      <option value="NORMAL">일반</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-gray-600">서비스 유형</span>
+                    <input
+                      value={serviceType}
+                      onChange={(e) => setServiceType(e.target.value)}
+                      placeholder="행사경호, 의전, 시설보안 등"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-gray-600">신청 마감</span>
+                    <input
+                      type="datetime-local"
+                      value={applicationDeadline}
+                      onChange={(e) => setApplicationDeadline(e.target.value)}
+                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${errors.applicationDeadline ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                    />
+                    {errors.applicationDeadline && <p className="text-xs text-sos">{errors.applicationDeadline}</p>}
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-gray-600">정산 방식</span>
+                    <input
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      placeholder="계약서, 세금계산서, 현장 정산 등"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={allowCompanyApplicants}
+                      onChange={(e) => setAllowCompanyApplicants(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    업체 신청 허용
+                  </label>
+                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={allowGuardApplicants}
+                      onChange={(e) => setAllowGuardApplicants(e.target.checked)}
+                      className="rounded border-gray-300"
+                    />
+                    개인 경호 인력 신청 허용
+                  </label>
+                </div>
+                {errors.applicantTypes && <p className="text-xs text-sos">{errors.applicantTypes}</p>}
+                <label className="flex items-start gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={isAdConfirmed}
+                    onChange={(e) => setIsAdConfirmed(e.target.checked)}
+                    className="mt-0.5 rounded border-gray-300"
+                  />
+                  <span>이 글은 실제 경호·보안 인력 모집이며 광고, 홍보, 허위 모집이 아닙니다.</span>
+                </label>
+                {errors.isAdConfirmed && <p className="text-xs text-sos">{errors.isAdConfirmed}</p>}
               </div>
 
               {/* 배치 일정 */}

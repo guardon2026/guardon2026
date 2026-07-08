@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { redirect, notFound } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, ExternalLink, FileCheck2 } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { CompanyActionButtons } from "@/components/admin/CompanyActionButtons"
@@ -35,6 +35,7 @@ export default async function AdminCompanyDetailPage({
   const infoFields = [
     { label: "업체명",          value: company.name },
     { label: "경비업 허가번호",  value: company.licenseNumber },
+    { label: "사업자등록번호",    value: company.businessRegistrationNumber ?? "-" },
     { label: "대표자",           value: company.owner.name },
     { label: "대표자 연락처",    value: company.owner.phone ?? "-" },
     { label: "업체 전화번호",    value: company.phone },
@@ -42,6 +43,19 @@ export default async function AdminCompanyDetailPage({
     { label: "시·도",            value: company.city },
     { label: "구·군",            value: company.district },
   ]
+
+  const additionalProofFileUrls = Array.isArray(company.additionalProofFileUrls)
+    ? company.additionalProofFileUrls.filter((url): url is string => typeof url === "string")
+    : []
+
+  const documentLinks = [
+    { label: "사업자등록증", href: company.businessRegistrationFileUrl },
+    { label: "경비업 허가·경호 가능 증빙", href: company.securityLicenseFileUrl },
+    ...additionalProofFileUrls.map((href, index) => ({
+      label: `추가 증빙 서류 ${index + 1}`,
+      href,
+    })),
+  ].filter((doc): doc is { label: string; href: string } => Boolean(doc.href))
 
   return (
     <div className="space-y-6">
@@ -91,6 +105,34 @@ export default async function AdminCompanyDetailPage({
         </div>
       </div>
 
+      {/* 제출 서류 카드 */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <FileCheck2 className="h-4 w-4 text-brand" />
+          <h2 className="text-sm font-semibold text-gray-700">제출 서류</h2>
+        </div>
+        {documentLinks.length === 0 ? (
+          <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+            제출된 심사 서류가 없습니다. 사업자등록증과 경비업 증빙을 제출해야 승인할 수 있습니다.
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {documentLinks.map((doc) => (
+              <a
+                key={doc.href}
+                href={doc.href}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-between gap-3 rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 hover:border-brand/30 hover:text-brand transition-colors"
+              >
+                {doc.label}
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* 심사 액션 카드 */}
       {company.status === "PENDING" && (
         <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
@@ -120,6 +162,11 @@ export default async function AdminCompanyDetailPage({
           <p className="text-sm text-red-800">
             이 업체 등록 신청은 반려 처리되었습니다.
           </p>
+          {company.rejectionReason && (
+            <p className="mt-3 rounded-xl border border-red-100 bg-white px-4 py-3 text-sm text-red-800">
+              반려 사유: {company.rejectionReason}
+            </p>
+          )}
         </div>
       )}
     </div>

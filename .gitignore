@@ -20,6 +20,7 @@ public/uploads/
 .idea/
 .vscode/
 .claude/
+.codex/
 
 # Build
 /dist/

@@ -18,6 +18,33 @@ export default async function CompanyLayout({
   const hdrs = await headers()
   const pathname = hdrs.get("x-pathname") ?? ""
 
+  if (pathname === "/sos" || (pathname.startsWith("/sos/") && !pathname.startsWith("/sos/new") && !pathname.endsWith("/edit"))) {
+    if (session.user.role === "WORKER") {
+      const workerProfile = await prisma.workerProfile.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true },
+      })
+      const [unreadNotifications, pointAccount] = await Promise.all([
+        workerProfile
+          ? prisma.sosMatch.count({
+              where: { workerProfileId: workerProfile.id, status: "NOTIFIED" },
+            })
+          : Promise.resolve(0),
+        prisma.pointAccount.findUnique({
+          where: { userId: session.user.id },
+          select: { balance: true },
+        }),
+      ])
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <Header role="WORKER" unreadNotifications={unreadNotifications} pointBalance={pointAccount?.balance ?? 0} />
+          <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+        </div>
+      )
+    }
+  }
+
   // 등록 페이지 자체는 게이트를 건너뜀 (무한 redirect 방지)
   if (pathname === "/register") {
     return <>{children}</>

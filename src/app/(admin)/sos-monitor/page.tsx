@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Zap } from "lucide-react"
 import { ADMIN_LABELS, SOS_STATUS_LABELS, WORK_FIELD_LABELS } from "@/lib/constants"
 import type { StatusVariant } from "@/components/ui/status-badge"
+import { AdminPatchButton } from "@/components/admin/AdminPatchButton"
 
 const SOS_STATUS_VARIANT: Record<string, StatusVariant> = {
   DISPATCHING: "active",
@@ -30,6 +31,7 @@ export default async function SosMonitorPage() {
       include: {
         company: { select: { name: true } },
         sosMatches: { select: { status: true } },
+        _count: { select: { sosApplications: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -47,6 +49,8 @@ export default async function SosMonitorPage() {
     requestedAt: string
     matchStatus: React.ReactNode
     status: React.ReactNode
+    applications: string
+    actions: React.ReactNode
     _rowClass: string
   }
 
@@ -84,6 +88,13 @@ export default async function SosMonitorPage() {
           variant={SOS_STATUS_VARIANT[sos.status] ?? "pending"}
           label={SOS_STATUS_LABELS[sos.status] ?? sos.status}
         />
+      ),
+      applications: `${sos._count.sosApplications}건`,
+      actions: (
+        <div className="flex flex-wrap gap-1.5">
+          <AdminPatchButton endpoint={`/api/admin/sos/${sos.id}`} body={{ status: "UNRESOLVED", reason: "관리자 미해결 처리" }} label="미해결" />
+          <AdminPatchButton endpoint={`/api/admin/sos/${sos.id}`} body={{ status: "CANCELLED", reason: "관리자 숨김 처리" }} label="숨김" variant="danger" />
+        </div>
       ),
       _rowClass: rowClass,
     }
@@ -129,7 +140,9 @@ export default async function SosMonitorPage() {
               { key: "field", label: "분야" },
               { key: "requestedAt", label: "요청 시각" },
               { key: "matchStatus", label: "매칭 현황", render: (row) => row.matchStatus },
+              { key: "applications", label: "신청" },
               { key: "status", label: "상태", render: (row) => row.status },
+              { key: "actions", label: "운영 처리", render: (row) => row.actions },
             ]}
             data={rows}
             emptyMessage={ADMIN_LABELS.SOS_MONITOR_EMPTY}

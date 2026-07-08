@@ -22,6 +22,12 @@ export async function POST(
   if (!company) {
     return Response.json({ error: "업체를 찾을 수 없습니다." }, { status: 404 })
   }
+  if (!company.businessRegistrationNumber || !company.businessRegistrationFileUrl || !company.securityLicenseFileUrl) {
+    return Response.json(
+      { error: "사업자등록증과 경비업 증빙 서류가 모두 제출되어야 승인할 수 있습니다." },
+      { status: 400 }
+    )
+  }
 
   const updated = await prisma.company.update({
     where: { id },
@@ -29,8 +35,12 @@ export async function POST(
       status: "APPROVED",
       isActive: true,
       licenseVerified: true,
+      approvedAt: new Date(),
+      rejectedAt: null,
+      rejectionReason: null,
+      reviewedAt: new Date(),
     },
-    select: { id: true, status: true, isActive: true },
+    select: { id: true, status: true, isActive: true, approvedAt: true },
   })
 
   return Response.json({ company: updated })

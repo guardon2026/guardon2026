@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, MessageCircle } from "lucide-react"
+import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, MessageCircle, Upload, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import { COMPANY_ONBOARDING, ERROR_MESSAGES } from "@/lib/constants"
 interface FormData {
   name: string
   licenseNumber: string
+  businessRegistrationNumber: string
   address: string
   city: string
   district: string
@@ -23,6 +24,9 @@ interface FormData {
 interface FormErrors {
   name?: string
   licenseNumber?: string
+  businessRegistrationNumber?: string
+  businessRegistrationFile?: string
+  securityLicenseFile?: string
   address?: string
   city?: string
   district?: string
@@ -39,6 +43,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState<FormData>({
     name: "",
     licenseNumber: "",
+    businessRegistrationNumber: "",
     address: "",
     city: "",
     district: "",
@@ -50,6 +55,9 @@ export default function RegisterPage() {
   const [globalError, setGlobalError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
+  const [businessRegistrationFile, setBusinessRegistrationFile] = useState<File | null>(null)
+  const [securityLicenseFile, setSecurityLicenseFile] = useState<File | null>(null)
+  const [additionalProofFiles, setAdditionalProofFiles] = useState<File[]>([])
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -71,6 +79,17 @@ export default function RegisterPage() {
     } else if (!LICENSE_REGEX.test(formData.licenseNumber) || formData.licenseNumber.length < 5) {
       newErrors.licenseNumber = COMPANY_ONBOARDING.ERROR.LICENSE_FORMAT
     }
+    if (!formData.businessRegistrationNumber.trim()) {
+      newErrors.businessRegistrationNumber = COMPANY_ONBOARDING.ERROR.BUSINESS_NUMBER_REQUIRED
+    } else if (!/^\d{3}-?\d{2}-?\d{5}$/.test(formData.businessRegistrationNumber)) {
+      newErrors.businessRegistrationNumber = COMPANY_ONBOARDING.ERROR.BUSINESS_NUMBER_FORMAT
+    }
+    if (!businessRegistrationFile) {
+      newErrors.businessRegistrationFile = COMPANY_ONBOARDING.ERROR.BUSINESS_FILE_REQUIRED
+    }
+    if (!securityLicenseFile) {
+      newErrors.securityLicenseFile = COMPANY_ONBOARDING.ERROR.SECURITY_FILE_REQUIRED
+    }
     if (!formData.address.trim()) newErrors.address = COMPANY_ONBOARDING.ERROR.ADDRESS_REQUIRED
     if (!formData.city.trim()) newErrors.city = COMPANY_ONBOARDING.ERROR.CITY_REQUIRED
     if (!formData.district.trim()) newErrors.district = COMPANY_ONBOARDING.ERROR.DISTRICT_REQUIRED
@@ -91,19 +110,27 @@ export default function RegisterPage() {
     setGlobalError(null)
 
     try {
+      const payload = new FormData()
+      payload.append("name", formData.name)
+      payload.append("licenseNumber", formData.licenseNumber)
+      payload.append("businessRegistrationNumber", formData.businessRegistrationNumber)
+      payload.append("address", formData.address)
+      payload.append("city", formData.city)
+      payload.append("district", formData.district)
+      payload.append("phone", formData.phone)
+      payload.append("description", formData.description)
+      payload.append("kakaoOpenChatUrl", formData.kakaoOpenChatUrl)
+      if (businessRegistrationFile) {
+        payload.append("businessRegistrationFile", businessRegistrationFile)
+      }
+      if (securityLicenseFile) {
+        payload.append("securityLicenseFile", securityLicenseFile)
+      }
+      additionalProofFiles.forEach((file) => payload.append("additionalProofFiles", file))
+
       const res = await fetch("/api/company/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          licenseNumber: formData.licenseNumber,
-          address: formData.address,
-          city: formData.city,
-          district: formData.district,
-          phone: formData.phone,
-          description: formData.description || undefined,
-          kakaoOpenChatUrl: formData.kakaoOpenChatUrl || undefined,
-        }),
+        body: payload,
       })
 
       if (res.ok) {
@@ -239,6 +266,116 @@ export default function RegisterPage() {
                 ) : (
                   <p className="text-xs text-gray-400">{COMPANY_ONBOARDING.FIELDS.LICENSE_HINT}</p>
                 )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="businessRegistrationNumber">
+                  {COMPANY_ONBOARDING.FIELDS.BUSINESS_NUMBER_LABEL}
+                  <span className="text-sos ml-0.5">*</span>
+                </Label>
+                <Input
+                  id="businessRegistrationNumber"
+                  name="businessRegistrationNumber"
+                  value={formData.businessRegistrationNumber}
+                  onChange={handleChange}
+                  placeholder={COMPANY_ONBOARDING.FIELDS.BUSINESS_NUMBER_PLACEHOLDER}
+                  className={errors.businessRegistrationNumber ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}
+                />
+                {errors.businessRegistrationNumber ? (
+                  <p className="text-sm text-sos">{errors.businessRegistrationNumber}</p>
+                ) : (
+                  <p className="text-xs text-gray-400">{COMPANY_ONBOARDING.FIELDS.BUSINESS_NUMBER_HINT}</p>
+                )}
+              </div>
+            </div>
+
+            {/* 섹션: 증빙 서류 */}
+            <div className="space-y-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                심사 서류
+              </p>
+
+              <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
+                <p className="text-sm font-semibold text-blue-900">관리자 심사 후 등록이 완료됩니다.</p>
+                <p className="mt-1 text-xs leading-relaxed text-blue-700">
+                  사업자등록증과 경비업 허가증 또는 경호 업무 수행 가능 증빙을 제출해 주세요.
+                  파일은 JPG, PNG, WEBP, PDF, DOCX 형식으로 20MB 이하만 업로드할 수 있습니다.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="businessRegistrationFile">
+                  {COMPANY_ONBOARDING.FIELDS.BUSINESS_FILE_LABEL}
+                  <span className="text-sos ml-0.5">*</span>
+                </Label>
+                <label className={`flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
+                  errors.businessRegistrationFile ? "border-red-300 bg-red-50" : "border-gray-200 bg-white hover:bg-gray-50"
+                }`}>
+                  <span className={businessRegistrationFile ? "font-medium text-gray-900" : "text-gray-500"}>
+                    {businessRegistrationFile?.name ?? COMPANY_ONBOARDING.FIELDS.FILE_PLACEHOLDER}
+                  </span>
+                  <Upload className="h-4 w-4 text-gray-400" />
+                  <input
+                    id="businessRegistrationFile"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                    className="sr-only"
+                    onChange={(e) => {
+                      setBusinessRegistrationFile(e.target.files?.[0] ?? null)
+                      setErrors((prev) => ({ ...prev, businessRegistrationFile: undefined }))
+                    }}
+                  />
+                </label>
+                {errors.businessRegistrationFile && <p className="text-sm text-sos">{errors.businessRegistrationFile}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="securityLicenseFile">
+                  {COMPANY_ONBOARDING.FIELDS.SECURITY_FILE_LABEL}
+                  <span className="text-sos ml-0.5">*</span>
+                </Label>
+                <label className={`flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
+                  errors.securityLicenseFile ? "border-red-300 bg-red-50" : "border-gray-200 bg-white hover:bg-gray-50"
+                }`}>
+                  <span className={securityLicenseFile ? "font-medium text-gray-900" : "text-gray-500"}>
+                    {securityLicenseFile?.name ?? COMPANY_ONBOARDING.FIELDS.FILE_PLACEHOLDER}
+                  </span>
+                  <Upload className="h-4 w-4 text-gray-400" />
+                  <input
+                    id="securityLicenseFile"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                    className="sr-only"
+                    onChange={(e) => {
+                      setSecurityLicenseFile(e.target.files?.[0] ?? null)
+                      setErrors((prev) => ({ ...prev, securityLicenseFile: undefined }))
+                    }}
+                  />
+                </label>
+                {errors.securityLicenseFile && <p className="text-sm text-sos">{errors.securityLicenseFile}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="additionalProofFiles">
+                  {COMPANY_ONBOARDING.FIELDS.ADDITIONAL_FILES_LABEL}
+                </Label>
+                <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm transition-colors hover:bg-gray-50">
+                  <span className={additionalProofFiles.length > 0 ? "font-medium text-gray-900" : "text-gray-500"}>
+                    {additionalProofFiles.length > 0
+                      ? `${additionalProofFiles.length}개 파일 선택됨`
+                      : COMPANY_ONBOARDING.FIELDS.ADDITIONAL_FILES_PLACEHOLDER}
+                  </span>
+                  <Upload className="h-4 w-4 text-gray-400" />
+                  <input
+                    id="additionalProofFiles"
+                    type="file"
+                    multiple
+                    accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                    className="sr-only"
+                    onChange={(e) => setAdditionalProofFiles(Array.from(e.target.files ?? []))}
+                  />
+                </label>
               </div>
             </div>
 

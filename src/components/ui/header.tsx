@@ -23,6 +23,7 @@ const NAV_LINKS: Record<Role, NavLink[]> = {
   ],
   WORKER: [
     { label: "내 프로필", href: "/profile" },
+    { label: "SOS 게시판", href: "/sos" },
     { label: "알림",      href: "/notifications" },
     { label: "이력",      href: "/worker-history" },
     { label: "포인트",    href: "/my-points" },

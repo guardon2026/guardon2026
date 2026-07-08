@@ -13,11 +13,11 @@ const ROLE_PATHS: Record<string, UserRole> = {
   "/members": "ADMIN",
   "/credentials": "ADMIN",
   "/sos-monitor": "ADMIN",
+  "/reports": "ADMIN",
   "/stats": "ADMIN",
   // company 전용 페이지
   "/register": "COMPANY_OWNER",
   "/pending": "COMPANY_OWNER",
-  "/sos": "COMPANY_OWNER",
   "/search": "COMPANY_OWNER",
   "/company-history": "COMPANY_OWNER",
   // worker 전용 페이지
@@ -28,6 +28,9 @@ const ROLE_PATHS: Record<string, UserRole> = {
 }
 
 function getRequiredRole(pathname: string): UserRole | null {
+  if (pathname === "/sos/new" || pathname.startsWith("/sos/new/") || pathname.endsWith("/edit")) {
+    return "COMPANY_OWNER"
+  }
   for (const [prefix, role] of Object.entries(ROLE_PATHS)) {
     if (pathname === prefix || pathname.startsWith(prefix + "/")) return role
   }

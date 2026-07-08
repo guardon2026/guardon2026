@@ -3,7 +3,7 @@ import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession()
@@ -23,13 +23,33 @@ export async function POST(
     return Response.json({ error: "업체를 찾을 수 없습니다." }, { status: 404 })
   }
 
+  let rejectionReason = ""
+  try {
+    const body = await request.json()
+    rejectionReason = String(body.rejectionReason ?? "").trim()
+  } catch {
+    // body 없이 호출된 이전 UI도 서버 오류 대신 검증 메시지를 반환한다.
+  }
+
+  if (!rejectionReason) {
+    return Response.json(
+      { error: "반려 사유를 입력해 주세요." },
+      { status: 400 }
+    )
+  }
+
   const updated = await prisma.company.update({
     where: { id },
     data: {
       status: "REJECTED",
       isActive: false,
+      licenseVerified: false,
+      approvedAt: null,
+      rejectedAt: new Date(),
+      rejectionReason,
+      reviewedAt: new Date(),
     },
-    select: { id: true, status: true, isActive: true },
+    select: { id: true, status: true, isActive: true, rejectedAt: true, rejectionReason: true },
   })
 
   return Response.json({ company: updated })
