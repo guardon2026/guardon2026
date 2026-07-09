@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   BarChart3,
   LogOut,
+  Receipt,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -43,6 +44,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
     items: [
       { href: "/sos-monitor", label: "SOS 모니터", icon: Zap },
       { href: "/reports", label: "신고 관리", icon: AlertTriangle },
+      { href: "/tax", label: "세금 신고 관리", icon: Receipt },
       { href: "/stats", label: "통계", icon: BarChart3 },
     ],
   },

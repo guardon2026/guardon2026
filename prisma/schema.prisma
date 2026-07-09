@@ -634,9 +634,10 @@ model PointTransaction {
   amount       Int      // 양수 = 충전/획득, 음수 = 차감
   type         String   // ADMIN_CHARGE | SOS_DEDUCT | WORKER_DEDUCT | REFUND
   description  String
-  sosRequestId String?
-  receiptInfo  Json?
-  createdAt    DateTime @default(now())
+  sosRequestId   String?
+  receiptInfo    Json?
+  taxCompleted   Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
   account PointAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 

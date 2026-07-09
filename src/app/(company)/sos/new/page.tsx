@@ -1057,36 +1057,17 @@ export default function SosNewPage() {
 
                 {/* 현금영수증 */}
                 {receiptType === "CASH_RECEIPT" && (
-                  <div className="space-y-3 pt-1">
-                    <div className="flex gap-4">
-                      {([
-                        { value: "INCOME", label: "소득공제용 (휴대폰번호)" },
-                        { value: "EXPENSE", label: "지출증빙용 (사업자번호)" },
-                      ] as const).map(({ value, label }) => (
-                        <label key={value} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="cashReceiptPurpose"
-                            value={value}
-                            checked={cashReceiptPurpose === value}
-                            onChange={() => { setCashReceiptPurpose(value); setCashReceiptNumber("") }}
-                            className="accent-brand"
-                          />
-                          <span className="text-sm text-gray-700">{label}</span>
-                        </label>
-                      ))}
-                    </div>
+                  <div className="space-y-2 pt-1">
+                    <p className="text-xs text-gray-500">소득공제용 (휴대폰번호)</p>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={cashReceiptNumber}
                       onChange={(e) => {
                         const raw = e.target.value.replace(/[^\d]/g, "")
-                        setCashReceiptNumber(
-                          cashReceiptPurpose === "INCOME" ? formatPhoneNumber(raw) : formatBusinessNumber(raw)
-                        )
+                        setCashReceiptNumber(formatPhoneNumber(raw))
                       }}
-                      placeholder={cashReceiptPurpose === "INCOME" ? "예) 010-1234-5678" : "예) 123-45-67890"}
+                      placeholder="예) 010-1234-5678"
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                     />
                   </div>
