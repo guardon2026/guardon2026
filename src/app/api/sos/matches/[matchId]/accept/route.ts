@@ -54,7 +54,56 @@ export async function POST(
     )
   }
 
-  // 4-1. 포인트 잔액 확인 (일급의 10%)
+  // 4-1. 월 8일/60시간 제한 검증 (동일 업체 대표 프로젝트 기준)
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+
+  const existingMatches = await prisma.sosMatch.findMany({
+    where: {
+      workerProfileId: match.workerProfileId,
+      status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
+      sosRequest: {
+        companyId: match.sosRequest.companyId,
+        scheduledAt: { gte: monthStart, lte: monthEnd },
+      },
+    },
+    select: {
+      sosRequest: {
+        select: { scheduleDays: true, scheduledAt: true, scheduledEndAt: true },
+      },
+    },
+  })
+
+  // 기존 근무일 수 집계
+  let existingDays = 0
+  for (const em of existingMatches) {
+    const days = em.sosRequest.scheduleDays
+    if (Array.isArray(days) && days.length > 0) {
+      existingDays += days.length
+    } else {
+      existingDays += 1
+    }
+  }
+
+  // 이번 SOS의 일수
+  const thisDays = Array.isArray(match.sosRequest.scheduleDays) && (match.sosRequest.scheduleDays as unknown[]).length > 0
+    ? (match.sosRequest.scheduleDays as unknown[]).length
+    : 1
+
+  if (existingDays + thisDays >= 8) {
+    return NextResponse.json(
+      {
+        error: `이번 달 동일 업체 배치 한도(월 8일 미만)를 초과합니다. 현재 ${existingDays}일 배치 완료 — 추가 ${thisDays}일 수락 시 ${existingDays + thisDays}일이 됩니다. 일용직 근로자 법적 기준을 준수하기 위해 동일 업체 월 8일 미만으로 제한됩니다.`,
+        existingDays,
+        thisDays,
+        limit: 8,
+      },
+      { status: 422 }
+    )
+  }
+
+  // 4-2. 포인트 잔액 확인 (일급의 10%)
   const workerFee = Math.floor(match.sosRequest.hourlyRate * 0.1)
   const workerAccount = await prisma.pointAccount.findUnique({
     where: { userId: session.user.id },

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
-import { UserRole } from "@prisma/client"
+import { UserRole, Prisma } from "@prisma/client"
 
 // GET /api/points/last-receipt — 업체 대표의 가장 최근 충전 영수증 정보 반환
 export async function GET() {
@@ -23,7 +23,7 @@ export async function GET() {
     where: {
       accountId: account.id,
       type: "SELF_CHARGE",
-      receiptInfo: { not: null },
+      receiptInfo: { not: Prisma.JsonNull },
     },
     orderBy: { createdAt: "desc" },
     select: { receiptInfo: true, createdAt: true },

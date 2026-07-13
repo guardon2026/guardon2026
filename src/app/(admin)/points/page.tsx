@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
-import { UserRole } from "@prisma/client"
+import { UserRole, Prisma } from "@prisma/client"
 import { PageHeader } from "@/components/ui/page-header"
 import PointChargeForm from "./PointChargeForm"
 import { Receipt } from "lucide-react"
@@ -41,7 +41,7 @@ export default async function AdminPointsPage() {
   const chargeReceipts = await prisma.pointTransaction.findMany({
     where: {
       type: "SELF_CHARGE",
-      receiptInfo: { not: null },
+      receiptInfo: { not: Prisma.JsonNull },
       account: {
         user: { role: UserRole.COMPANY_OWNER },
       },
@@ -69,13 +69,13 @@ export default async function AdminPointsPage() {
           </div>
           <div className="space-y-3">
             {chargeReceipts.map((tx) => {
-              const info = tx.receiptInfo as ReceiptInfo
+              const info = tx.receiptInfo as unknown as ReceiptInfo
               return (
                 <div key={tx.id} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{tx.account.user.name ?? tx.account.user.email}</p>
-                      <p className="text-xs text-gray-500">{tx.account.user.email}</p>
+                      <p className="text-sm font-semibold text-gray-900">{(tx as any).account?.user?.name ?? (tx as any).account?.user?.email}</p>
+                      <p className="text-xs text-gray-500">{(tx as any).account?.user?.email}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-bold text-amber-700">{tx.amount.toLocaleString()}P 충전</p>

@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation"
-import { ArrowLeft, MapPin, Users, Zap, Shirt, FileText, Phone, Clock, Calendar } from "lucide-react"
+import { ArrowLeft, MapPin, Users, Zap, Shirt, FileText, Phone, Clock, Calendar, Wallet } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
@@ -9,6 +9,7 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, DRESS_CODE_LABELS } from "@/lib/constants"
 import type { StatusVariant } from "@/components/ui/status-badge"
 import WorkerMatchActions from "./WorkerMatchActions"
+import { calcDailyTax, HIGH_RATE_THRESHOLD } from "@/lib/tax"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -135,6 +136,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
   const scheduleDays = extractDays(sos.scheduleDays)
   const isAccepted = match.status === SosMatchStatus.ACCEPTED || match.status === SosMatchStatus.CONFIRMED
   const canAct = match.status === SosMatchStatus.NOTIFIED
+  const taxInfo = calcDailyTax(sos.hourlyRate)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -151,13 +153,66 @@ export default async function WorkerSosDetailPage({ params }: Props) {
           }
         />
 
+        {/* 원천징수 후 실수령 예상 안내 카드 */}
+        <div className={`rounded-2xl border p-5 space-y-3 ${
+          taxInfo.taxBracket === "EXEMPT"
+            ? "bg-green-50 border-green-200"
+            : "bg-blue-50 border-blue-200"
+        }`}>
+          <div className="flex items-center gap-2">
+            <Wallet className={`w-4 h-4 ${taxInfo.taxBracket === "EXEMPT" ? "text-green-600" : "text-blue-600"}`} />
+            <p className={`text-xs font-semibold uppercase tracking-wide ${
+              taxInfo.taxBracket === "EXEMPT" ? "text-green-700" : "text-blue-700"
+            }`}>
+              원천징수 후 세후 실수령 예상액
+            </p>
+          </div>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">일급 (세전)</span>
+              <span className="font-semibold text-gray-900">{sos.hourlyRate.toLocaleString()}원</span>
+            </div>
+            {taxInfo.taxBracket === "TAXED" ? (
+              <>
+                <div className="flex justify-between text-gray-500">
+                  <span>소득세 원천징수</span>
+                  <span>- {taxInfo.incomeTax.toLocaleString()}원</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>지방소득세</span>
+                  <span>- {taxInfo.localTax.toLocaleString()}원</span>
+                </div>
+                <div className={`flex justify-between border-t pt-1.5 font-bold ${
+                  sos.hourlyRate >= HIGH_RATE_THRESHOLD ? "border-blue-200 text-blue-800" : "border-gray-200 text-gray-900"
+                }`}>
+                  <span>세후 실수령액</span>
+                  <span>{taxInfo.netPay.toLocaleString()}원</span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  업체 대표가 프로젝트 완료 후 원천징수를 수행하며, 14일 이내 계좌이체로 정산됩니다.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className={`flex justify-between border-t pt-1.5 font-bold border-green-200 text-green-800`}>
+                  <span>세후 실수령액</span>
+                  <span>{taxInfo.netPay.toLocaleString()}원 (세금 없음)</span>
+                </div>
+                <p className="text-xs text-green-600 mt-1">
+                  일급 150,000원 이하는 일용근로소득세 비과세 구간입니다. 프로젝트 완료 후 14일 이내 계좌이체로 정산됩니다.
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
         {/* 기본 정보 */}
         <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">요청 정보</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InfoRow icon={MapPin} label="집결지" value={sos.locationAddress} />
-            <InfoRow icon={Zap} label="일급" value={`${sos.hourlyRate.toLocaleString()}원/일`} />
+            <InfoRow icon={Zap} label="일급 (세전)" value={`${sos.hourlyRate.toLocaleString()}원/일`} />
             <InfoRow icon={Users} label="필요 인원" value={`총 ${sos.requiredCount}명`} />
             {sos.dressCode && (
               <InfoRow

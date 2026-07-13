@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { redirect } from "next/navigation"
-import { UserRole } from "@prisma/client"
+import { UserRole, Prisma } from "@prisma/client"
 import { PageHeader } from "@/components/ui/page-header"
 import TaxTabs from "./TaxTabs"
 
@@ -27,7 +27,7 @@ export default async function TaxPage() {
   const chargeWithReceipt = await prisma.pointTransaction.findMany({
     where: {
       type: "SELF_CHARGE",
-      receiptInfo: { not: null },
+      receiptInfo: { not: Prisma.JsonNull },
       account: { user: { role: UserRole.COMPANY_OWNER } },
     },
     include: {
@@ -78,8 +78,8 @@ export default async function TaxPage() {
     id: tx.id,
     amount: tx.amount,
     createdAt: tx.createdAt.toISOString(),
-    user: tx.account.user,
-    receipt: tx.receiptInfo as CashReceiptInfo,
+    user: (tx as any).account?.user,
+    receipt: tx.receiptInfo as unknown as CashReceiptInfo,
     taxCompleted: tx.taxCompleted,
   }))
 
@@ -87,8 +87,8 @@ export default async function TaxPage() {
     id: tx.id,
     amount: tx.amount,
     createdAt: tx.createdAt.toISOString(),
-    user: tx.account.user,
-    receipt: tx.receiptInfo as TaxInvoiceInfo,
+    user: (tx as any).account?.user,
+    receipt: tx.receiptInfo as unknown as TaxInvoiceInfo,
     taxCompleted: tx.taxCompleted,
   }))
 
@@ -96,7 +96,7 @@ export default async function TaxPage() {
     id: tx.id,
     amount: Math.abs(tx.amount),
     createdAt: tx.createdAt.toISOString(),
-    user: tx.account.user,
+    user: (tx as any).account?.user,
     taxCompleted: tx.taxCompleted,
     ...parseTaxInfo(tx.description),
   }))

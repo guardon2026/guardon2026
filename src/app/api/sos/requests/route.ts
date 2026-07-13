@@ -195,7 +195,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 3-1. 포인트 잔액 확인 (일급 × 필요 인원 + 5% 가드온 수수료 + 수수료 부가세 10%)
+  // 3-1. 최저임금 방어 (2026년 기준: 10,030원/시간 × 8시간 = 80,240원)
+  const MIN_DAILY_WAGE = 80_240
+  if (data.hourlyRate < MIN_DAILY_WAGE) {
+    return NextResponse.json(
+      {
+        error: `일급은 2026년 최저임금(${MIN_DAILY_WAGE.toLocaleString()}원) 이상이어야 합니다. (최저시급 10,030원 × 8시간)`,
+        minWage: MIN_DAILY_WAGE,
+      },
+      { status: 400 }
+    )
+  }
+
+  // 3-2. 포인트 잔액 확인 (일급 × 필요 인원 + 5% 가드온 수수료 + 수수료 부가세 10%)
   const totalCount = data.scheduleDays
     ? data.scheduleDays.reduce((sum, d) => sum + (d.requiredCount ?? 1), 0)
     : data.requiredCount

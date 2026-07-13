@@ -405,7 +405,9 @@ export default function SosNewPage() {
     else if (hasTooSoon) newErrors.workDays = "배치 시작 일시는 현재 시각으로부터 최소 12시간 이후여야 합니다."
 
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
-    if (!hourlyRate || Number(hourlyRate.replace(/,/g, "")) < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
+    const rateVal = Number(hourlyRate.replace(/,/g, ""))
+    if (!hourlyRate || rateVal < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
+    else if (rateVal > 0 && rateVal < 80_240) newErrors.hourlyRate = "일급은 2026년 최저임금(80,240원) 이상이어야 합니다. (최저시급 10,030원 × 8시간)"
 
     if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
     if (!allowCompanyApplicants && !allowGuardApplicants) newErrors.applicantTypes = "업체 또는 개인 경호 인력 중 하나 이상을 허용해 주세요."
@@ -976,6 +978,30 @@ export default function SosNewPage() {
                     <span className="text-sm text-gray-600">{SOS_FORM.FIELDS.HOURLY_RATE_UNIT}/일</span>
                   </div>
                   {errors.hourlyRate && <p className="text-xs text-sos mt-1">{errors.hourlyRate}</p>}
+
+                  {/* 최저임금 안내 + 세금 정보 */}
+                  {rateNum > 0 && (
+                    <div className="space-y-1.5 mt-2">
+                      {rateNum < 80_240 ? (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          ⚠️ 2026년 최저임금은 <strong>80,240원/일</strong> (시급 10,030원 × 8시간)입니다. 최저임금 이상으로 입력해 주세요.
+                        </p>
+                      ) : rateNum >= 187_000 ? (
+                        <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
+                          <p className="font-semibold text-blue-800">💡 원천징수 안내 (일급 187,000원 이상)</p>
+                          <p className="text-blue-700">
+                            경비 인력 실수령액: <strong>{(rateNum - Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45) - Math.floor(Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45) * 0.1)).toLocaleString()}원</strong>
+                            {" "}(소득세 {Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45).toLocaleString()}원 + 지방소득세 {Math.floor(Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45) * 0.1).toLocaleString()}원 원천징수)
+                          </p>
+                          <p className="text-blue-600">업체 대표님이 프로젝트 완료 후 직접 원천징수를 수행하셔야 합니다.</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                          ✅ 최저임금 충족 · 일급 187,000원 미만으로 일용근로소득세 비과세 구간입니다.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
