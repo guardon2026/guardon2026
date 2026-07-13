@@ -234,8 +234,8 @@ export default function SosNewPage() {
   const [serviceType, setServiceType] = useState("경호·보안")
   const [applicationDeadline, setApplicationDeadline] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("협의 후 정산")
-  const [allowCompanyApplicants, setAllowCompanyApplicants] = useState(true)
-  const [allowGuardApplicants, setAllowGuardApplicants] = useState(true)
+  const allowCompanyApplicants = true
+  const allowGuardApplicants = true
   const [isAdConfirmed, setIsAdConfirmed] = useState(false)
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -410,8 +410,7 @@ export default function SosNewPage() {
     else if (rateVal > 0 && rateVal < 82_560) newErrors.hourlyRate = "일급은 2026년 최저임금(82,560원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)"
 
     if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
-    if (!allowCompanyApplicants && !allowGuardApplicants) newErrors.applicantTypes = "업체 또는 개인 경호 인력 중 하나 이상을 허용해 주세요."
-    if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newErrors.applicationDeadline = "신청 마감은 현재 이후로 입력해 주세요."
+if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newErrors.applicationDeadline = "신청 마감은 현재 이후로 입력해 주세요."
 
     const hasContact = siteManagers.some((m) => m.name.trim() || m.phone.trim())
     if (!hasContact) newErrors.siteManagers = "현장 담당자 연락처를 입력해 주세요."
@@ -620,27 +619,6 @@ export default function SosNewPage() {
                     />
                   </label>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={allowCompanyApplicants}
-                      onChange={(e) => setAllowCompanyApplicants(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    업체 신청 허용
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={allowGuardApplicants}
-                      onChange={(e) => setAllowGuardApplicants(e.target.checked)}
-                      className="rounded border-gray-300"
-                    />
-                    개인 경호 인력 신청 허용
-                  </label>
-                </div>
-                {errors.applicantTypes && <p className="text-xs text-sos">{errors.applicantTypes}</p>}
                 <label className="flex items-start gap-2 text-sm text-gray-700">
                   <input
                     type="checkbox"
