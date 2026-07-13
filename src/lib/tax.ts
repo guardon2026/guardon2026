@@ -9,8 +9,8 @@
 //  - 187,000원 이상 구간: 세금이 실질적으로 발생하는 기준선
 
 export const DAILY_DEDUCTION = 150_000         // 일 공제액 (원)
-export const MIN_WAGE_HOURLY = 10_030          // 2026년 최저시급 (원/시간)
-export const MIN_WAGE_DAILY = MIN_WAGE_HOURLY * 8  // 최저 일급 = 80,240원
+export const MIN_WAGE_HOURLY = 10_320          // 2026년 최저시급 (원/시간)
+export const MIN_WAGE_DAILY = MIN_WAGE_HOURLY * 8  // 최저 일급 = 82,560원
 export const HIGH_RATE_THRESHOLD = 187_000     // 세금 발생 안내 기준 (원)
 
 export interface DailyTax {

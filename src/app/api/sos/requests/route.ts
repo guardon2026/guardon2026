@@ -195,12 +195,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 3-1. 최저임금 방어 (2026년 기준: 10,030원/시간 × 8시간 = 80,240원)
-  const MIN_DAILY_WAGE = 80_240
+  // 3-1. 최저임금 방어 (2026년 기준: 10,320원/시간 × 8시간 = 82,560원)
+  const MIN_DAILY_WAGE = 82_560
   if (data.hourlyRate < MIN_DAILY_WAGE) {
     return NextResponse.json(
       {
-        error: `일급은 2026년 최저임금(${MIN_DAILY_WAGE.toLocaleString()}원) 이상이어야 합니다. (최저시급 10,030원 × 8시간)`,
+        error: `일급은 2026년 최저임금(${MIN_DAILY_WAGE.toLocaleString()}원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)`,
         minWage: MIN_DAILY_WAGE,
       },
       { status: 400 }

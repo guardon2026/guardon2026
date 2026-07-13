@@ -407,7 +407,7 @@ export default function SosNewPage() {
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
     const rateVal = Number(hourlyRate.replace(/,/g, ""))
     if (!hourlyRate || rateVal < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
-    else if (rateVal > 0 && rateVal < 80_240) newErrors.hourlyRate = "일급은 2026년 최저임금(80,240원) 이상이어야 합니다. (최저시급 10,030원 × 8시간)"
+    else if (rateVal > 0 && rateVal < 82_560) newErrors.hourlyRate = "일급은 2026년 최저임금(82,560원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)"
 
     if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
     if (!allowCompanyApplicants && !allowGuardApplicants) newErrors.applicantTypes = "업체 또는 개인 경호 인력 중 하나 이상을 허용해 주세요."
@@ -982,9 +982,9 @@ export default function SosNewPage() {
                   {/* 최저임금 안내 + 세금 정보 */}
                   {rateNum > 0 && (
                     <div className="space-y-1.5 mt-2">
-                      {rateNum < 80_240 ? (
+                      {rateNum < 82_560 ? (
                         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          ⚠️ 2026년 최저임금은 <strong>80,240원/일</strong> (시급 10,030원 × 8시간)입니다. 최저임금 이상으로 입력해 주세요.
+                          ⚠️ 2026년 최저임금은 <strong>82,560원/일</strong> (시급 10,320원 × 8시간)입니다. 최저임금 이상으로 입력해 주세요.
                         </p>
                       ) : rateNum >= 187_000 ? (
                         <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
@@ -997,7 +997,7 @@ export default function SosNewPage() {
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                          ✅ 최저임금 충족 · 일급 187,000원 미만으로 일용근로소득세 비과세 구간입니다.
+                          ✅ 최저임금(82,560원) 충족 · 일급 187,000원 미만으로 일용근로소득세 비과세 구간입니다.
                         </p>
                       )}
                     </div>
