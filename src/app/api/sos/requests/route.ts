@@ -229,6 +229,22 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  // 3-3. 근무 일정별 24시간 초과 검증
+  if (data.scheduleDays && data.scheduleDays.length > 0) {
+    for (const d of data.scheduleDays) {
+      if (d.date && d.endDate && d.startTime && d.endTime) {
+        const startMs = new Date(`${d.date}T${d.startTime}`).getTime()
+        const endMs = new Date(`${d.endDate}T${d.endTime}`).getTime()
+        if (endMs - startMs > 24 * 60 * 60 * 1000) {
+          return NextResponse.json(
+            { error: "하나의 근무 일정은 24시간을 초과할 수 없습니다." },
+            { status: 400 }
+          )
+        }
+      }
+    }
+  }
+
   // 4. scheduledAt / scheduledEndAt ISO 날짜 파싱
   const scheduledAt = new Date(data.scheduledAt)
   if (isNaN(scheduledAt.getTime())) {

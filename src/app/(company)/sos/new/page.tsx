@@ -392,6 +392,11 @@ export default function SosNewPage() {
       if (!d.date || !d.endDate || !d.startTime || !d.endTime) return false
       return new Date(`${d.endDate}T${d.endTime}`) <= new Date(`${d.date}T${d.startTime}`)
     })
+    const hasOver24h = days.some((d) => {
+      if (!d.date || !d.endDate || !d.startTime || !d.endTime) return false
+      const diffMs = new Date(`${d.endDate}T${d.endTime}`).getTime() - new Date(`${d.date}T${d.startTime}`).getTime()
+      return diffMs > 24 * 60 * 60 * 1000
+    })
     // 최소 12시간 전 신청 조건
     const minStart = new Date(Date.now() + 12 * 60 * 60 * 1000)
     const hasTooSoon = days.some((d) => {
@@ -402,6 +407,7 @@ export default function SosNewPage() {
     if (hasEmptyDate) newErrors.workDays = "모든 근무일의 날짜를 입력해 주세요."
     else if (hasEmptyTime) newErrors.workDays = "모든 근무일의 시작·종료 시간을 입력해 주세요."
     else if (hasInvalidTime) newErrors.workDays = "종료 일시는 시작 일시보다 이후여야 합니다."
+    else if (hasOver24h) newErrors.workDays = "하나의 근무 일정은 24시간을 초과할 수 없습니다."
     else if (hasTooSoon) newErrors.workDays = "배치 시작 일시는 현재 시각으로부터 최소 12시간 이후여야 합니다."
 
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
@@ -658,6 +664,10 @@ if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newError
                       day.date && day.endDate && day.startTime && day.endTime &&
                       new Date(`${day.endDate}T${day.endTime}`) <= new Date(`${day.date}T${day.startTime}`)
                     )
+                    const isOver24h = !!(
+                      day.date && day.endDate && day.startTime && day.endTime && !hasTimeError &&
+                      (new Date(`${day.endDate}T${day.endTime}`).getTime() - new Date(`${day.date}T${day.startTime}`).getTime()) > 24 * 60 * 60 * 1000
+                    )
                     const minAllowed = new Date(Date.now() + 12 * 60 * 60 * 1000)
                     const isTooSoon = !!(
                       day.date && day.startTime &&
@@ -755,7 +765,13 @@ if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newError
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                         </div>
-                        {isTooSoon && (
+                        {isOver24h && (
+                          <p className={`text-xs text-red-600 px-3 py-1.5 bg-red-50 border-t border-red-100
+                            ${idx < workDays.length - 1 ? "border-b border-b-gray-100" : ""}`}>
+                            ⚠️ 하나의 근무 일정은 24시간을 초과할 수 없습니다.
+                          </p>
+                        )}
+                        {!isOver24h && isTooSoon && (
                           <p className={`text-xs text-red-600 px-3 py-1.5 bg-red-50 border-t border-red-100
                             ${idx < workDays.length - 1 ? "border-b border-b-gray-100" : ""}`}>
                             ⚠️ 현재 시각으로부터 12시간 이내입니다. {minAllowedStr} 이후로 시작 일시를 조정해 주세요.
