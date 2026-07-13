@@ -236,7 +236,7 @@ export default function SosNewPage() {
   const [paymentMethod, setPaymentMethod] = useState("협의 후 정산")
   const allowCompanyApplicants = true
   const allowGuardApplicants = true
-  const [isAdConfirmed, setIsAdConfirmed] = useState(false)
+  const isAdConfirmed = true
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -415,7 +415,6 @@ if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newError
     const hasContact = siteManagers.some((m) => m.name.trim() || m.phone.trim())
     if (!hasContact) newErrors.siteManagers = "현장 담당자 연락처를 입력해 주세요."
     if (!description.trim()) newErrors.description = "추가 설명을 입력해 주세요."
-    if (!isAdConfirmed) newErrors.isAdConfirmed = "허위·광고성 게시글이 아님을 확인해 주세요."
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -619,16 +618,6 @@ if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newError
                     />
                   </label>
                 </div>
-                <label className="flex items-start gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={isAdConfirmed}
-                    onChange={(e) => setIsAdConfirmed(e.target.checked)}
-                    className="mt-0.5 rounded border-gray-300"
-                  />
-                  <span>이 글은 실제 경호·보안 인력 모집이며 광고, 홍보, 허위 모집이 아닙니다.</span>
-                </label>
-                {errors.isAdConfirmed && <p className="text-xs text-sos">{errors.isAdConfirmed}</p>}
               </div>
 
               {/* 배치 일정 */}
