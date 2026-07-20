@@ -551,12 +551,13 @@ export default function SosNewPage() {
     (max, cur) => (!max || cur.hours > max.hours ? cur : max),
     null
   )
-  // 인건비는 업체 대표가 경비 인력에게 직접 이체 — 플랫폼 결제에서 제외
-  const laborCost = rateNum * totalRequiredCount // 서비스 수수료 산정 기준용 (결제 항목 아님)
-  const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
+  // 인건비·긴급도 추가 비용은 업체 대표가 경비 인력에게 직접 이체 — 플랫폼 결제에서 제외
   const urgencyFee = URGENCY_FEE[urgencyLevel] ?? 0
-  const vat = rateNum > 0 ? Math.ceil((serviceFee + urgencyFee) * 0.1) : 0
-  const totalCharge = serviceFee + urgencyFee + vat
+  const effectiveDailyRate = rateNum + urgencyFee          // 경비 인력 실제 수령 일급
+  const laborCost = effectiveDailyRate * totalRequiredCount // 수수료 산정 기준용 (결제 항목 아님)
+  const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
+  const vat = rateNum > 0 ? Math.ceil(serviceFee * 0.1) : 0
+  const totalCharge = serviceFee + vat
 
   // 요약 표시
   const daysWithDates = workDays.filter((d) => d.date)
@@ -585,7 +586,11 @@ export default function SosNewPage() {
     },
     {
       label: "일급",
-      value: hourlyRate ? `${Number(hourlyRate.replace(/,/g, "")).toLocaleString()}원/일` : "미입력",
+      value: hourlyRate
+        ? urgencyFee > 0
+          ? `${effectiveDailyRate.toLocaleString()}원/일 (기본 ${rateNum.toLocaleString()}원 + 긴급도 ${urgencyFee.toLocaleString()}원)`
+          : `${rateNum.toLocaleString()}원/일`
+        : "미입력",
     },
   ]
 
@@ -1187,22 +1192,24 @@ export default function SosNewPage() {
                 <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-4 space-y-2 text-sm">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">결제 내역</p>
                   <div className="flex justify-between text-gray-500 text-xs pb-1">
-                    <span>인건비 (총 {totalRequiredCount}명 × {rateNum.toLocaleString()}원)</span>
+                    <span>
+                      인건비 (총 {totalRequiredCount}명 × {effectiveDailyRate.toLocaleString()}원
+                      {urgencyFee > 0 && (
+                        <span className="text-amber-600">
+                          {" "}= {rateNum.toLocaleString()}원 + 긴급도 {urgencyFee.toLocaleString()}원
+                        </span>
+                      )}
+                      )
+                    </span>
                     <span className="line-through">{laborCost.toLocaleString()}원</span>
                   </div>
                   <p className="text-[11px] text-gray-400 -mt-1 mb-1">
-                    ※ 인건비는 업체 대표님이 경비 인력에게 직접 이체합니다
+                    ※ 인건비(긴급도 추가 포함)는 업체 대표님이 경비 인력에게 직접 이체합니다
                   </p>
                   <div className="flex justify-between text-gray-600">
                     <span>가드온 매칭 수수료 (인건비의 5%)</span>
                     <span>{serviceFee.toLocaleString()}P</span>
                   </div>
-                  {urgencyFee > 0 && (
-                    <div className="flex justify-between text-gray-600">
-                      <span>긴급도 추가 비용 ({urgencyLevel === "FAST" ? "빠른 모집" : urgencyLevel === "URGENT" ? "긴급" : "즉시 투입"})</span>
-                      <span>{urgencyFee.toLocaleString()}P</span>
-                    </div>
-                  )}
                   <div className="flex justify-between text-gray-600">
                     <span>부가세 (수수료의 10%)</span>
                     <span>{vat.toLocaleString()}P</span>

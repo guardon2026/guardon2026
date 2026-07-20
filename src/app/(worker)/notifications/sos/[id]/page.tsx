@@ -123,6 +123,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
       scheduleDays: true,
       requiredCount: true,
       hourlyRate: true,
+      urgencyLevel: true,
       requiredFields: true,
       requiredCredentials: true,
       dressCode: true,
@@ -136,7 +137,10 @@ export default async function WorkerSosDetailPage({ params }: Props) {
   const scheduleDays = extractDays(sos.scheduleDays)
   const isAccepted = match.status === SosMatchStatus.ACCEPTED || match.status === SosMatchStatus.CONFIRMED
   const canAct = match.status === SosMatchStatus.NOTIFIED
-  const taxInfo = calcDailyTax(sos.hourlyRate)
+  const URGENCY_FEE: Record<string, number> = { NORMAL: 0, FAST: 5_000, URGENT: 10_000, CRITICAL: 15_000 }
+  const urgencyBonus = URGENCY_FEE[sos.urgencyLevel ?? "NORMAL"] ?? 0
+  const effectiveDailyRate = sos.hourlyRate + urgencyBonus  // 긴급도 추가 포함 실제 일급
+  const taxInfo = calcDailyTax(effectiveDailyRate)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -170,7 +174,13 @@ export default async function WorkerSosDetailPage({ params }: Props) {
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">일급 (세전)</span>
-              <span className="font-semibold text-gray-900">{sos.hourlyRate.toLocaleString()}원</span>
+              <span className="font-semibold text-gray-900">{effectiveDailyRate.toLocaleString()}원
+                {urgencyBonus > 0 && (
+                  <span className="text-xs font-normal text-amber-600 ml-1">
+                    (기본 {sos.hourlyRate.toLocaleString()}원 + 긴급도 {urgencyBonus.toLocaleString()}원)
+                  </span>
+                )}
+              </span>
             </div>
             {taxInfo.taxBracket === "TAXED" ? (
               <>
@@ -183,7 +193,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
                   <span>- {taxInfo.localTax.toLocaleString()}원</span>
                 </div>
                 <div className={`flex justify-between border-t pt-1.5 font-bold ${
-                  sos.hourlyRate >= HIGH_RATE_THRESHOLD ? "border-blue-200 text-blue-800" : "border-gray-200 text-gray-900"
+                  effectiveDailyRate >= HIGH_RATE_THRESHOLD ? "border-blue-200 text-blue-800" : "border-gray-200 text-gray-900"
                 }`}>
                   <span>세후 실수령액</span>
                   <span>{taxInfo.netPay.toLocaleString()}원</span>
@@ -212,7 +222,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InfoRow icon={MapPin} label="집결지" value={sos.locationAddress} />
-            <InfoRow icon={Zap} label="일급 (세전)" value={`${sos.hourlyRate.toLocaleString()}원/일`} />
+            <InfoRow icon={Zap} label="일급 (세전)" value={urgencyBonus > 0 ? `${effectiveDailyRate.toLocaleString()}원/일` : `${sos.hourlyRate.toLocaleString()}원/일`} />
             <InfoRow icon={Users} label="필요 인원" value={`총 ${sos.requiredCount}명`} />
             {sos.dressCode && (
               <InfoRow
