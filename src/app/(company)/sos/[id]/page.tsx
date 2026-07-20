@@ -163,7 +163,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
           workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
         },
       },
-      _count: { select: { sosMatches: true, sosApplications: true } },
+      _count: { select: { sosApplications: true } },
     },
   })
 
@@ -275,7 +275,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                 <div>
                   <h2 className="text-base font-bold text-gray-900">신청자 관리</h2>
                   <p className="text-xs text-gray-500 mt-1">
-                    공개 신청 {sosRequest._count.sosApplications}건, 자동 알림 매칭 {sosRequest._count.sosMatches}건, 확정 {confirmedMatchCount}명
+                    공개 신청 {sosRequest._count.sosApplications}건, 확정 {confirmedMatchCount}명
                   </p>
                 </div>
               </div>
@@ -401,7 +401,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 space-y-2">
             <p className="text-sm font-bold text-gray-900">모집 현황</p>
             <p className="text-sm text-gray-600">신청 {sosRequest._count.sosApplications}건</p>
-            <p className="text-sm text-gray-600">자동 알림 {sosRequest._count.sosMatches}건</p>
+            <p className="text-sm text-gray-600">확정 인원 {confirmedMatchCount}명</p>
             <p className="text-sm text-gray-600">조회 {sosRequest.viewCount}회</p>
           </div>
 
