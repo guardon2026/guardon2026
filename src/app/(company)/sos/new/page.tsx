@@ -1022,7 +1022,7 @@ export default function SosNewPage() {
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                          ✅ 최저임금(82,560원) 충족 · 일급 187,000원 미만으로 일용근로소득세 비과세 구간입니다.
+                          ✅ 최저임금({maxHoursDay ? `${maxHoursDay.hours % 1 === 0 ? maxHoursDay.hours : maxHoursDay.hours.toFixed(1)}시간 기준 ${maxHoursDay.minWage.toLocaleString()}원` : "82,560원"}) 충족 · 일급 187,000원 미만으로 일용근로소득세 비과세 구간입니다.
                         </p>
                       )}
                     </div>
