@@ -156,6 +156,13 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
         },
         orderBy: { createdAt: "desc" },
       },
+      sosMatches: {
+        where: { status: "CONFIRMED" },
+        include: {
+          workerProfile: { include: { user: { select: { name: true, phone: true } } } },
+          workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
+        },
+      },
       _count: { select: { sosMatches: true, sosApplications: true } },
     },
   })
@@ -316,6 +323,36 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                   ))}
                 </div>
               )}
+            </section>
+          )}
+
+          {isOwner && sosRequest.sosMatches.length > 0 && (
+            <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <h2 className="text-base font-bold text-gray-900">확정된 매칭 인력 (계약서)</h2>
+              <div className="space-y-3">
+                {sosRequest.sosMatches.map((m) => {
+                  const empSigned = !!m.workContract?.employerSignedAt
+                  const wrkSigned = !!m.workContract?.workerSignedAt
+                  const both = empSigned && wrkSigned
+                  return (
+                    <div key={m.id} className="rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {both ? "✅ 양측 서명 완료" : empSigned ? "✍️ 사업주 서명 완료 · 근로자 대기" : wrkSigned ? "✍️ 근로자 서명 완료 · 사업주 대기" : "미작성"}
+                        </p>
+                      </div>
+                      <Link
+                        href={`/sos/${id}/contract/${m.id}`}
+                        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        {empSigned ? "계약서 보기" : "계약서 작성"}
+                      </Link>
+                    </div>
+                  )
+                })}
+              </div>
             </section>
           )}
 

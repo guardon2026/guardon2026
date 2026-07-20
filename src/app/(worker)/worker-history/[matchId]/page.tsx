@@ -84,6 +84,7 @@ export default async function WorkerSosDetailPage({
           company: { select: { name: true, phone: true, address: true } },
         },
       },
+      workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
     },
   })
 
@@ -235,6 +236,31 @@ export default async function WorkerSosDetailPage({
         <InfoSection title="상세 설명" icon={FileText}>
           <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{req.description}</p>
         </InfoSection>
+      )}
+
+      {/* 근로계약서 — CONFIRMED 상태일 때 표시 */}
+      {match.status === SosMatchStatus.CONFIRMED && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-gray-900">일용직 근로계약서</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {match.workContract?.workerSignedAt && match.workContract?.employerSignedAt
+                ? "✅ 양측 서명 완료"
+                : match.workContract?.workerSignedAt
+                ? "✍️ 내 서명 완료 · 사업주 서명 대기"
+                : match.workContract?.employerSignedAt
+                ? "✍️ 사업주 서명 완료 · 내 서명 필요"
+                : "미작성"}
+            </p>
+          </div>
+          <Link
+            href={`/worker-history/${matchId}/contract`}
+            className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            {match.workContract?.workerSignedAt ? "계약서 보기" : "계약서 작성"}
+          </Link>
+        </div>
       )}
 
       {/* 수락 취소 버튼 — ACCEPTED 상태일 때만 표시 */}
