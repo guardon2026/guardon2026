@@ -69,7 +69,7 @@ export default function CancelButton({ sosRequestId, confirmedCount, hourlyRate 
                 </p>
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1 text-xs">
                   <p className="font-semibold text-amber-800">위약금 안내</p>
-                  <p className="text-amber-700">• 인당 위약금: 인건비의 10% = {penaltyPerWorker.toLocaleString()}P</p>
+                  <p className="text-amber-700">• 인당 위약금: 일급의 10% = {penaltyPerWorker.toLocaleString()}P</p>
                   <p className="text-amber-700">• 총 위약금: {totalPenalty.toLocaleString()}P ({confirmedCount}명)</p>
                   <p className="text-amber-700">• 위약금은 각 확정 인력의 포인트로 지급됩니다.</p>
                 </div>

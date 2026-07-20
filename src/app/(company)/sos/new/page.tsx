@@ -551,11 +551,12 @@ export default function SosNewPage() {
     (max, cur) => (!max || cur.hours > max.hours ? cur : max),
     null
   )
-  const laborCost = rateNum * totalRequiredCount
+  // 인건비는 업체 대표가 경비 인력에게 직접 이체 — 플랫폼 결제에서 제외
+  const laborCost = rateNum * totalRequiredCount // 서비스 수수료 산정 기준용 (결제 항목 아님)
   const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
   const urgencyFee = URGENCY_FEE[urgencyLevel] ?? 0
-  const vat = rateNum > 0 ? Math.ceil((laborCost + serviceFee + urgencyFee) * 0.1) : 0
-  const totalCharge = laborCost + serviceFee + urgencyFee + vat
+  const vat = rateNum > 0 ? Math.ceil((serviceFee + urgencyFee) * 0.1) : 0
+  const totalCharge = serviceFee + urgencyFee + vat
 
   // 요약 표시
   const daysWithDates = workDays.filter((d) => d.date)
@@ -1049,7 +1050,7 @@ export default function SosNewPage() {
               {/* 영수증 / 세금계산서 발행 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">지출 영수증 발행</p>
-                <p className="text-xs text-gray-500 -mt-2">SOS 확정 후 인건비 + 가드온 수수료 합산 금액에 대한 지출 영수증(현금영수증 또는 세금계산서)을 발행해 드립니다.</p>
+                <p className="text-xs text-gray-500 -mt-2">SOS 확정 후 가드온 매칭 수수료 + 부가세에 대한 지출 영수증(현금영수증 또는 세금계산서)을 발행해 드립니다. 인건비는 업체 대표님이 경비 인력에게 직접 이체하시면 됩니다.</p>
 
                 {/* 직전 충전 영수증 자동 적용 배너 */}
                 {lastReceipt && !receiptBannerDismissed && (
@@ -1185,12 +1186,15 @@ export default function SosNewPage() {
               {rateNum > 0 && (
                 <div className="bg-gray-50 rounded-xl border border-gray-200 px-5 py-4 space-y-2 text-sm">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">결제 내역</p>
-                  <div className="flex justify-between text-gray-600">
+                  <div className="flex justify-between text-gray-500 text-xs pb-1">
                     <span>인건비 (총 {totalRequiredCount}명 × {rateNum.toLocaleString()}원)</span>
-                    <span>{laborCost.toLocaleString()}P</span>
+                    <span className="line-through">{laborCost.toLocaleString()}원</span>
                   </div>
+                  <p className="text-[11px] text-gray-400 -mt-1 mb-1">
+                    ※ 인건비는 업체 대표님이 경비 인력에게 직접 이체합니다
+                  </p>
                   <div className="flex justify-between text-gray-600">
-                    <span>가드온 매칭 수수료 (5%)</span>
+                    <span>가드온 매칭 수수료 (인건비의 5%)</span>
                     <span>{serviceFee.toLocaleString()}P</span>
                   </div>
                   {urgencyFee > 0 && (
@@ -1200,7 +1204,7 @@ export default function SosNewPage() {
                     </div>
                   )}
                   <div className="flex justify-between text-gray-600">
-                    <span>부가세 (10%)</span>
+                    <span>부가세 (수수료의 10%)</span>
                     <span>{vat.toLocaleString()}P</span>
                   </div>
                   <div className="h-px bg-gray-200" />
