@@ -195,12 +195,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 3-1. 최저임금 방어 (2026년 기준: 10,320원/시간 × 8시간 = 82,560원)
-  const MIN_DAILY_WAGE = 82_560
+  // 3-1. 최저임금 방어
+  // 배치 일정에 근무시간이 있으면 날짜별 실제 근무시간 × 최저시급(10,320원)으로 최저 일급 산정.
+  // 시간 정보가 없는 경우 법정 기본 8시간(82,560원) 기준 적용.
+  const MIN_HOURLY_WAGE = 10_320 // 2026년 최저시급
+  const scheduledHours = data.scheduleDays
+    ?.filter((d) => d.startTime && d.endTime)
+    .map((d) => {
+      const start = new Date(`${d.date}T${d.startTime}`)
+      const end = new Date(`${d.endDate ?? d.date}T${d.endTime}`)
+      return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
+    }) ?? []
+  const maxScheduledHours = scheduledHours.length > 0 ? Math.max(...scheduledHours) : 8
+  const MIN_DAILY_WAGE = Math.ceil(maxScheduledHours * MIN_HOURLY_WAGE)
+
   if (data.hourlyRate < MIN_DAILY_WAGE) {
     return NextResponse.json(
       {
-        error: `일급은 2026년 최저임금(${MIN_DAILY_WAGE.toLocaleString()}원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)`,
+        error: `일급은 최장 근무일(${maxScheduledHours}시간) 기준 최저임금(${MIN_DAILY_WAGE.toLocaleString()}원) 이상이어야 합니다. (최저시급 10,320원 × ${maxScheduledHours}h)`,
         minWage: MIN_DAILY_WAGE,
       },
       { status: 400 }

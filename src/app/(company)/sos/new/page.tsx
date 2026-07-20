@@ -413,7 +413,24 @@ export default function SosNewPage() {
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
     const rateVal = Number(hourlyRate.replace(/,/g, ""))
     if (!hourlyRate || rateVal < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
-    else if (rateVal > 0 && rateVal < 82_560) newErrors.hourlyRate = "일급은 2026년 최저임금(82,560원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)"
+    else {
+      // 배치 일정에 근무시간이 입력된 경우 날짜별 실제 근무시간 × 최저시급으로 검증
+      const scheduledDayHours = workDays
+        .filter((d) => d.date && d.startTime && d.endTime)
+        .map((d) => {
+          const start = new Date(`${d.date}T${d.startTime}`)
+          const end = new Date(`${d.endDate || d.date}T${d.endTime}`)
+          return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
+        })
+      const maxH = scheduledDayHours.length > 0 ? Math.max(...scheduledDayHours) : 8
+      const minRequired = Math.ceil(maxH * 10_320) // 최저시급 10,320원 × 최장 근무시간
+      if (rateVal > 0 && rateVal < minRequired) {
+        newErrors.hourlyRate =
+          scheduledDayHours.length > 0
+            ? `일급은 최장 근무일(${maxH % 1 === 0 ? maxH : maxH.toFixed(1)}시간) 기준 최저임금 이상이어야 합니다. (10,320원 × ${maxH % 1 === 0 ? maxH : maxH.toFixed(1)}h = ${minRequired.toLocaleString()}원)`
+            : "일급은 2026년 최저임금(82,560원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)"
+      }
+    }
 
     if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
 
@@ -514,6 +531,26 @@ export default function SosNewPage() {
   }
   const rateNum = hourlyRate ? Number(hourlyRate.replace(/,/g, "")) : 0
   const totalRequiredCount = workDays.reduce((sum, d) => sum + (d.requiredCount || 1), 0)
+
+  // 날짜별 근무시간 계산 (배치 일정 기반 일급 안내용)
+  const dayHours = workDays
+    .filter((d) => d.date && d.startTime && d.endTime)
+    .map((d) => {
+      const start = new Date(`${d.date}T${d.startTime}`)
+      const end = new Date(`${d.endDate || d.date}T${d.endTime}`)
+      const diffMs = end.getTime() - start.getTime()
+      const hours = Math.max(0, diffMs / (1000 * 60 * 60))
+      return {
+        date: d.date,
+        hours,
+        minWage: Math.ceil(hours * 10_320), // 2026년 최저시급 기준 최저 일급
+      }
+    })
+  // 가장 긴 근무일 기준으로 최저 일급 하한선 결정
+  const maxHoursDay = dayHours.reduce<{ hours: number; minWage: number } | null>(
+    (max, cur) => (!max || cur.hours > max.hours ? cur : max),
+    null
+  )
   const laborCost = rateNum * totalRequiredCount
   const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
   const urgencyFee = URGENCY_FEE[urgencyLevel] ?? 0
@@ -939,6 +976,33 @@ export default function SosNewPage() {
                     <span className="text-sm text-gray-600">{SOS_FORM.FIELDS.HOURLY_RATE_UNIT}/일</span>
                   </div>
                   {errors.hourlyRate && <p className="text-xs text-sos mt-1">{errors.hourlyRate}</p>}
+
+                  {/* 배치 일정 기반 근무시간 안내 */}
+                  {dayHours.length > 0 && (
+                    <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-1.5">
+                      <p className="text-xs font-semibold text-gray-500">📋 배치 일정 기준 근무시간</p>
+                      <div className="space-y-1">
+                        {dayHours.map((d, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs text-gray-600">
+                            <span>{d.date}</span>
+                            <span>
+                              <strong>{d.hours % 1 === 0 ? d.hours : d.hours.toFixed(1)}시간</strong>
+                              {" "}→ 최저 일급{" "}
+                              <strong className={rateNum > 0 && rateNum < d.minWage ? "text-red-600" : "text-gray-700"}>
+                                {d.minWage.toLocaleString()}원
+                              </strong>
+                              {rateNum > 0 && rateNum < d.minWage && (
+                                <span className="ml-1 text-red-500">⚠️ 미달</span>
+                              )}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-gray-400 pt-0.5 border-t border-gray-200">
+                        최저시급 10,320원 기준 · 일급은 날짜별 실제 근무시간 × 최저시급 이상이어야 합니다
+                      </p>
+                    </div>
+                  )}
 
                   {/* 최저임금 안내 + 세금 정보 */}
                   {rateNum > 0 && (
