@@ -11,6 +11,7 @@ import type { StatusVariant } from "@/components/ui/status-badge"
 import SosApplicationForm from "./SosApplicationForm"
 import ApplicationStatusButton from "./ApplicationStatusButton"
 import CancelButton from "./CancelButton"
+import ConfirmButton from "./ConfirmButton"
 
 interface SosDetailPageProps {
   params: Promise<{ id: string }>
@@ -214,6 +215,21 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
       : Promise.resolve([]),
   ])
 
+  const acceptedMatches = isOwner
+    ? await prisma.sosMatch.findMany({
+        where: { sosRequestId: id, status: "ACCEPTED" },
+        include: {
+          workerProfile: {
+            include: {
+              user: { select: { name: true, phone: true } },
+              credentials: { select: { type: true, status: true } },
+            },
+          },
+        },
+        orderBy: { respondedAt: "asc" },
+      })
+    : []
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <PageHeader
@@ -279,6 +295,35 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
               </div>
             )}
           </section>
+
+          {isOwner && acceptedMatches.length > 0 && (
+            <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
+              <div>
+                <h2 className="text-base font-bold text-gray-900">SOS 수락 인력 ({acceptedMatches.length}명)</h2>
+                <p className="text-xs text-gray-500 mt-1">알림을 수락한 경비 인력입니다. 확정 버튼으로 최종 배치를 확정하세요.</p>
+              </div>
+              <div className="space-y-3">
+                {acceptedMatches.map((m) => (
+                  <div key={m.id} className="rounded-xl border border-green-100 bg-green-50 p-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {m.workerProfile.user.phone ?? "-"}
+                        {m.workerProfile.credentials.filter(c => c.status === "APPROVED").length > 0 && (
+                          <span className="ml-2 text-green-600">· 자격증 {m.workerProfile.credentials.filter(c => c.status === "APPROVED").length}개</span>
+                        )}
+                      </p>
+                    </div>
+                    <ConfirmButton
+                      sosRequestId={sosRequest.id}
+                      matchId={m.id}
+                      workerName={m.workerProfile.user.name ?? undefined}
+                    />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {isOwner && (
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
