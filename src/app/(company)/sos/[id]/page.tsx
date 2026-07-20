@@ -236,12 +236,6 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
               <InfoItem icon={MapPin} label="지역" value={sosRequest.region || [sosRequest.city, sosRequest.district].filter(Boolean).join(" ") || "협의"} />
               <InfoItem icon={Users} label="필요 인원" value={`${sosRequest.requiredCount}명`} />
               <InfoItem icon={Zap} label="예산" value={`${totalBudget.toLocaleString()}원 (인건비 ${laborCost.toLocaleString()}원 + 수수료 ${(serviceFee + vat).toLocaleString()}원)`} />
-              <InfoItem icon={ShieldCheck} label="서비스 유형" value={sosRequest.serviceType ?? "경호·보안"} />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InfoItem icon={FileText} label="신청 마감" value={formatDateTime(sosRequest.applicationDeadline)} />
-              <InfoItem icon={FileText} label="정산 방식" value={sosRequest.paymentMethod ?? "협의"} />
             </div>
 
             <div>
