@@ -186,6 +186,21 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
     })
   }
 
+  // 예산 계산: 인건비(긴급도 포함) + 매칭 수수료 + 부가세
+  const URGENCY_FEE_MAP: Record<string, number> = { NORMAL: 0, FAST: 5_000, URGENT: 10_000, CRITICAL: 15_000 }
+  const urgencyBonus = URGENCY_FEE_MAP[sosRequest.urgencyLevel] ?? 0
+  const scheduleDaysArr = Array.isArray(sosRequest.scheduleDays)
+    ? (sosRequest.scheduleDays as Array<{ requiredCount?: number }>)
+    : []
+  const totalCount = scheduleDaysArr.length > 0
+    ? scheduleDaysArr.reduce((s, d) => s + (d.requiredCount ?? 1), 0)
+    : sosRequest.requiredCount
+  const effectiveDailyRate = sosRequest.hourlyRate + urgencyBonus
+  const laborCost = effectiveDailyRate * totalCount
+  const serviceFee = Math.ceil(laborCost * 0.05)
+  const vat = Math.ceil(serviceFee * 0.1)
+  const totalBudget = laborCost + serviceFee + vat
+
   const [confirmedMatchCount, confirmedMatches] = await Promise.all([
     prisma.sosMatch.count({ where: { sosRequestId: id, status: "CONFIRMED" } }),
     isOwner
@@ -220,7 +235,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
               <InfoItem icon={Clock} label="배치 종료" value={formatDateTime(sosRequest.scheduledEndAt)} />
               <InfoItem icon={MapPin} label="지역" value={sosRequest.region || [sosRequest.city, sosRequest.district].filter(Boolean).join(" ") || "협의"} />
               <InfoItem icon={Users} label="필요 인원" value={`${sosRequest.requiredCount}명`} />
-              <InfoItem icon={Zap} label="예산" value={`${(sosRequest.budgetTotal ?? sosRequest.hourlyRate * sosRequest.requiredCount).toLocaleString()}원`} />
+              <InfoItem icon={Zap} label="예산" value={`${totalBudget.toLocaleString()}원 (인건비 ${laborCost.toLocaleString()}원 + 수수료 ${(serviceFee + vat).toLocaleString()}원)`} />
               <InfoItem icon={ShieldCheck} label="서비스 유형" value={sosRequest.serviceType ?? "경호·보안"} />
             </div>
 
