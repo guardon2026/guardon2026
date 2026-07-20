@@ -231,9 +231,9 @@ export default function SosNewPage() {
   const [siteManagers, setSiteManagers] = useState([{ id: 1, name: "", phone: "", comment: "" }])
   const [description, setDescription] = useState("")
   const [urgencyLevel, setUrgencyLevel] = useState("URGENT")
-  const [serviceType, setServiceType] = useState("경호·보안")
-  const [applicationDeadline, setApplicationDeadline] = useState("")
-  const [paymentMethod, setPaymentMethod] = useState("협의 후 정산")
+  const serviceType = "경호·보안"
+  const applicationDeadline = ""
+  const paymentMethod = ""
   const allowCompanyApplicants = true
   const allowGuardApplicants = true
   const isAdConfirmed = true
@@ -416,7 +416,6 @@ export default function SosNewPage() {
     else if (rateVal > 0 && rateVal < 82_560) newErrors.hourlyRate = "일급은 2026년 최저임금(82,560원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)"
 
     if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
-if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newErrors.applicationDeadline = "신청 마감은 현재 이후로 입력해 주세요."
 
     const hasContact = siteManagers.some((m) => m.name.trim() || m.phone.trim())
     if (!hasContact) newErrors.siteManagers = "현장 담당자 연락처를 입력해 주세요."
@@ -601,34 +600,6 @@ if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newError
                       <option value="FAST">빠른 모집</option>
                       <option value="NORMAL">일반</option>
                     </select>
-                  </label>
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-gray-600">서비스 유형</span>
-                    <input
-                      value={serviceType}
-                      onChange={(e) => setServiceType(e.target.value)}
-                      placeholder="행사경호, 의전, 시설보안 등"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                    />
-                  </label>
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-gray-600">신청 마감</span>
-                    <input
-                      type="datetime-local"
-                      value={applicationDeadline}
-                      onChange={(e) => setApplicationDeadline(e.target.value)}
-                      className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${errors.applicationDeadline ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                    />
-                    {errors.applicationDeadline && <p className="text-xs text-sos">{errors.applicationDeadline}</p>}
-                  </label>
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-gray-600">정산 방식</span>
-                    <input
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      placeholder="계약서, 세금계산서, 현장 정산 등"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                    />
                   </label>
                 </div>
               </div>
