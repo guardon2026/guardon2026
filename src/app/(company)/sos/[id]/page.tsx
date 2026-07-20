@@ -156,13 +156,6 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
         },
         orderBy: { createdAt: "desc" },
       },
-      sosMatches: {
-        where: { status: "CONFIRMED" },
-        include: {
-          workerProfile: { include: { user: { select: { name: true, phone: true } } } },
-          workContract: true,
-        },
-      },
       _count: { select: { sosApplications: true } },
     },
   })
@@ -193,9 +186,18 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
     })
   }
 
-  const confirmedMatchCount = await prisma.sosMatch.count({
-    where: { sosRequestId: id, status: "CONFIRMED" },
-  })
+  const [confirmedMatchCount, confirmedMatches] = await Promise.all([
+    prisma.sosMatch.count({ where: { sosRequestId: id, status: "CONFIRMED" } }),
+    isOwner
+      ? prisma.sosMatch.findMany({
+          where: { sosRequestId: id, status: "CONFIRMED" },
+          include: {
+            workerProfile: { include: { user: { select: { name: true, phone: true } } } },
+            workContract: true,
+          },
+        })
+      : Promise.resolve([]),
+  ])
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -326,11 +328,11 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
             </section>
           )}
 
-          {isOwner && sosRequest.sosMatches.length > 0 && (
+          {isOwner && confirmedMatches.length > 0 && (
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
               <h2 className="text-base font-bold text-gray-900">확정된 매칭 인력 (계약서)</h2>
               <div className="space-y-3">
-                {sosRequest.sosMatches.map((m) => {
+                {confirmedMatches.map((m) => {
                   const empSigned = !!m.workContract?.employerSignedAt
                   const wrkSigned = !!m.workContract?.workerSignedAt
                   const both = empSigned && wrkSigned
