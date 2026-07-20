@@ -207,14 +207,21 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 3-2. 포인트 잔액 확인 (일급 × 필요 인원 + 5% 가드온 수수료 + 수수료 부가세 10%)
+  // 3-2. 포인트 잔액 확인 (인건비 + 5% 매칭 수수료 + 긴급도 추가 비용 + 부가세 10%)
+  const URGENCY_FEE: Record<string, number> = {
+    NORMAL: 0,
+    FAST: 5_000,
+    URGENT: 10_000,
+    CRITICAL: 15_000,
+  }
   const totalCount = data.scheduleDays
     ? data.scheduleDays.reduce((sum, d) => sum + (d.requiredCount ?? 1), 0)
     : data.requiredCount
   const laborCost = data.hourlyRate * totalCount
   const serviceFee = Math.ceil(laborCost * 0.05)
-  const vat = Math.ceil((laborCost + serviceFee) * 0.1)
-  const requiredPoints = laborCost + serviceFee + vat
+  const urgencyFee = URGENCY_FEE[data.urgencyLevel ?? "NORMAL"] ?? 0
+  const vat = Math.ceil((laborCost + serviceFee + urgencyFee) * 0.1)
+  const requiredPoints = laborCost + serviceFee + urgencyFee + vat
   const pointAccount = await prisma.pointAccount.findUnique({
     where: { userId: authResult.userId },
   })
@@ -337,7 +344,7 @@ export async function POST(req: NextRequest) {
         accountId: pointAccount.id,
         amount: -requiredPoints,
         type: "SOS_DEDUCT",
-        description: `SOS 요청: ${data.title} (인건비 ${laborCost.toLocaleString()}원 + 서비스 비용 ${serviceFee.toLocaleString()}원 + 부가세 ${vat.toLocaleString()}원)`,
+        description: `SOS 요청: ${data.title} (인건비 ${laborCost.toLocaleString()}원 + 매칭 수수료 ${serviceFee.toLocaleString()}원${urgencyFee > 0 ? ` + 긴급도 ${urgencyFee.toLocaleString()}원` : ""} + 부가세 ${vat.toLocaleString()}원)`,
         sosRequestId: sosRequest.id,
       },
     }),

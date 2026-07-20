@@ -507,12 +507,19 @@ if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newError
   }
 
   // 결제 금액 계산 (일별 인원 합산)
+  const URGENCY_FEE: Record<string, number> = {
+    NORMAL: 0,
+    FAST: 5_000,
+    URGENT: 10_000,
+    CRITICAL: 15_000,
+  }
   const rateNum = hourlyRate ? Number(hourlyRate.replace(/,/g, "")) : 0
   const totalRequiredCount = workDays.reduce((sum, d) => sum + (d.requiredCount || 1), 0)
   const laborCost = rateNum * totalRequiredCount
   const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
-  const vat = rateNum > 0 ? Math.ceil((laborCost + serviceFee) * 0.1) : 0
-  const totalCharge = laborCost + serviceFee + vat
+  const urgencyFee = URGENCY_FEE[urgencyLevel] ?? 0
+  const vat = rateNum > 0 ? Math.ceil((laborCost + serviceFee + urgencyFee) * 0.1) : 0
+  const totalCharge = laborCost + serviceFee + urgencyFee + vat
 
   // 요약 표시
   const daysWithDates = workDays.filter((d) => d.date)
@@ -1148,11 +1155,17 @@ if (applicationDeadline && new Date(applicationDeadline) <= new Date()) newError
                     <span>{laborCost.toLocaleString()}P</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
-                    <span>SOS 긴급 요청 서비스 비용 (5%)</span>
+                    <span>가드온 매칭 수수료 (5%)</span>
                     <span>{serviceFee.toLocaleString()}P</span>
                   </div>
+                  {urgencyFee > 0 && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>긴급도 추가 비용 ({urgencyLevel === "FAST" ? "빠른 모집" : urgencyLevel === "URGENT" ? "긴급" : "즉시 투입"})</span>
+                      <span>{urgencyFee.toLocaleString()}P</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-gray-600">
-                    <span>부가세 (인건비 + 서비스 비용의 10%)</span>
+                    <span>부가세 (10%)</span>
                     <span>{vat.toLocaleString()}P</span>
                   </div>
                   <div className="h-px bg-gray-200" />
