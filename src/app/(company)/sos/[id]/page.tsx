@@ -160,7 +160,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
         where: { status: "CONFIRMED" },
         include: {
           workerProfile: { include: { user: { select: { name: true, phone: true } } } },
-          workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
+          workContract: true,
         },
       },
       _count: { select: { sosApplications: true } },
