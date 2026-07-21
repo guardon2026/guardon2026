@@ -125,6 +125,7 @@ type MatchItem = {
     description: string | null
     siteManagerContact: string | null
     status: string
+    createdAt: Date
     company: {
       kakaoOpenChatUrl: string | null
     }
@@ -367,6 +368,7 @@ export default async function NotificationsPage() {
           description: true,
           siteManagerContact: true,
           status: true,
+          createdAt: true,
           company: {
             select: { kakaoOpenChatUrl: true },
           },
@@ -405,9 +407,14 @@ export default async function NotificationsPage() {
     sosRequestId: n.sosRequestId,
   }))
 
-  const allItems = [...matchItems, ...systemItems].sort(
-    (a, b) => b.sortKey.getTime() - a.sortKey.getTime(),
-  )
+  const allItems = [...matchItems, ...systemItems].sort((a, b) => {
+    const diff = b.sortKey.getTime() - a.sortKey.getTime()
+    if (diff !== 0) return diff
+    // notifiedAt이 동일하면 SOS 생성 시각(최신 SOS 우선) 기준 2차 정렬
+    const aCreated = a.kind === "match" ? new Date(a.sosRequest.createdAt).getTime() : 0
+    const bCreated = b.kind === "match" ? new Date(b.sosRequest.createdAt).getTime() : 0
+    return bCreated - aCreated
+  })
 
   const unreadCount =
     matches.filter((m) => m.status === SosMatchStatus.NOTIFIED).length +

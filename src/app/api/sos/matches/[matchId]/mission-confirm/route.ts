@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus, SosStatus, AvailabilityStatus } from "@prisma/client"
+// workerAccount 조회 불필요 — 일급은 업체 대표가 직접 지급
 import { createNotifications } from "@/lib/notify"
+import { sendKakaoMessages } from "@/lib/kakao-message"
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
 
 // POST /api/sos/matches/[matchId]/mission-confirm
 // 업체 대표가 경비 인력의 임무 완료 보고를 확인합니다.
@@ -55,15 +59,7 @@ export async function POST(
   const sosTitle = match.sosRequest.title
   const dailyPay = match.sosRequest.hourlyRate // hourlyRate 필드가 실제로는 일급
 
-  // 경비 인력 포인트 계정 조회
-  const workerAccount = await prisma.pointAccount.findUnique({
-    where: { userId: workerUserId },
-  })
-  if (!workerAccount) {
-    return NextResponse.json({ error: "경비 인력의 포인트 계정을 찾을 수 없습니다." }, { status: 500 })
-  }
-
-  // SOS → COMPLETED, 워커 → AVAILABLE, 경비 인력에게 일급 지급
+  // SOS → COMPLETED, 워커 → AVAILABLE
   await prisma.$transaction([
     prisma.sosRequest.update({
       where: { id: sosRequestId },
@@ -73,30 +69,38 @@ export async function POST(
       where: { id: workerProfileId },
       data: { availability: AvailabilityStatus.AVAILABLE },
     }),
-    prisma.pointAccount.update({
-      where: { id: workerAccount.id },
-      data: { balance: { increment: dailyPay } },
-    }),
-    prisma.pointTransaction.create({
-      data: {
-        accountId: workerAccount.id,
-        amount: dailyPay,
-        type: "WORKER_CREDIT",
-        description: `SOS 임무 완료 정산: ${sosTitle}`,
-        sosRequestId,
-      },
-    }),
   ])
 
-  // 경비 인력에게 완료 확인 알림
-  await createNotifications([
-    {
-      userId: workerUserId,
-      sosRequestId,
-      type: "MISSION_CONFIRMED",
-      title: "임무 완료 확인",
-      body: `${sosTitle} 현장의 임무 완료가 업체 대표에 의해 확인됐습니다. 수고하셨습니다!`,
-    },
+  // 앱 알림 + 카카오톡 메시지 동시 발송
+  const dueDate = new Date()
+  dueDate.setDate(dueDate.getDate() + 14)
+  const dueDateStr = dueDate.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })
+
+  const kakaoBody =
+    `✅ 임무 완료가 확정되었습니다!\n\n` +
+    `현장: ${sosTitle}\n` +
+    `일급: ${dailyPay.toLocaleString()}원\n` +
+    `지급 기한: ${dueDateStr}까지 (확정일로부터 14일 이내)\n\n` +
+    `업체 대표에게 직접 일급을 수령하시기 바랍니다.\n` +
+    `수고하셨습니다!`
+
+  await Promise.all([
+    createNotifications([
+      {
+        userId: workerUserId,
+        sosRequestId,
+        type: "MISSION_CONFIRMED",
+        title: "임무 완료 확정 — 일급 지급 안내",
+        body: `${sosTitle} 임무 완료가 확정되었습니다. 일급 ${dailyPay.toLocaleString()}원을 확정일로부터 14일 이내(${dueDateStr}까지) 업체 대표에게 직접 수령하세요.`,
+      },
+    ]),
+    sendKakaoMessages([
+      {
+        userId: workerUserId,
+        title: `[GuardOn] 임무 완료 확인 — ${sosTitle}`,
+        body: kakaoBody,
+      },
+    ]),
   ])
 
   return NextResponse.json({ success: true })

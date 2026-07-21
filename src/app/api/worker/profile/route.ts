@@ -268,5 +268,10 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // 업무 분야·주소 변경 시 조건에 맞는 활성 SOS 재매칭 (fire-and-forget)
+  if (data.workFields !== undefined || data.address !== undefined) {
+    void matchSosRequestsForWorker(existing.id, auth_result.userId)
+  }
+
   return NextResponse.json({ profile })
 }

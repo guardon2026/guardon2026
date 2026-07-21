@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { AvailabilityToggle } from "./availability-toggle"
-import { Star, Award, MapPin, Clock, DollarSign, User, FileText, Scale, Ruler } from "lucide-react"
+import { Star, Award, MapPin, Clock, DollarSign, User, FileText, Scale, Ruler, Coins, ChevronRight, CheckCircle2, ShieldCheck, ShieldAlert } from "lucide-react"
 import {
   WORKER_PUBLIC_PROFILE,
   WORK_FIELD_LABELS,
@@ -30,24 +30,34 @@ export default async function ProfilePage() {
     )
   }
 
-  const profile = await prisma.workerProfile.findUnique({
-    where: { userId: session.user.id },
-    include: {
-      user: {
-        select: { name: true, deletedAt: true },
-      },
-      credentials: {
-        select: {
-          id: true,
-          type: true,
-          status: true,
-          approvedAt: true,
-          rejectionReason: true,
+  const [profile, pointAccount, recentContracts] = await Promise.all([
+    prisma.workerProfile.findUnique({
+      where: { userId: session.user.id },
+      include: {
+        user: { select: { name: true, deletedAt: true } },
+        credentials: {
+          select: { id: true, type: true, status: true, approvedAt: true, rejectionReason: true },
+          orderBy: { createdAt: "asc" },
         },
-        orderBy: { createdAt: "asc" },
       },
-    },
-  })
+    }),
+    prisma.pointAccount.findUnique({
+      where: { userId: session.user.id },
+      select: { balance: true },
+    }),
+    prisma.sosMatch.findMany({
+      where: {
+        workerProfile: { userId: session.user.id },
+        status: "CONFIRMED",
+      },
+      include: {
+        sosRequest: { select: { title: true, scheduledAt: true } },
+        workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
+      },
+      orderBy: { confirmedAt: "desc" },
+      take: 3,
+    }),
+  ])
 
   if (profile?.user?.deletedAt) {
     return (
@@ -351,6 +361,101 @@ export default async function ProfilePage() {
               <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{profile.bio}</p>
             </div>
           )}
+
+          {/* 본인 인증 */}
+          <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-brand" />
+                본인 인증
+              </h3>
+              <Link href="/my-verification" className="text-xs text-brand font-medium hover:underline flex items-center gap-0.5">
+                관리 <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className={`rounded-xl px-4 py-3 flex items-center gap-2 ${profile.rrnVerifiedAt ? "bg-green-50" : "bg-amber-50"}`}>
+                {profile.rrnVerifiedAt
+                  ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                  : <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+                }
+                <div>
+                  <p className="text-xs font-semibold text-gray-700">주민등록번호</p>
+                  <p className={`text-xs ${profile.rrnVerifiedAt ? "text-green-600" : "text-amber-600"}`}>
+                    {profile.rrnVerifiedAt ? "인증 완료" : "미인증"}
+                  </p>
+                </div>
+              </div>
+              <div className={`rounded-xl px-4 py-3 flex items-center gap-2 ${profile.bankVerifiedAt ? "bg-green-50" : "bg-amber-50"}`}>
+                {profile.bankVerifiedAt
+                  ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                  : <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+                }
+                <div>
+                  <p className="text-xs font-semibold text-gray-700">계좌 정보</p>
+                  <p className={`text-xs ${profile.bankVerifiedAt ? "text-green-600" : "text-amber-600"}`}>
+                    {profile.bankVerifiedAt ? (profile.bankName ?? "등록 완료") : "미등록"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 포인트 */}
+          <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                <Coins className="w-4 h-4 text-amber-500" />
+                포인트
+              </h3>
+              <Link href="/my-points" className="text-xs text-brand font-medium hover:underline flex items-center gap-0.5">
+                전체 내역 <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl px-5 py-4 text-white">
+              <p className="text-xs font-medium opacity-80 mb-1">현재 잔액</p>
+              <p className="text-2xl font-bold">{(pointAccount?.balance ?? 0).toLocaleString()}<span className="text-sm font-normal ml-1">P</span></p>
+            </div>
+          </div>
+
+          {/* 근로계약서 */}
+          <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                <FileText className="w-4 h-4" />
+                근로계약서
+              </h3>
+              <Link href="/worker-contracts" className="text-xs text-brand font-medium hover:underline flex items-center gap-0.5">
+                전체 보기 <ChevronRight className="w-3 h-3" />
+              </Link>
+            </div>
+            {recentContracts.length === 0 ? (
+              <p className="text-sm text-gray-400">확정된 매칭이 없습니다.</p>
+            ) : (
+              <div className="space-y-2">
+                {recentContracts.map((m) => {
+                  const both = !!(m.workContract?.employerSignedAt && m.workContract?.workerSignedAt)
+                  const scheduledDate = new Date(m.sosRequest.scheduledAt).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })
+                  return (
+                    <Link
+                      key={m.id}
+                      href={`/worker-history/${m.id}/contract`}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <CheckCircle2 className={`w-4 h-4 shrink-0 ${both ? "text-green-500" : "text-gray-300"}`} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{m.sosRequest.title}</p>
+                          <p className="text-xs text-gray-400">{scheduledDate} · {both ? "서명 완료" : "서명 대기"}</p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0" />
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

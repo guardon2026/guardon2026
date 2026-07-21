@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
+import { sendKakaoMessages } from "@/lib/kakao-message"
+
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://guardon.kr"
 
 type Params = { params: Promise<{ matchId: string }> }
 
@@ -42,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const match = await prisma.sosMatch.findUnique({
     where: { id: matchId },
     include: {
-      sosRequest: { include: { company: { select: { ownerId: true } } } },
+      sosRequest: { select: { id: true, title: true, company: { select: { ownerId: true } } } },
       workerProfile: { select: { userId: true } },
       workContract: true,
     },
@@ -82,6 +85,12 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         ...(sign && { employerSignedAt: now }),
       },
     })
+
+    // 양쪽 서명 완료 시 카카오 메시지 발송
+    if (sign && match.workContract?.workerSignedAt) {
+      await notifyBothParties(match, matchId)
+    }
+
     return NextResponse.json({ contract })
   }
 
@@ -112,5 +121,36 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       ...(sign && { workerSignedAt: now }),
     },
   })
+
+  // 양쪽 서명 완료 시 카카오 메시지 발송
+  if (sign && match.workContract?.employerSignedAt) {
+    await notifyBothParties(match, matchId)
+  }
+
   return NextResponse.json({ contract })
+}
+
+async function notifyBothParties(
+  match: {
+    sosRequest: { id: string; title: string; company: { ownerId: string } }
+    workerProfile: { userId: string }
+  },
+  matchId: string,
+) {
+  const employerUrl = `${BASE_URL}/sos/${match.sosRequest.id}/contract/${matchId}`
+  const workerUrl   = `${BASE_URL}/worker-history/${matchId}/contract`
+  const title = `근로계약서 서명 완료 — ${match.sosRequest.title}`
+
+  sendKakaoMessages([
+    {
+      userId: match.sosRequest.company.ownerId,
+      title,
+      body: `양측 서명이 완료되어 계약서가 유효합니다.\n계약서 확인: ${employerUrl}\n(브라우저 인쇄로 PDF 저장 가능)`,
+    },
+    {
+      userId: match.workerProfile.userId,
+      title,
+      body: `양측 서명이 완료되어 계약서가 유효합니다.\n계약서 확인: ${workerUrl}\n(브라우저 인쇄로 PDF 저장 가능)`,
+    },
+  ])
 }

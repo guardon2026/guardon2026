@@ -11,18 +11,28 @@ const ROLE_REDIRECT: Record<string, string> = {
 
 const ROLE_CONFIG = [
   {
+    userId: "dev-company_owner",
     role: "COMPANY_OWNER" as const,
     label: AUTH.devRoleCompanyOwner,
     desc: "SOS 요청·인력 검색·매칭 관리",
     icon: Building2,
   },
   {
+    userId: "dev-worker",
     role: "WORKER" as const,
     label: AUTH.devRoleWorker,
     desc: "프로필·자격증·알림 관리",
     icon: UserCheck,
   },
   {
+    userId: "dev-worker2",
+    role: "WORKER" as const,
+    label: "[DEV] 경비 인력2",
+    desc: "프로필·자격증·알림 관리 (2번 계정)",
+    icon: UserCheck,
+  },
+  {
+    userId: "dev-admin",
     role: "ADMIN" as const,
     label: AUTH.devRoleAdmin,
     desc: "업체 심사·자격증 승인·통계",
@@ -37,18 +47,20 @@ export default async function DevLoginPage() {
 
   async function setDevRole(formData: FormData) {
     "use server"
-    const role = formData.get("role") as string
+    const role   = formData.get("role") as string
+    const userId = formData.get("userId") as string | null
     const cookieStore = await cookies()
     if (role === "logout") {
       cookieStore.delete("dev_role")
+      cookieStore.delete("dev_user")
       redirect("/dev-login")
     } else {
-      cookieStore.set("dev_role", role, {
-        httpOnly: false,
-        path: "/",
-        maxAge: 60 * 60 * 24,
-        sameSite: "lax",
-      })
+      cookieStore.set("dev_role", role, { httpOnly: false, path: "/", maxAge: 60 * 60 * 24, sameSite: "lax" })
+      if (userId) {
+        cookieStore.set("dev_user", userId, { httpOnly: false, path: "/", maxAge: 60 * 60 * 24, sameSite: "lax" })
+      } else {
+        cookieStore.delete("dev_user")
+      }
       redirect(ROLE_REDIRECT[role] ?? "/")
     }
   }
@@ -69,39 +81,42 @@ export default async function DevLoginPage() {
             <p className="text-sm text-gray-500">{AUTH.devLoginDesc}</p>
           </div>
 
-          <form action={setDevRole} className="space-y-3">
-            {ROLE_CONFIG.map(({ role, label, desc, icon: Icon }) => (
-              <button
-                key={role}
-                type="submit"
-                name="role"
-                value={role}
-                className="w-full flex items-center gap-3 px-4 py-3 border border-brand
-                           rounded-xl text-left hover:bg-blue-50 transition-colors group"
-              >
-                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                  <Icon className="w-4.5 h-4.5 text-brand" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900">{label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 group-hover:text-brand transition-colors" />
-              </button>
+          <div className="space-y-3">
+            {ROLE_CONFIG.map(({ userId, role, label, desc, icon: Icon }) => (
+              <form key={userId} action={setDevRole}>
+                <input type="hidden" name="role" value={role} />
+                <input type="hidden" name="userId" value={userId} />
+                <button
+                  type="submit"
+                  className="w-full flex items-center gap-3 px-4 py-3 border border-brand
+                             rounded-xl text-left hover:bg-blue-50 transition-colors group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                    <Icon className="w-4.5 h-4.5 text-brand" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900">{label}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400 shrink-0 group-hover:text-brand transition-colors" />
+                </button>
+              </form>
             ))}
 
             <div className="pt-2 border-t border-gray-100">
-              <button
-                type="submit"
-                name="role"
-                value="logout"
-                className="w-full py-2.5 border border-gray-200 rounded-xl text-gray-500
-                           text-sm hover:bg-gray-50 transition-colors"
-              >
-                {AUTH.devRoleReset}
-              </button>
+              <form action={setDevRole}>
+                <button
+                  type="submit"
+                  name="role"
+                  value="logout"
+                  className="w-full py-2.5 border border-gray-200 rounded-xl text-gray-500
+                             text-sm hover:bg-gray-50 transition-colors"
+                >
+                  {AUTH.devRoleReset}
+                </button>
+              </form>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

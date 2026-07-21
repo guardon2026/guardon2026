@@ -9,22 +9,34 @@ import {
   CREDENTIAL_LABELS,
   AVAILABILITY_LABELS,
 } from "@/lib/constants"
-import { Star, Briefcase, MapPin, ArrowLeft, ShieldCheck, User } from "lucide-react"
+import { Star, Briefcase, MapPin, ArrowLeft, ShieldCheck, User, Phone, Mail } from "lucide-react"
 
 export default async function WorkerProfilePage({
   params,
+  searchParams,
 }: {
-  params: { workerId: string }
+  params: Promise<{ workerId: string }>
+  searchParams: Promise<{ from?: string }>
 }) {
   const session = await getServerSession()
   if (!session?.user?.id) redirect("/login")
   if (session.user.role !== UserRole.COMPANY_OWNER) redirect("/unauthorized")
 
+  const { workerId } = await params
+  const { from } = await searchParams
+
+  const company = await prisma.company.findUnique({
+    where: { ownerId: session.user.id },
+    select: { id: true },
+  })
+
   const user = await prisma.user.findUnique({
-    where: { id: params.workerId, deletedAt: null },
+    where: { id: workerId, deletedAt: null },
     select: {
       id: true,
       name: true,
+      phone: true,
+      email: true,
       workerProfile: {
         include: {
           credentials: {
@@ -38,6 +50,18 @@ export default async function WorkerProfilePage({
 
   if (!user?.workerProfile || !user.workerProfile.isProfilePublic) notFound()
 
+  // 이 업체와 확정 매칭된 인력인지 확인 → 확정 시 연락처 공개
+  const isConfirmed = company
+    ? await prisma.sosMatch.findFirst({
+        where: {
+          workerProfileId: user.workerProfile.id,
+          status: "CONFIRMED",
+          sosRequest: { companyId: company.id },
+        },
+        select: { id: true },
+      })
+    : null
+
   const p = user.workerProfile
 
   const availabilityLabel = AVAILABILITY_LABELS[p.availability as keyof typeof AVAILABILITY_LABELS] ?? p.availability
@@ -46,13 +70,15 @@ export default async function WorkerProfilePage({
     : p.availability === "BUSY" ? "bg-amber-400"
     : "bg-gray-300"
 
+  const backHref = from ?? "/search"
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
 
-        <Link href="/search" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
+        <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          인력 검색으로 돌아가기
+          돌아가기
         </Link>
 
         <PageHeader title="경비 인력 프로필" />
@@ -127,6 +153,33 @@ export default async function WorkerProfilePage({
             </>
           )}
         </div>
+
+        {/* 연락처 — 확정 인력에게만 공개 */}
+        {isConfirmed && (
+          <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Phone className="w-4 h-4 text-brand" />
+              <p className="text-sm font-semibold text-gray-700">연락처 <span className="text-xs text-green-600 font-normal ml-1">· 확정 인력 공개</span></p>
+            </div>
+            {user.phone ? (
+              <a
+                href={`tel:${user.phone}`}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors"
+              >
+                <Phone className="w-4 h-4 text-brand" />
+                <span className="text-sm font-semibold text-brand">{user.phone}</span>
+              </a>
+            ) : (
+              <p className="text-sm text-gray-400">전화번호 미등록</p>
+            )}
+            {user.email && (
+              <div className="flex items-center gap-3 px-4 py-2">
+                <Mail className="w-4 h-4 text-gray-400" />
+                <span className="text-sm text-gray-600">{user.email}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 업무 분야 */}
         {p.workFields.length > 0 && (

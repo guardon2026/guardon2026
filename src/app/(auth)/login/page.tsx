@@ -6,7 +6,7 @@ const FEATURES = [
   {
     icon: CheckCircle2,
     title: "빠른 매칭",
-    desc: "당일 결원을 8분 안에 해결합니다.",
+    desc: "긴급 결원을 8분 안에 해결합니다.",
   },
   {
     icon: Users,
@@ -33,7 +33,7 @@ export default function LoginPage() {
         <div className="space-y-8">
           <div>
             <h2 className="text-4xl font-bold text-white leading-tight">
-              당일 결원,<br />8분 해결
+              긴급 결원,<br />8분 해결
             </h2>
             <p className="mt-4 text-gray-400 text-base leading-relaxed">
               경비·보안 인력 시장의 새로운 표준.<br />

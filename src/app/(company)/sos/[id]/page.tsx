@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Clock, FileText, MapPin, Phone, ShieldCheck, Users, Zap } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, FileText, MapPin, Phone, ShieldCheck, Users, Zap, ClipboardList, User } from "lucide-react"
 import { SosApplicationStatus, SosUrgency, UserRole } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
@@ -12,6 +12,7 @@ import SosApplicationForm from "./SosApplicationForm"
 import ApplicationStatusButton from "./ApplicationStatusButton"
 import CancelButton from "./CancelButton"
 import ConfirmButton from "./ConfirmButton"
+import MissionConfirmButton from "./MissionConfirmButton"
 
 interface SosDetailPageProps {
   params: Promise<{ id: string }>
@@ -105,29 +106,16 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
   if (!session?.user?.id || !session.user.role) redirect("/login")
   if (session.user.role !== UserRole.COMPANY_OWNER && session.user.role !== UserRole.WORKER) redirect("/")
 
-  const [viewerCompany, viewerWorker] = await Promise.all([
-    session.user.role === UserRole.COMPANY_OWNER
-      ? prisma.company.findUnique({
-          where: { ownerId: session.user.id },
-          select: { id: true, status: true, isActive: true, name: true, phone: true, owner: { select: { name: true, email: true, phone: true } } },
-        })
-      : Promise.resolve(null),
-    session.user.role === UserRole.WORKER
-      ? prisma.workerProfile.findUnique({
-          where: { userId: session.user.id },
-          select: { id: true, address: true, city: true, district: true, workFields: true, desiredHourlyRate: true, user: { select: { name: true, email: true, phone: true } } },
-        })
-      : Promise.resolve(null),
-  ])
+  const viewerCompany = session.user.role === UserRole.COMPANY_OWNER
+    ? await prisma.company.findUnique({
+        where: { ownerId: session.user.id },
+        select: { id: true, status: true, isActive: true, name: true, phone: true, owner: { select: { name: true, email: true, phone: true } } },
+      })
+    : null
 
   if (session.user.role === UserRole.COMPANY_OWNER) {
     if (!viewerCompany) redirect("/register")
     if (viewerCompany.status !== "APPROVED" || !viewerCompany.isActive) redirect("/pending")
-  }
-  if (session.user.role === UserRole.WORKER) {
-    if (!viewerWorker || !viewerWorker.address || !viewerWorker.city || !viewerWorker.district || viewerWorker.workFields.length === 0) {
-      redirect("/profile/edit")
-    }
   }
 
   const sosRequest = await prisma.sosRequest.findUnique({
@@ -164,15 +152,17 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
   if (!sosRequest) notFound()
 
   const isOwner = viewerCompany?.id === sosRequest.companyId
-  const myApplication = sosRequest.sosApplications.find((a) => a.applicantUserId === session.user.id) ?? null
+  const myApplication = isOwner
+    ? null
+    : sosRequest.sosApplications.find((a) => a.applicantUserId === session.user.id) ?? null
   const canApply =
     !isOwner &&
+    session.user.role === UserRole.COMPANY_OWNER &&
+    sosRequest.allowCompanyApplicants &&
     !myApplication &&
     !["CANCELLED", "COMPLETED", "UNRESOLVED"].includes(sosRequest.status) &&
     !sosRequest.closedAt &&
-    (!sosRequest.applicationDeadline || sosRequest.applicationDeadline > new Date()) &&
-    ((session.user.role === UserRole.COMPANY_OWNER && sosRequest.allowCompanyApplicants) ||
-      (session.user.role === UserRole.WORKER && sosRequest.allowGuardApplicants))
+    (!sosRequest.applicationDeadline || sosRequest.applicationDeadline > new Date())
 
   const canSeeOwnerContact =
     isOwner ||
@@ -208,8 +198,13 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
       ? prisma.sosMatch.findMany({
           where: { sosRequestId: id, status: "CONFIRMED" },
           include: {
-            workerProfile: { include: { user: { select: { name: true, phone: true } } } },
-            workContract: true,
+            workerProfile: {
+              include: {
+                user: { select: { id: true, name: true, phone: true, email: true } },
+                credentials: { select: { type: true, status: true } },
+              },
+            },
+            workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
           },
         })
       : Promise.resolve([]),
@@ -251,7 +246,15 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
               <InfoItem icon={Clock} label="배치 종료" value={formatDateTime(sosRequest.scheduledEndAt)} />
               <InfoItem icon={MapPin} label="지역" value={sosRequest.region || [sosRequest.city, sosRequest.district].filter(Boolean).join(" ") || "협의"} />
               <InfoItem icon={Users} label="필요 인원" value={`${sosRequest.requiredCount}명`} />
-              <InfoItem icon={Zap} label="예산" value={`${totalBudget.toLocaleString()}원 (인건비 ${laborCost.toLocaleString()}원 + 수수료 ${(serviceFee + vat).toLocaleString()}원)`} />
+              <div className="flex items-start gap-2.5">
+                <Zap className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs text-gray-400">필요 예산</p>
+                  <p className="text-sm font-medium text-gray-900 mt-0.5 whitespace-nowrap">
+                    {totalBudget.toLocaleString()}원 (인건비 {laborCost.toLocaleString()}원 + 수수료 {(serviceFee + vat).toLocaleString()}원)
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -384,27 +387,74 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
 
           {isOwner && confirmedMatches.length > 0 && (
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
-              <h2 className="text-base font-bold text-gray-900">확정된 매칭 인력 (계약서)</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold text-gray-900">확정된 매칭 인력 (계약서)</h2>
+                <Link
+                  href={`/sos/${id}/tax-report`}
+                  className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-green-300 bg-green-50 text-xs font-semibold text-green-700 hover:bg-green-100 transition-colors"
+                >
+                  <ClipboardList className="w-3.5 h-3.5" />
+                  신고 정보
+                </Link>
+              </div>
               <div className="space-y-3">
                 {confirmedMatches.map((m) => {
                   const empSigned = !!m.workContract?.employerSignedAt
                   const wrkSigned = !!m.workContract?.workerSignedAt
                   const both = empSigned && wrkSigned
+                  const approvedCreds = m.workerProfile.credentials.filter(c => c.status === "APPROVED")
+                  const hasMissionReport = !!m.missionReportedAt
+                  const alreadySettled = sosRequest.status === "COMPLETED"
                   return (
-                    <div key={m.id} className="rounded-xl border border-gray-100 p-4 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {both ? "✅ 양측 서명 완료" : empSigned ? "✍️ 사업주 서명 완료 · 근로자 대기" : wrkSigned ? "✍️ 근로자 서명 완료 · 사업주 대기" : "미작성"}
-                        </p>
+                    <div key={m.id} className={`rounded-xl border p-4 space-y-3 ${hasMissionReport && !alreadySettled ? "border-emerald-300 bg-emerald-50/30" : "border-gray-100"}`}>
+                      {hasMissionReport && !alreadySettled && (
+                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          경비 인력이 임무 완료를 보고했습니다. 확인 후 일급을 지급해 주세요.
+                        </div>
+                      )}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                          {m.workerProfile.user.phone && (
+                            <p className="text-xs text-gray-600 flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-gray-400" />
+                              {m.workerProfile.user.phone}
+                            </p>
+                          )}
+                          {m.workerProfile.user.email && (
+                            <p className="text-xs text-gray-500">{m.workerProfile.user.email}</p>
+                          )}
+                          {approvedCreds.length > 0 && (
+                            <p className="text-xs text-green-600 flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" />
+                              인증 자격증 {approvedCreds.length}개
+                            </p>
+                          )}
+                          <p className={`text-xs font-medium ${both ? "text-green-600" : empSigned ? "text-blue-600" : wrkSigned ? "text-amber-600" : "text-gray-400"}`}>
+                            {both ? "✅ 양측 서명 완료" : empSigned ? "✍️ 사업주 서명 완료 · 근로자 대기" : wrkSigned ? "✍️ 근로자 서명 완료 · 사업주 대기" : "계약서 미작성"}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <Link
+                            href={`/workers/${m.workerProfile.user.id}?from=/sos/${id}`}
+                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                          >
+                            <User className="w-3.5 h-3.5" />
+                            인력 정보
+                          </Link>
+                          <Link
+                            href={`/sos/${id}/contract/${m.id}`}
+                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            {empSigned ? "계약서 보기" : "계약서 작성"}
+                          </Link>
+                          {hasMissionReport && (
+                            <MissionConfirmButton matchId={m.id} alreadySettled={alreadySettled} />
+                          )}
+                        </div>
                       </div>
-                      <Link
-                        href={`/sos/${id}/contract/${m.id}`}
-                        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        {empSigned ? "계약서 보기" : "계약서 작성"}
-                      </Link>
                     </div>
                   )
                 })}
@@ -432,10 +482,10 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
           {canApply && (
             <SosApplicationForm
               sosRequestId={sosRequest.id}
-              applicantType={session.user.role === UserRole.COMPANY_OWNER ? "COMPANY" : "GUARD"}
-              defaultContactName={viewerCompany?.owner.name ?? viewerWorker?.user.name}
-              defaultContactPhone={viewerCompany?.phone ?? viewerCompany?.owner.phone ?? viewerWorker?.user.phone}
-              defaultContactEmail={viewerCompany?.owner.email ?? viewerWorker?.user.email}
+              applicantType="COMPANY"
+              defaultContactName={viewerCompany?.owner.name}
+              defaultContactPhone={viewerCompany?.phone ?? viewerCompany?.owner.phone}
+              defaultContactEmail={viewerCompany?.owner.email}
             />
           )}
         </div>

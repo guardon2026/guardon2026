@@ -3,7 +3,7 @@ import { useRouter } from "next/navigation"
 import { Building2, ArrowRight, CheckCircle2 } from "lucide-react"
 
 const BENEFITS = [
-  "SOS 긴급 요청으로 당일 결원을 8분 안에 해결",
+  "SOS 긴급 요청으로 긴급 결원을 8분 안에 해결",
   "검증된 경비 인력 풀에서 즉시 검색",
   "매칭 이력 · 평점 · 계약 관리 통합",
 ]

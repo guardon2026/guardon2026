@@ -28,7 +28,7 @@ const ROLE_PATHS: Record<string, UserRole> = {
 }
 
 function getRequiredRole(pathname: string): UserRole | null {
-  if (pathname === "/sos/new" || pathname.startsWith("/sos/new/") || pathname.endsWith("/edit")) {
+  if (pathname === "/sos/new" || pathname.startsWith("/sos/new/") || pathname.startsWith("/sos/") && pathname.endsWith("/edit")) {
     return "COMPANY_OWNER"
   }
   for (const [prefix, role] of Object.entries(ROLE_PATHS)) {

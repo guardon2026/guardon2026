@@ -18,7 +18,7 @@ export default function MissionConfirmButton({
   const [error, setError] = useState("")
 
   async function handleConfirm() {
-    if (!confirm("해당 경비 인력의 임무 완료를 확인하시겠습니까?\n확인하면 해당 경비 인력의 인건비가 정산됩니다.")) return
+    if (!confirm("해당 경비 인력의 임무 완료를 확정하시겠습니까?\n\n일급은 확정일로부터 14일 이내에 경비 인력에게 직접 지급하셔야 합니다.\n확정하면 경비 인력에게 일급 지급 확정 카카오톡 메시지가 발송됩니다.")) return
     setLoading(true)
     setError("")
     try {
@@ -42,7 +42,7 @@ export default function MissionConfirmButton({
         ${fullWidth ? "w-full py-3 rounded-xl text-sm" : "shrink-0 px-3 py-1.5 rounded-lg text-xs"}`}
       >
         <CheckCircle2 className={fullWidth ? "w-4 h-4" : "w-3.5 h-3.5"} />
-        정산 완료
+        임무 완료 확정
       </div>
     )
   }
@@ -57,7 +57,7 @@ export default function MissionConfirmButton({
           ${fullWidth ? "w-full py-3 rounded-xl text-sm" : "shrink-0 px-3 py-1.5 rounded-lg text-xs"}`}
       >
         <CheckCircle2 className={fullWidth ? "w-4 h-4" : "w-3.5 h-3.5"} />
-        {loading ? "처리 중..." : "정산하기"}
+        {loading ? "처리 중..." : "임무 완료 확정하기"}
       </button>
       {error && <p className="text-xs text-red-600">{error}</p>}
     </div>

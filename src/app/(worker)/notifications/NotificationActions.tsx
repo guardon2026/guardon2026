@@ -119,17 +119,22 @@ export default function NotificationActions({ matchId }: { matchId: string }) {
 
       {/* 포인트 부족 시 — 즉시 충전 + 수락 버튼 */}
       {shortfall > 0 && (
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={handleChargeAndAccept}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 transition-colors text-sm font-semibold text-gray-900 disabled:opacity-50"
-        >
-          <Coins className="w-4 h-4 shrink-0" />
-          {actionType === "charge-accept"
-            ? "처리 중..."
-            : `부족한 포인트 즉시 충전하고 SOS 긴급 요청 수락하기 (${shortfall.toLocaleString()}P)`}
-        </button>
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={handleChargeAndAccept}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-400 hover:bg-amber-500 transition-colors text-sm font-semibold text-gray-900 disabled:opacity-50"
+          >
+            <Coins className="w-4 h-4 shrink-0" />
+            {actionType === "charge-accept"
+              ? "처리 중..."
+              : `부족한 포인트 즉시 충전하고 SOS 긴급 요청 수락하기 (${shortfall.toLocaleString()}P)`}
+          </button>
+          <p className="text-xs text-gray-500 text-center">
+            지금 충전하는 포인트는 보증금으로 세이브해 두고 임무 완료 시 전액 환불 됩니다
+          </p>
+        </div>
       )}
 
       {error && shortfall === 0 && (

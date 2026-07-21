@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
+import { createNotifications } from "@/lib/notify"
+import { CREDENTIAL_LABELS } from "@/lib/constants"
 
 export async function POST(
   req: NextRequest,
@@ -39,7 +41,16 @@ export async function POST(
       approvedAt: null,
       rejectionReason,
     },
+    include: { workerProfile: { select: { userId: true } } },
   })
+
+  const credLabel = CREDENTIAL_LABELS[existing.type] ?? existing.type
+  void createNotifications([{
+    userId: credential.workerProfile.userId,
+    type: "CREDENTIAL_REJECTED",
+    title: "자격증 심사 결과",
+    body: `${credLabel} 자격증이 반려되었습니다. 사유: ${rejectionReason}`,
+  }])
 
   return NextResponse.json({ credential })
 }

@@ -190,6 +190,27 @@ function formatBusinessNumber(raw: string): string {
   return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`
 }
 
+// 야간 근무 시간 계산 (22:00 ~ 06:00)
+function calcNightHours(startDt: Date, endDt: Date): number {
+  const startDay = new Date(startDt)
+  startDay.setHours(0, 0, 0, 0)
+  const numDays = Math.ceil((endDt.getTime() - startDay.getTime()) / (1000 * 60 * 60 * 24)) + 2
+  let nightMs = 0
+  for (let i = 0; i < numDays; i++) {
+    const d = new Date(startDay)
+    d.setDate(d.getDate() + i)
+    // 22:00 ~ 24:00
+    const s1 = new Date(d); s1.setHours(22, 0, 0, 0)
+    const e1 = new Date(d); e1.setDate(e1.getDate() + 1); e1.setHours(0, 0, 0, 0)
+    // 00:00 ~ 06:00
+    const s2 = new Date(d); s2.setHours(0, 0, 0, 0)
+    const e2 = new Date(d); e2.setHours(6, 0, 0, 0)
+    nightMs += Math.max(0, Math.min(endDt.getTime(), e1.getTime()) - Math.max(startDt.getTime(), s1.getTime()))
+    nightMs += Math.max(0, Math.min(endDt.getTime(), e2.getTime()) - Math.max(startDt.getTime(), s2.getTime()))
+  }
+  return nightMs / (1000 * 60 * 60)
+}
+
 function formatPhoneNumber(raw: string): string {
   const digits = raw.replace(/\D/g, "").slice(0, 11)
   if (digits.startsWith("02")) {
@@ -230,7 +251,8 @@ export default function SosNewPage() {
   const [dressCode, setDressCode] = useState("")
   const [siteManagers, setSiteManagers] = useState([{ id: 1, name: "", phone: "", comment: "" }])
   const [description, setDescription] = useState("")
-  const [urgencyLevel, setUrgencyLevel] = useState("URGENT")
+  const [over5Employees, setOver5Employees] = useState(false)
+  const urgencyLevel = "NORMAL"
   const serviceType = "경호·보안"
   const applicationDeadline = ""
   const paymentMethod = ""
@@ -262,6 +284,15 @@ export default function SosNewPage() {
   const [taxCeoName, setTaxCeoName] = useState("")
   const [taxEmail, setTaxEmail] = useState("")
   const [taxEmailError, setTaxEmailError] = useState("")
+
+  // 지난 달 평균 일급
+  const [avgDailyRate, setAvgDailyRate] = useState<number | null | "loading">("loading")
+  useEffect(() => {
+    fetch("/api/sos/stats/avg-daily-rate")
+      .then((r) => r.json())
+      .then((data) => setAvgDailyRate(data.avgDailyRate ?? null))
+      .catch(() => setAvgDailyRate(null))
+  }, [])
 
   // 직전 충전 영수증 자동 적용
   const [lastReceipt, setLastReceipt] = useState<Record<string, string> | null>(null)
@@ -395,7 +426,7 @@ export default function SosNewPage() {
     const hasOver24h = days.some((d) => {
       if (!d.date || !d.endDate || !d.startTime || !d.endTime) return false
       const diffMs = new Date(`${d.endDate}T${d.endTime}`).getTime() - new Date(`${d.date}T${d.startTime}`).getTime()
-      return diffMs > 24 * 60 * 60 * 1000
+      return diffMs > 12 * 60 * 60 * 1000
     })
     // 최소 12시간 전 신청 조건
     const minStart = new Date(Date.now() + 12 * 60 * 60 * 1000)
@@ -407,36 +438,20 @@ export default function SosNewPage() {
     if (hasEmptyDate) newErrors.workDays = "모든 근무일의 날짜를 입력해 주세요."
     else if (hasEmptyTime) newErrors.workDays = "모든 근무일의 시작·종료 시간을 입력해 주세요."
     else if (hasInvalidTime) newErrors.workDays = "종료 일시는 시작 일시보다 이후여야 합니다."
-    else if (hasOver24h) newErrors.workDays = "하나의 근무 일정은 24시간을 초과할 수 없습니다."
+    else if (hasOver24h) newErrors.workDays = "하나의 근무 일정은 12시간을 초과할 수 없습니다."
     else if (hasTooSoon) newErrors.workDays = "배치 시작 일시는 현재 시각으로부터 최소 12시간 이후여야 합니다."
 
     if (requiredFields.length === 0) newErrors.requiredFields = SOS_FORM.ERROR.REQUIRED_FIELDS_REQUIRED
     const rateVal = Number(hourlyRate.replace(/,/g, ""))
-    if (!hourlyRate || rateVal < 0) newErrors.hourlyRate = SOS_FORM.ERROR.HOURLY_RATE_INVALID
-    else {
-      // 배치 일정에 근무시간이 입력된 경우 날짜별 실제 근무시간 × 최저시급으로 검증
-      const scheduledDayHours = workDays
-        .filter((d) => d.date && d.startTime && d.endTime)
-        .map((d) => {
-          const start = new Date(`${d.date}T${d.startTime}`)
-          const end = new Date(`${d.endDate || d.date}T${d.endTime}`)
-          return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
-        })
-      const maxH = scheduledDayHours.length > 0 ? Math.max(...scheduledDayHours) : 8
-      const minRequired = Math.ceil(maxH * 10_320) // 최저시급 10,320원 × 최장 근무시간
-      if (rateVal > 0 && rateVal < minRequired) {
-        newErrors.hourlyRate =
-          scheduledDayHours.length > 0
-            ? `일급은 최장 근무일(${maxH % 1 === 0 ? maxH : maxH.toFixed(1)}시간) 기준 최저임금 이상이어야 합니다. (10,320원 × ${maxH % 1 === 0 ? maxH : maxH.toFixed(1)}h = ${minRequired.toLocaleString()}원)`
-            : "일급은 2026년 최저임금(82,560원) 이상이어야 합니다. (최저시급 10,320원 × 8시간)"
-      }
+    if (!hourlyRate || rateVal < 10_320) {
+      newErrors.hourlyRate = "적용 시급은 2026년 최저시급(10,320원) 이상이어야 합니다."
     }
 
     if (!dressCode.trim()) newErrors.dressCode = "복장 규정을 입력해 주세요."
 
     const hasContact = siteManagers.some((m) => m.name.trim() || m.phone.trim())
     if (!hasContact) newErrors.siteManagers = "현장 담당자 연락처를 입력해 주세요."
-    if (!description.trim()) newErrors.description = "추가 설명을 입력해 주세요."
+    if (!description.trim()) newErrors.description = "업무 설명을 입력해 주세요."
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -472,12 +487,12 @@ export default function SosNewPage() {
           requiredCount: days.reduce((sum, d) => sum + (d.requiredCount || 1), 0),
           requiredFields,
           requiredCredentials,
-          hourlyRate: Number(hourlyRate.replace(/,/g, "")),
+          hourlyRate: maxDailyPay || Math.ceil(Number(hourlyRate.replace(/,/g, "")) * 8),
           urgencyLevel,
           serviceType: serviceType.trim() || "경호·보안",
           applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : null,
           budgetTotal: totalCharge,
-          budgetPerPerson: Number(hourlyRate.replace(/,/g, "")),
+          budgetPerPerson: maxDailyPay || Math.ceil(Number(hourlyRate.replace(/,/g, "")) * 8),
           budgetType: "DAILY",
           paymentMethod: paymentMethod.trim() || null,
           allowCompanyApplicants,
@@ -533,6 +548,7 @@ export default function SosNewPage() {
   const totalRequiredCount = workDays.reduce((sum, d) => sum + (d.requiredCount || 1), 0)
 
   // 날짜별 근무시간 계산 (배치 일정 기반 일급 안내용)
+  const MIN_HOURLY = 10_320
   const dayHours = workDays
     .filter((d) => d.date && d.startTime && d.endTime)
     .map((d) => {
@@ -540,21 +556,65 @@ export default function SosNewPage() {
       const end = new Date(`${d.endDate || d.date}T${d.endTime}`)
       const diffMs = end.getTime() - start.getTime()
       const hours = Math.max(0, diffMs / (1000 * 60 * 60))
+      const regularHours = Math.min(hours, 8)
+      const overtimeHours = Math.max(0, hours - 8)
+      const nightHours = calcNightHours(start, end)
+      // 최저시급 기준 참고값
+      const basePay = Math.ceil(regularHours * MIN_HOURLY)
+      const overtimeSupplement = Math.ceil(overtimeHours * MIN_HOURLY * 0.5)
+      const overtimeTotal = Math.ceil(overtimeHours * MIN_HOURLY * 1.5)
+      const nightSupplement = Math.ceil(nightHours * MIN_HOURLY * 0.5)
+      const minWage5up = Math.ceil(hours * MIN_HOURLY) + overtimeSupplement + nightSupplement
+      const minWage = Math.ceil(hours * MIN_HOURLY)
+      // 실제 적용 시급 기준 일급 계산 (5인 미만: 가산 없이 시간 × 시급)
+      const dailyPay = rateNum > 0
+        ? over5Employees
+          ? Math.ceil(regularHours * rateNum + overtimeHours * rateNum * 1.5 + nightHours * rateNum * 0.5)
+          : Math.ceil(hours * rateNum)
+        : 0
+      const dailyPayBasePay = over5Employees ? Math.ceil(regularHours * rateNum) : Math.ceil(hours * rateNum)
+      const dailyPayOvertime = over5Employees ? Math.ceil(overtimeHours * rateNum * 1.5) : 0
+      const dailyPayNight = over5Employees ? Math.ceil(nightHours * rateNum * 0.5) : 0
       return {
-        date: d.date,
-        hours,
-        minWage: Math.ceil(hours * 10_320), // 2026년 최저시급 기준 최저 일급
+        date: d.date, hours, regularHours, overtimeHours, nightHours,
+        basePay, overtimeSupplement, overtimeTotal, nightSupplement,
+        minWage, minWage5up, dailyPay, dailyPayBasePay, dailyPayOvertime, dailyPayNight,
       }
     })
-  // 가장 긴 근무일 기준으로 최저 일급 하한선 결정
-  const maxHoursDay = dayHours.reduce<{ hours: number; minWage: number } | null>(
-    (max, cur) => (!max || cur.hours > max.hours ? cur : max),
-    null
-  )
-  // 인건비·긴급도 추가 비용은 업체 대표가 경비 인력에게 직접 이체 — 플랫폼 결제에서 제외
+  // 주 단위 주휴수당 계산 (첫 근무일 기준 7일 윈도우)
+  const totalWeeklyHours = dayHours.reduce((sum, d) => sum + d.hours, 0)
+  const weeklyHolidayBreakdown: { weekHours: number; pay: number }[] = (() => {
+    if (!over5Employees || dayHours.length === 0) return []
+    const sorted = [...dayHours].sort((a, b) => a.date.localeCompare(b.date))
+    const result: { weekHours: number; pay: number }[] = []
+    let weekStart = new Date(sorted[0].date)
+    let remaining = sorted
+    while (remaining.length > 0) {
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 7)
+      const weekDays = remaining.filter(d => new Date(d.date) < weekEnd)
+      remaining = remaining.filter(d => new Date(d.date) >= weekEnd)
+      const weekHours = weekDays.reduce((sum, d) => sum + d.hours, 0)
+      result.push({
+        weekHours,
+        pay: weekHours >= 15 ? Math.ceil(Math.min(weekHours, 40) / 40 * 8 * MIN_HOURLY) : 0,
+      })
+      weekStart = weekEnd
+    }
+    return result
+  })()
+  const weeklyHolidayPay = weeklyHolidayBreakdown.reduce((sum, w) => sum + w.pay, 0)
+  // 날짜별 일급 × 인원 합산 → 총 인건비 (수수료 산정 기준)
   const urgencyFee = URGENCY_FEE[urgencyLevel] ?? 0
-  const effectiveDailyRate = rateNum + urgencyFee          // 경비 인력 실제 수령 일급
-  const laborCost = effectiveDailyRate * totalRequiredCount // 수수료 산정 기준용 (결제 항목 아님)
+  const dayPayMap = new Map(dayHours.map((d) => [d.date, d.dailyPay]))
+  const totalLaborCost = rateNum > 0
+    ? workDays.reduce((sum, d) => sum + (dayPayMap.get(d.date) ?? Math.ceil(rateNum * 8)) * (d.requiredCount || 1), 0)
+    : 0
+  const maxDailyPay = dayHours.length > 0 ? Math.max(...dayHours.map((d) => d.dailyPay)) : Math.ceil(rateNum * 8)
+  // 주휴수당은 하루 투입 인원 기준 (totalRequiredCount는 일수×인원 합산이라 부적합)
+  const dailyWorkerCount = workDays.reduce((max, d) => Math.max(max, d.requiredCount || 1), 1)
+  const totalHolidayPay = weeklyHolidayPay * dailyWorkerCount
+  const laborCost = totalLaborCost + totalHolidayPay   // 수수료 산정 기준용 (결제 항목 아님)
   const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
   const vat = rateNum > 0 ? Math.ceil(serviceFee * 0.1) : 0
   const totalCharge = serviceFee + vat
@@ -585,11 +645,11 @@ export default function SosNewPage() {
         : "없음",
     },
     {
-      label: "일급",
-      value: hourlyRate
-        ? urgencyFee > 0
-          ? `${effectiveDailyRate.toLocaleString()}원/일 (기본 ${rateNum.toLocaleString()}원 + 긴급도 ${urgencyFee.toLocaleString()}원)`
-          : `${rateNum.toLocaleString()}원/일`
+      label: "일급 (계산)",
+      value: rateNum >= 10_320
+        ? maxDailyPay > 0
+          ? `${maxDailyPay.toLocaleString()}원/일 (시급 ${rateNum.toLocaleString()}원)`
+          : `${Math.ceil(rateNum * 8).toLocaleString()}원/일 예상 (시급 ${rateNum.toLocaleString()}원)`
         : "미입력",
     },
   ]
@@ -624,26 +684,6 @@ export default function SosNewPage() {
                       ${errors.title ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                   />
                   {errors.title && <p className="text-xs text-sos mt-1">{errors.title}</p>}
-                </div>
-              </div>
-
-              {/* 게시 조건 */}
-              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">게시 조건</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-gray-600">긴급도</span>
-                    <select
-                      value={urgencyLevel}
-                      onChange={(e) => setUrgencyLevel(e.target.value)}
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand"
-                    >
-                      <option value="CRITICAL">즉시 투입</option>
-                      <option value="URGENT">긴급</option>
-                      <option value="FAST">빠른 모집</option>
-                      <option value="NORMAL">일반</option>
-                    </select>
-                  </label>
                 </div>
               </div>
 
@@ -687,7 +727,7 @@ export default function SosNewPage() {
                     )
                     const isOver24h = !!(
                       day.date && day.endDate && day.startTime && day.endTime && !hasTimeError &&
-                      (new Date(`${day.endDate}T${day.endTime}`).getTime() - new Date(`${day.date}T${day.startTime}`).getTime()) > 24 * 60 * 60 * 1000
+                      (new Date(`${day.endDate}T${day.endTime}`).getTime() - new Date(`${day.date}T${day.startTime}`).getTime()) > 12 * 60 * 60 * 1000
                     )
                     const minAllowed = new Date(Date.now() + 12 * 60 * 60 * 1000)
                     const isTooSoon = !!(
@@ -789,7 +829,7 @@ export default function SosNewPage() {
                         {isOver24h && (
                           <p className={`text-xs text-red-600 px-3 py-1.5 bg-red-50 border-t border-red-100
                             ${idx < workDays.length - 1 ? "border-b border-b-gray-100" : ""}`}>
-                            ⚠️ 하나의 근무 일정은 24시간을 초과할 수 없습니다.
+                            ⚠️ 하나의 근무 일정은 12시간을 초과할 수 없습니다.
                           </p>
                         )}
                         {!isOver24h && isTooSoon && (
@@ -962,7 +1002,23 @@ export default function SosNewPage() {
 
               {/* 일급 + 설명 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">급여 및 기타</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">급여 및 기타</p>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={over5Employees}
+                      onChange={(e) => setOver5Employees(e.target.checked)}
+                      className="w-4 h-4 accent-brand"
+                    />
+                    <span className="text-xs font-medium text-gray-600">5인 이상 사업장</span>
+                  </label>
+                </div>
+                {over5Employees && (
+                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 -mt-2">
+                    ⚖️ <strong>5인 이상 사업장</strong>은 근로기준법에 따라 연장·야간·주휴 수당이 의무 적용됩니다.
+                  </p>
+                )}
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">
@@ -979,58 +1035,163 @@ export default function SosNewPage() {
                       className={`w-40 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
                         ${errors.hourlyRate ? "border-red-300 bg-red-50" : "border-gray-200"}`}
                     />
-                    <span className="text-sm text-gray-600">{SOS_FORM.FIELDS.HOURLY_RATE_UNIT}/일</span>
+                    <span className="text-sm text-gray-600">원/시간</span>
+                    <span className="text-xs text-gray-400">
+                      지난 달 평균 일급:{" "}
+                      {avgDailyRate === "loading"
+                        ? "조회 중..."
+                        : avgDailyRate
+                        ? <strong className="text-gray-600">{avgDailyRate.toLocaleString()}원</strong>
+                        : <span className="text-red-500">데이터 없음</span>}
+                    </span>
                   </div>
                   {errors.hourlyRate && <p className="text-xs text-sos mt-1">{errors.hourlyRate}</p>}
 
                   {/* 배치 일정 기반 근무시간 안내 */}
                   {dayHours.length > 0 && (
                     <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-1.5">
-                      <p className="text-xs font-semibold text-gray-500">📋 배치 일정 기준 근무시간</p>
-                      <div className="space-y-1">
-                        {dayHours.map((d, i) => (
-                          <div key={i} className="flex items-center justify-between text-xs text-gray-600">
-                            <span>{d.date}</span>
-                            <span>
-                              <strong>{d.hours % 1 === 0 ? d.hours : d.hours.toFixed(1)}시간</strong>
-                              {" "}→ 최저 일급{" "}
-                              <strong className={rateNum > 0 && rateNum < d.minWage ? "text-red-600" : "text-gray-700"}>
-                                {d.minWage.toLocaleString()}원
-                              </strong>
-                              {rateNum > 0 && rateNum < d.minWage && (
-                                <span className="ml-1 text-red-500">⚠️ 미달</span>
-                              )}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-gray-500">📋 배치 일정 기준 법정 최저 일급</p>
+                        <p className="text-xs font-semibold text-brand">시급 설정에 참고하세요!!</p>
                       </div>
+                      <div className="space-y-2">
+                        {dayHours.map((d, i) => {
+                          const effectiveMin = over5Employees ? d.minWage5up : d.minWage
+                          const isShort = rateNum > 0 && d.dailyPay < effectiveMin
+                          return (
+                            <div key={i} className="space-y-1">
+                              <div className="flex items-center justify-between text-xs text-gray-600">
+                                <span className="font-medium">{d.date}</span>
+                                <span>
+                                  <strong>{d.hours % 1 === 0 ? d.hours : d.hours.toFixed(1)}시간</strong>
+                                  {" "}→ 최저 일급{" "}
+                                  <strong className={isShort ? "text-red-600" : "text-gray-700"}>
+                                    {effectiveMin.toLocaleString()}원
+                                  </strong>
+                                  {isShort && <span className="ml-1 text-red-500">⚠️ 미달</span>}
+                                </span>
+                              </div>
+                              {rateNum >= 10_320 && (
+                                <div className="pl-2 space-y-0.5 text-[11px] text-gray-500">
+                                  <div className="flex justify-between font-medium text-gray-700">
+                                    <span>기본급 ({d.regularHours % 1 === 0 ? d.regularHours : d.regularHours.toFixed(1)}h × {rateNum.toLocaleString()}원)</span>
+                                    <span>{d.dailyPayBasePay.toLocaleString()}원</span>
+                                  </div>
+                                  {d.overtimeHours > 0 && (
+                                    <div className="flex justify-between text-orange-600">
+                                      <span>연장수당 ({d.overtimeHours % 1 === 0 ? d.overtimeHours : d.overtimeHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 1.5)</span>
+                                      <span>+{d.dailyPayOvertime.toLocaleString()}원</span>
+                                    </div>
+                                  )}
+                                  {d.nightHours > 0.01 && (
+                                    <div className="flex justify-between text-indigo-600">
+                                      <span>야간가산 ({d.nightHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 0.5)</span>
+                                      <span>+{d.dailyPayNight.toLocaleString()}원</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between font-semibold text-gray-800 border-t border-gray-200 pt-0.5 mt-0.5">
+                                    <span>합계 일급</span>
+                                    <span>{d.dailyPay.toLocaleString()}원</span>
+                                  </div>
+                                  {over5Employees && (
+                                    <div className="text-[10px] text-gray-400">
+                                      최저시급 기준: {(over5Employees ? d.minWage5up : d.minWage).toLocaleString()}원 {d.dailyPay < (over5Employees ? d.minWage5up : d.minWage) ? "⚠️ 미달" : "✅ 충족"}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {over5Employees && weeklyHolidayBreakdown.length > 0 && (
+                        <div className="pt-1.5 border-t border-gray-200 space-y-0.5">
+                          {weeklyHolidayBreakdown.map((w, i) => (
+                            w.pay > 0 ? (
+                              <div key={i} className="flex justify-between text-xs text-emerald-700 font-medium">
+                                <span>{i + 1}주차 · {w.weekHours % 1 === 0 ? w.weekHours : w.weekHours.toFixed(1)}시간 근무</span>
+                                <span>+{w.pay.toLocaleString()}원</span>
+                              </div>
+                            ) : (
+                              <div key={i} className="text-[11px] text-gray-400">
+                                {i + 1}주차 · {w.weekHours % 1 === 0 ? w.weekHours : w.weekHours.toFixed(1)}시간 (15h 미만) → 주휴수당 미발생
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      )}
+                      {rateNum >= 10_320 && (
+                        <div className="flex justify-between text-xs font-bold text-gray-800 pt-1.5 border-t border-gray-300">
+                          <span>세전 총액 ({dailyWorkerCount}명 기준)</span>
+                          <span>{laborCost.toLocaleString()}원</span>
+                        </div>
+                      )}
                       <p className="text-[11px] text-gray-400 pt-0.5 border-t border-gray-200">
-                        최저시급 10,320원 기준 · 일급은 날짜별 실제 근무시간 × 최저시급 이상이어야 합니다
+                        최저시급 10,320원 기준{over5Employees ? " · 5인 이상 사업장 기준 연장(×1.5)·야간(+0.5) 가산 포함" : " · 일급은 날짜별 실제 근무시간 × 최저시급 이상이어야 합니다"}
                       </p>
                     </div>
                   )}
 
                   {/* 최저임금 안내 + 세금 정보 */}
                   {rateNum > 0 && (
-                    <div className="space-y-1.5 mt-2">
-                      {rateNum < 82_560 ? (
+                    <div className="space-y-2 mt-2">
+                      {(() => {
+                        const refPay = maxDailyPay > 0 ? maxDailyPay : Math.ceil(rateNum * 8)
+                        const incomeTax = Math.floor(Math.max(0, refPay - 150_000) * 0.06 * 0.45)
+                        const localTax = Math.floor(incomeTax * 0.1)
+                        return rateNum < 10_320 ? (
                         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          ⚠️ 2026년 최저임금은 <strong>82,560원/일</strong> (시급 10,320원 × 8시간)입니다. 최저임금 이상으로 입력해 주세요.
+                          ⚠️ 2026년 최저시급은 <strong>10,320원/시간</strong>입니다. 최저시급 이상으로 입력해 주세요.
                         </p>
-                      ) : rateNum >= 187_000 ? (
+                      ) : refPay >= 187_000 ? (
                         <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
-                          <p className="font-semibold text-blue-800">💡 원천징수 안내 (일급 187,000원 이상)</p>
+                          <p className="font-semibold text-blue-800">💡 원천징수 안내 (계산된 일급 {refPay.toLocaleString()}원 — 187,000원 이상 때)</p>
                           <p className="text-blue-700">
-                            경비 인력 실수령액: <strong>{(rateNum - Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45) - Math.floor(Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45) * 0.1)).toLocaleString()}원</strong>
-                            {" "}(소득세 {Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45).toLocaleString()}원 + 지방소득세 {Math.floor(Math.floor(Math.max(0, rateNum - 150_000) * 0.06 * 0.45) * 0.1).toLocaleString()}원 원천징수)
+                            경비 인력 실수령액: <strong>{(refPay - incomeTax - localTax).toLocaleString()}원</strong>
+                            {" "}(소득세 {incomeTax.toLocaleString()}원 + 지방소득세 {localTax.toLocaleString()}원 원천징수)
                           </p>
-                          <p className="text-blue-600">업체 대표님이 프로젝트 완료 후 직접 원천징수를 수행하셔야 합니다.</p>
+                          <p className="text-blue-600">소득세와 지방소득세는 직원이 부담하는 것은 맞지만 신고는 업체 대표님이 프로젝트 완료 후 직접 원천징수를 수행하셔야 합니다.</p>
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                          ✅ 최저임금({maxHoursDay ? `${maxHoursDay.hours % 1 === 0 ? maxHoursDay.hours : maxHoursDay.hours.toFixed(1)}시간 기준 ${maxHoursDay.minWage.toLocaleString()}원` : "82,560원"}) 충족 · 일급 187,000원 미만으로 일용근로소득세 비과세 구간입니다.
+                          ✅ 최저시급(10,320원) 충족 · 계산된 일급 {refPay.toLocaleString()}원이 187,000원 미만으로 일용근로소득세 비과세 구간으로 별도의 원천징수 신고는 필요하지 않습니다.
                         </p>
-                      )}
+                      )
+                      })()}
+
+                      {/* 사업주 부담 4대 보험료 안내 (유효 일급 입력 시 항상 표시) */}
+                      {rateNum >= 10_320 && (() => {
+                        const refPay = maxDailyPay > 0 ? maxDailyPay : Math.ceil(rateNum * 8)
+                        const empInsurance = Math.round(refPay * 0.009)   // 고용보험 0.9%
+                        const accInsurance = Math.round(refPay * 0.007)   // 산재보험 경비업종 약 0.7%
+                        const totalInsurance = empInsurance + accInsurance
+                        return (
+                          <div className="text-xs bg-orange-50 border border-orange-200 rounded-lg px-3 py-2.5 space-y-1.5">
+                            <p className="font-semibold text-orange-800">🏢 사업주 부담 4대 보험료 안내 (계산된 일급 {refPay.toLocaleString()}원 기준)</p>
+                            <div className="space-y-1 text-orange-700">
+                              <div className="flex justify-between">
+                                <span>고용보험 (사업주 0.9%)</span>
+                                <span>약 {empInsurance.toLocaleString()}원</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>산재보험 (경비업종 약 0.7%)</span>
+                                <span>약 {accInsurance.toLocaleString()}원</span>
+                              </div>
+                              <div className="flex justify-between text-orange-400">
+                                <span>국민연금 · 건강보험</span>
+                                <span>1개월 미만 일용직 미적용</span>
+                              </div>
+                              <div className="flex justify-between font-semibold border-t border-orange-200 pt-1 mt-0.5">
+                                <span>사업주 추가 부담 합계</span>
+                                <span>약 {totalInsurance.toLocaleString()}원</span>
+                              </div>
+                            </div>
+                            <p className="text-orange-600 pt-0.5 border-t border-orange-100">
+                              근로내용 확인신고는 거래 완료 후 가드온이 제공하는 자료를 이용해 근로복지공단 토탈서비스(total.comwel.or.kr)에서 무료로 직접 신고가 가능하고, 또는 거래하시는 노무사 사무실 등이 있을 시 간편히 자료 전달만으로 신고가 가능하며, 근무 종료일 기준 익월 15일까지 신고하셔야 합니다.
+                            </p>
+                          </div>
+                        )
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1040,6 +1201,9 @@ export default function SosNewPage() {
                     {SOS_FORM.FIELDS.DESCRIPTION_LABEL}
                     <span className="text-sos ml-0.5">*</span>
                   </label>
+                  <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                    📋 여기에 입력한 업무 설명은 일용직 <strong>근로계약서의 업무 내용</strong>에 자동으로 반영됩니다.
+                  </p>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
@@ -1193,18 +1357,24 @@ export default function SosNewPage() {
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">결제 내역</p>
                   <div className="flex justify-between text-gray-500 text-xs pb-1">
                     <span>
-                      인건비 (총 {totalRequiredCount}명 × {effectiveDailyRate.toLocaleString()}원
-                      {urgencyFee > 0 && (
-                        <span className="text-amber-600">
-                          {" "}= {rateNum.toLocaleString()}원 + 긴급도 {urgencyFee.toLocaleString()}원
-                        </span>
-                      )}
-                      )
+                      인건비 (시급 {rateNum.toLocaleString()}원 × 근무시간 × 근무날짜 인원, 총 {dailyWorkerCount}명)
                     </span>
-                    <span className="line-through">{laborCost.toLocaleString()}원</span>
+                    <span className="line-through">{totalLaborCost.toLocaleString()}원</span>
                   </div>
+                  {totalHolidayPay > 0 && (
+                    <div className="flex justify-between text-emerald-700 text-xs pb-1">
+                      <span>주휴수당 ({dailyWorkerCount}명 × {weeklyHolidayPay.toLocaleString()}원)</span>
+                      <span className="line-through">+{totalHolidayPay.toLocaleString()}원</span>
+                    </div>
+                  )}
+                  {totalHolidayPay > 0 && (
+                    <div className="flex justify-between text-gray-600 text-xs font-semibold pb-1 border-t border-gray-200 pt-1">
+                      <span>인건비 합계</span>
+                      <span className="line-through">{laborCost.toLocaleString()}원</span>
+                    </div>
+                  )}
                   <p className="text-[11px] text-gray-400 -mt-1 mb-1">
-                    ※ 인건비(긴급도 추가 포함)는 업체 대표님이 경비 인력에게 직접 이체합니다
+                    ※ 인건비는 업체 대표님이 경비 인력에게 직접 지급합니다
                   </p>
                   <div className="flex justify-between text-gray-600">
                     <span>가드온 매칭 수수료 (인건비의 5%)</span>

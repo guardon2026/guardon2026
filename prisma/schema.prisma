@@ -266,6 +266,14 @@ model WorkerProfile {
   averageRating    Float              @default(0)
   totalMatches     Int                @default(0)
   isProfilePublic  Boolean            @default(true)
+  // 본인 인증
+  rrn              String?            // 주민등록번호 (마스킹 저장: 900101-*******)
+  rrnVerifiedAt    DateTime?
+  // 계좌 인증
+  bankName         String?
+  bankAccount      String?
+  bankHolder       String?
+  bankVerifiedAt   DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
