@@ -1,10 +1,2 @@
-import { defineConfig } from '@prisma/config'
-
-export default defineConfig({
-  migrations: {
-    seed: 'npx tsx prisma/seed.ts',
-  },
-  datasource: {
-    url: process.env.DATABASE_URL!,
-  },
-})
+// Prisma v6 does not use this file — configuration is in schema.prisma
+export {}
