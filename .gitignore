@@ -1,6 +1,11 @@
 .planning/
 node_modules/
-.next/
+.next/*
+!.next/standalone
+!.next/standalone/**
+!.next/static
+!.next/static/**
+.next/standalone/.env
 .env.local
 .env
 tsconfig.tsbuildinfo
