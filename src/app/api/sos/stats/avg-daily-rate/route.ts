@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 // GET /api/sos/stats/avg-daily-rate
-// 지?????�료??SOS ?�청???�균 ?�급 반환
+// 吏?????占쎈즺??SOS ?占쎌껌???占쎄퇏 ?占쎄툒 諛섑솚
 export async function GET() {
   const now = new Date()
   const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
