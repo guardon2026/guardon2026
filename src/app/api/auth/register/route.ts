@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
@@ -14,13 +15,13 @@ const RegisterSchema = z.object({
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 })
+    return NextResponse.json({ error: "?�증???�요?�니??" }, { status: 401 })
   }
 
   const body = await req.json()
   const parsed = RegisterSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 })
+    return NextResponse.json({ error: "?�못???�청?�니??" }, { status: 400 })
   }
 
   const { role, consents } = parsed.data
@@ -30,20 +31,20 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-real-ip") ??
     undefined
 
-  // 이미 역할이 설정된 사용자 재등록 방지
+  // ?��? ??��???�정???�용???�등�?방�?
   const existing = await prisma.user.findUnique({
     where: { id: userId, deletedAt: null },
     select: { role: true },
   })
   if (!existing) {
-    return NextResponse.json({ error: "사용자를 찾을 수 없습니다." }, { status: 404 })
+    return NextResponse.json({ error: "?�용?��? 찾을 ???�습?�다." }, { status: 404 })
   }
-  // ADMIN 계정은 이 API 로 역할 변경 불가
+  // ADMIN 계정?� ??API �???�� 변�?불�?
   if (existing.role === "ADMIN") {
-    return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 })
+    return NextResponse.json({ error: "권한???�습?�다." }, { status: 403 })
   }
 
-  // 역할 설정 + ConsentLog 3건 저장 (트랜잭션)
+  // ??�� ?�정 + ConsentLog 3�??�??(?�랜??��)
   await prisma.$transaction([
     prisma.user.update({
       where: { id: userId },

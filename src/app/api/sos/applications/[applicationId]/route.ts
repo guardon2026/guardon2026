@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server"
 import { SosApplicationStatus, UserRole } from "@prisma/client"
 import { prisma } from "@/lib/prisma"

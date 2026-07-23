@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server"
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
@@ -21,23 +22,22 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { credentialType, contentType, fileExtension } = body
 
-    // 필수 파라미터 검증
-    if (!credentialType || !contentType || !fileExtension) {
+    // ?�수 ?�라미터 검�?    if (!credentialType || !contentType || !fileExtension) {
       return NextResponse.json(
-        { error: "필수 파라미터가 누락되었습니다." },
+        { error: "?�수 ?�라미터가 ?�락?�었?�니??" },
         { status: 400 },
       )
     }
 
-    // 허용 MIME 타입 검증 — 임의 파일 업로드 차단 (T-04-02-05)
+    // ?�용 MIME ?�??검�????�의 ?�일 ?�로??차단 (T-04-02-05)
     if (!ALLOWED_MIME_TYPES.includes(contentType)) {
       return NextResponse.json(
-        { error: "허용되지 않는 파일 형식입니다. (JPG, PNG, WEBP, PDF만 허용)" },
+        { error: "?�용?��? ?�는 ?�일 ?�식?�니?? (JPG, PNG, WEBP, PDF�??�용)" },
         { status: 400 },
       )
     }
 
-    // 파일 경로는 서버가 생성 — 클라이언트가 Key를 조작할 수 없음 (T-04-02-02)
+    // ?�일 경로???�버가 ?�성 ???�라?�언?��? Key�?조작?????�음 (T-04-02-02)
     const timestamp = Date.now()
     const fileKey = `credentials/${session.user.id}/${credentialType}/${timestamp}.${fileExtension}`
 
@@ -53,8 +53,7 @@ export async function POST(req: NextRequest) {
       Bucket: process.env.AWS_S3_BUCKET!,
       Key: fileKey,
       ContentType: contentType,
-      ServerSideEncryption: "AES256", // CRED-04: SSE-S3 암호화 저장
-      Metadata: {
+      ServerSideEncryption: "AES256", // CRED-04: SSE-S3 ?�호???�??      Metadata: {
         userId: session.user.id,
         credentialType,
       },

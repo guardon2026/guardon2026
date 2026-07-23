@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 // POST /api/admin/companies/:id/reject
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"

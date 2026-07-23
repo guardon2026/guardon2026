@@ -1,12 +1,13 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 
-// GET /api/points/balance — 본인 포인트 잔액 조회
+// GET /api/points/balance ??본인 ?�인???�액 조회
 export async function GET() {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 })
+    return NextResponse.json({ error: "로그?�이 ?�요?�니??" }, { status: 401 })
   }
 
   const account = await prisma.pointAccount.findUnique({

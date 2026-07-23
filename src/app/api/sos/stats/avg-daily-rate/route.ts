@@ -1,8 +1,9 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 // GET /api/sos/stats/avg-daily-rate
-// 지난 달 완료된 SOS 요청의 평균 일급 반환
+// 지?????�료??SOS ?�청???�균 ?�급 반환
 export async function GET() {
   const now = new Date()
   const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
