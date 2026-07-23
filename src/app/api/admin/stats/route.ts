@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic'
-// GET /api/admin/stats ???占쎈옯???占쎌쁺 ?占쎄퀎 吏묎퀎 (ADMIN ?占쎌슜)
+// GET /api/admin/stats — 플랫폼 운영 통계 집계 (ADMIN 전용)
 import { NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
@@ -7,10 +7,10 @@ import { prisma } from "@/lib/prisma"
 export async function GET() {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "?占쎌쬆???占쎌슂?占쎈땲??" }, { status: 401 })
+    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 })
   }
   if (session.user.role !== "ADMIN") {
-    return NextResponse.json({ error: "愿由ъ옄 沅뚰븳???占쎌슂?占쎈땲??" }, { status: 403 })
+    return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 403 })
   }
 
   const [
@@ -29,7 +29,7 @@ export async function GET() {
     prisma.company.count({ where: { status: "PENDING" } }),
     prisma.company.count({ where: { status: "APPROVED" } }),
     prisma.company.count({ where: { status: "REJECTED" } }),
-    // PIPA soft-delete: deletedAt IS NULL ?占쏀꽣 ?占쎌닔
+    // PIPA soft-delete: deletedAt IS NULL 필터 필수
     prisma.workerProfile.count({
       where: { user: { deletedAt: null } },
     }),

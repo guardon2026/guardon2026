@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 // GET /api/sos/stats/avg-daily-rate
-// 吏?????占쎈즺??SOS ?占쎌껌???占쎄퇏 ?占쎄툒 諛섑솚
+// 지난 달 완료된 SOS 요청의 평균 일급 반환
 export async function GET() {
   const now = new Date()
   const firstOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1)
