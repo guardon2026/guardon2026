@@ -5,6 +5,7 @@ node_modules/
 !.next/standalone/**
 !.next/static
 !.next/static/**
+.next/standalone/.env
 .env.local
 .env
 tsconfig.tsbuildinfo
