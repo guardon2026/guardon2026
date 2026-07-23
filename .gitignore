@@ -1,9 +1,9 @@
 .planning/
 node_modules/
-.next/
-!.next/standalone/
+.next/*
+!.next/standalone
 !.next/standalone/**
-!.next/static/
+!.next/static
 !.next/static/**
 .env.local
 .env
