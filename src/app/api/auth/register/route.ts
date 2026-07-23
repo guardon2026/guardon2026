@@ -15,13 +15,13 @@ const RegisterSchema = z.object({
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "?¸ì¦???„ìš”?©ë‹ˆ??" }, { status: 401 })
+    return NextResponse.json({ error: "?ï¿½ì¦???ï¿½ìš”?ï¿½ë‹ˆ??" }, { status: 401 })
   }
 
   const body = await req.json()
   const parsed = RegisterSchema.safeParse(body)
   if (!parsed.success) {
-    return NextResponse.json({ error: "?˜ëª»???”ì²­?…ë‹ˆ??" }, { status: 400 })
+    return NextResponse.json({ error: "?ï¿½ëª»???ï¿½ì²­?ï¿½ë‹ˆ??" }, { status: 400 })
   }
 
   const { role, consents } = parsed.data
@@ -31,20 +31,20 @@ export async function POST(req: NextRequest) {
     req.headers.get("x-real-ip") ??
     undefined
 
-  // ?´ë? ??• ???¤ì •???¬ìš©???¬ë“±ë¡?ë°©ì?
+  // ?ï¿½ï¿½? ??ï¿½ï¿½???ï¿½ì •???ï¿½ìš©???ï¿½ë“±ï¿½?ë°©ï¿½?
   const existing = await prisma.user.findUnique({
     where: { id: userId, deletedAt: null },
     select: { role: true },
   })
   if (!existing) {
-    return NextResponse.json({ error: "?¬ìš©?ë? ì°¾ì„ ???†ìŠµ?ˆë‹¤." }, { status: 404 })
+    return NextResponse.json({ error: "?ï¿½ìš©?ï¿½ï¿½? ì°¾ì„ ???ï¿½ìŠµ?ï¿½ë‹¤." }, { status: 404 })
   }
-  // ADMIN ê³„ì •?€ ??API ë¡???•  ë³€ê²?ë¶ˆê?
+  // ADMIN ê³„ì •?ï¿½ ??API ï¿½???ï¿½ï¿½ ë³€ï¿½?ë¶ˆï¿½?
   if (existing.role === "ADMIN") {
-    return NextResponse.json({ error: "ê¶Œí•œ???†ìŠµ?ˆë‹¤." }, { status: 403 })
+    return NextResponse.json({ error: "ê¶Œí•œ???ï¿½ìŠµ?ï¿½ë‹¤." }, { status: 403 })
   }
 
-  // ??•  ?¤ì • + ConsentLog 3ê±??€??(?¸ëœ??…˜)
+  // ??ï¿½ï¿½ ?ï¿½ì • + ConsentLog 3ï¿½??ï¿½??(?ï¿½ëœ??ï¿½ï¿½)
   await prisma.$transaction([
     prisma.user.update({
       where: { id: userId },

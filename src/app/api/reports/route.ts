@@ -8,14 +8,14 @@ const VALID_TARGETS = new Set(["SOS_REQUEST", "SOS_APPLICATION", "COMPANY", "WOR
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "로그?�이 ?�요?�니??" }, { status: 401 })
+    return NextResponse.json({ error: "로그?�이 ?�요?�니??" }, { status: 401 })
   }
 
   let body: Record<string, unknown>
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: "?�못???�청 ?�식?�니??" }, { status: 400 })
+    return NextResponse.json({ error: "?�못???�청 ?�식?�니??" }, { status: 400 })
   }
 
   const targetType = typeof body.targetType === "string" ? body.targetType.trim() : ""
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const description = typeof body.description === "string" ? body.description.trim() : ""
 
   if (!VALID_TARGETS.has(targetType) || !targetId || !reason) {
-    return NextResponse.json({ error: "?�고 ?�?�과 ?�유�??�력??주세??" }, { status: 400 })
+    return NextResponse.json({ error: "?�고 ?�?�과 ?�유�??�력??주세??" }, { status: 400 })
   }
 
   const report = await prisma.report.create({

@@ -5,38 +5,38 @@ import { saveCompanyDocument } from "@/lib/company-documents"
 
 // POST /api/company/register
 export async function POST(request: Request) {
-  // 1. ?�션 ?�증 ?�인
+  // 1. ?�션 ?�증 ?�인
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return Response.json({ error: "?�증???�요?�니??" }, { status: 401 })
+    return Response.json({ error: "?�증???�요?�니??" }, { status: 401 })
   }
 
-  // 2. ??�� ?�인: COMPANY_OWNER�??�용
+  // 2. ??�� ?�인: COMPANY_OWNER�??�용
   if (session.user.role !== "COMPANY_OWNER") {
     return Response.json(
-      { error: "?�체 ?�??계정�??�체�??�록?????�습?�다." },
+      { error: "?�체 ?�??계정�??�체�??�록?????�습?�다." },
       { status: 403 }
     )
   }
 
-  // 3. ?��? ?�인???�체 ?�록 ?��? ?�인 (ownerId unique constraint ?�전 방어)
+  // 3. ?��? ?�인???�체 ?�록 ?��? ?�인 (ownerId unique constraint ?�전 방어)
   const existing = await prisma.company.findUnique({
     where: { ownerId: session.user.id },
   })
   if (existing?.status === "APPROVED") {
     return Response.json(
-      { error: "?��? ?�인???�체가 ?�록?�어 ?�습?�다.", code: "ALREADY_REGISTERED" },
+      { error: "?��? ?�인???�체가 ?�록?�어 ?�습?�다.", code: "ALREADY_REGISTERED" },
       { status: 409 }
     )
   }
 
-  // 4. ?�청 바디 ?�싱 (?�업?�등록증·경비??증빙 ?�일 ?�함)
+  // 4. ?�청 바디 ?�싱 (?�업?�등록증·경비??증빙 ?�일 ?�함)
   let formData: FormData
   try {
     formData = await request.formData()
   } catch {
     return Response.json(
-      { error: "?�청 ?�식???�바르�? ?�습?�다.", code: "INVALID_FORM_DATA" },
+      { error: "?�청 ?�식???�바르�? ?�습?�다.", code: "INVALID_FORM_DATA" },
       { status: 400 }
     )
   }
@@ -56,10 +56,10 @@ export async function POST(request: Request) {
     .getAll("additionalProofFiles")
     .filter((file): file is File => file instanceof File && file.size > 0)
 
-  // 5. ?�버 ?�이??검�?(?�라?�언???�회 방어)
+  // 5. ?�버 ?�이??검�?(?�라?�언???�회 방어)
   if (!name || !licenseNumber || !businessRegistrationNumber || !address || !city || !district || !phone) {
     return Response.json(
-      { error: "?�수 ??��??모두 ?�력??주세??", code: "MISSING_FIELDS" },
+      { error: "?�수 ??��??모두 ?�력??주세??", code: "MISSING_FIELDS" },
       { status: 400 }
     )
   }
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   if (!licenseRegex.test(licenseNumber) || licenseNumber.length < 5) {
     return Response.json(
       {
-        error: "?��?번호 ?�식???�바르�? ?�습?�다.",
+        error: "?��?번호 ?�식???�바르�? ?�습?�다.",
         field: "licenseNumber",
         code: "INVALID_LICENSE_FORMAT",
       },
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   if (!businessNumberRegex.test(businessRegistrationNumber)) {
     return Response.json(
       {
-        error: "?�업?�등록번???�식???�바르�? ?�습?�다.",
+        error: "?�업?�등록번???�식???�바르�? ?�습?�다.",
         field: "businessRegistrationNumber",
         code: "INVALID_BUSINESS_NUMBER_FORMAT",
       },
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   if (!(businessRegistrationFile instanceof File) || businessRegistrationFile.size === 0) {
     return Response.json(
       {
-        error: "?�업?�등록증 ?�일???�로?�해 주세??",
+        error: "?�업?�등록증 ?�일???�로?�해 주세??",
         field: "businessRegistrationFile",
         code: "BUSINESS_DOCUMENT_REQUIRED",
       },
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
   if (!(securityLicenseFile instanceof File) || securityLicenseFile.size === 0) {
     return Response.json(
       {
-        error: "경비???��? ?�는 경호 가??증빙 ?�일???�로?�해 주세??",
+        error: "경비???��? ?�는 경호 가??증빙 ?�일???�로?�해 주세??",
         field: "securityLicenseFile",
         code: "SECURITY_DOCUMENT_REQUIRED",
       },
@@ -110,18 +110,18 @@ export async function POST(request: Request) {
     )
   }
 
-  // 6. ?��?번호 중복 ?�인
+  // 6. ?��?번호 중복 ?�인
   const duplicate = await prisma.company.findUnique({
     where: { licenseNumber },
   })
   if (duplicate && duplicate.ownerId !== session.user.id) {
     return Response.json(
-      { error: "?��? ?�록???��?번호?�니??", code: "LICENSE_DUPLICATE" },
+      { error: "?��? ?�록???��?번호?�니??", code: "LICENSE_DUPLICATE" },
       { status: 409 }
     )
   }
 
-  // 7. Company ?�성 ?�는 ?�신�?갱신 (status=PENDING, isActive=false)
+  // 7. Company ?�성 ?�는 ?�신�?갱신 (status=PENDING, isActive=false)
   try {
     const [businessRegistrationFileUrl, securityLicenseFileUrl, ...additionalProofFileUrls] =
       await Promise.all([
@@ -200,7 +200,7 @@ export async function POST(request: Request) {
       { status: existing ? 200 : 201 }
     )
   } catch (err: unknown) {
-    // DB unique constraint ?�반 (race condition 방어)
+    // DB unique constraint ?�반 (race condition 방어)
     if (
       typeof err === "object" &&
       err !== null &&
@@ -208,7 +208,7 @@ export async function POST(request: Request) {
       (err as { code: string }).code === "P2002"
     ) {
       return Response.json(
-        { error: "?��? ?�록???��?번호?�니??", code: "LICENSE_DUPLICATE" },
+        { error: "?��? ?�록???��?번호?�니??", code: "LICENSE_DUPLICATE" },
         { status: 409 }
       )
     }
@@ -222,7 +222,7 @@ export async function POST(request: Request) {
 
     console.error("[company/register] DB error:", err)
     return Response.json(
-      { error: "?�시?�인 ?�류가 발생?�습?�다. ?�시 ???�시 ?�도??주세??" },
+      { error: "?�시?�인 ?�류가 발생?�습?�다. ?�시 ???�시 ?�도??주세??" },
       { status: 500 }
     )
   }
