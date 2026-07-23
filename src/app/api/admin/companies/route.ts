@@ -6,16 +6,16 @@ import { prisma } from "@/lib/prisma"
 export async function GET(request: Request) {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return Response.json({ error: "?�증???�요?�니??" }, { status: 401 })
+    return Response.json({ error: "인증이 필요합니다." }, { status: 401 })
   }
   if (session.user.role !== "ADMIN") {
-    return Response.json({ error: "관리자 권한???�요?�니??" }, { status: 403 })
+    return Response.json({ error: "관리자 권한이 필요합니다." }, { status: 403 })
   }
 
   const { searchParams } = new URL(request.url)
   const statusParam = searchParams.get("status") ?? "PENDING"
 
-  // ?�효??status 값만 ?�용 (injection 방어)
+  // 유효한 status 값만 허용 (injection 방어)
   const validStatuses = ["PENDING", "APPROVED", "REJECTED"] as const
   type ValidStatus = (typeof validStatuses)[number]
   const status = (validStatuses as readonly string[]).includes(statusParam)
@@ -39,12 +39,13 @@ export async function GET(request: Request) {
           name: true,
           email: true,
           phone: true,
-          deletedAt: true, // soft-delete ?�터??        },
+          deletedAt: true, // soft-delete 필터용
+        },
       },
     },
   })
 
-  // soft-delete??owner???�체???�외
+  // soft-delete된 owner의 업체는 제외
   const filtered = companies.filter((c) => c.owner.deletedAt === null)
 
   return Response.json({ companies: filtered })

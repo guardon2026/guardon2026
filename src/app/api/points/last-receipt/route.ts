@@ -4,11 +4,11 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, Prisma } from "@prisma/client"
 
-// GET /api/points/last-receipt ???�체 ?�?�의 가??최근 충전 ?�수�??�보 반환
+// GET /api/points/last-receipt — 업체 대표의 가장 최근 충전 영수증 정보 반환
 export async function GET() {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "로그?�이 ?�요?�니??" }, { status: 401 })
+    return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 })
   }
   if (session.user.role !== UserRole.COMPANY_OWNER) {
     return NextResponse.json({ receiptInfo: null })

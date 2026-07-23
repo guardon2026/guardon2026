@@ -5,7 +5,7 @@ import { getServerSession } from "@/lib/session"
 import { ERROR_MESSAGES } from "@/lib/constants"
 import { CredentialType } from "@prisma/client"
 
-// GET: 본인 ?�격�?목록 조회
+// GET: 본인 자격증 목록 조회
 export async function GET() {
   try {
     const session = await getServerSession()
@@ -33,7 +33,7 @@ export async function GET() {
   }
 }
 
-// POST: ?�격�??�코???�성 (upsert ???�제�????�사 초기??
+// POST: 자격증 레코드 생성 (upsert — 재제출 시 심사 초기화)
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession()
@@ -44,34 +44,36 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { credentialType, fileKey, issuedDate } = body
 
-    // ?�수 ?�라미터 검�?    if (!credentialType || !fileKey) {
+    // 필수 파라미터 검증
+    if (!credentialType || !fileKey) {
       return NextResponse.json(
-        { error: "?�격�?종류?� ?�일???�요?�니??" },
+        { error: "자격증 종류와 파일이 필요합니다." },
         { status: 400 },
       )
     }
 
-    // CredentialType enum ?�효??검�?    if (!Object.values(CredentialType).includes(credentialType as CredentialType)) {
+    // CredentialType enum 유효성 검증
+    if (!Object.values(CredentialType).includes(credentialType as CredentialType)) {
       return NextResponse.json(
-        { error: "?�바르�? ?��? ?�격�?종류?�니??" },
+        { error: "올바르지 않은 자격증 종류입니다." },
         { status: 400 },
       )
     }
 
-    // 본인 ?�로?�에�??�코???�성 (T-04-02-04)
+    // 본인 프로필에만 레코드 생성 (T-04-02-04)
     const profile = await prisma.workerProfile.findUnique({
       where: { userId: session.user.id },
     })
 
     if (!profile) {
       return NextResponse.json(
-        { error: "?�로?�을 먼�? ?�록??주세??" },
+        { error: "프로필을 먼저 등록해 주세요." },
         { status: 404 },
       )
     }
 
-    // @@unique([workerProfileId, type]) ??upsert�?중복 방�?
-    // ?�제�???status�?PENDING?�로 초기?�하???�심??처리
+    // @@unique([workerProfileId, type]) — upsert로 중복 방지
+    // 재제출 시 status를 PENDING으로 초기화하여 재심사 처리
     const credential = await prisma.credential.upsert({
       where: {
         workerProfileId_type: {
@@ -88,7 +90,8 @@ export async function POST(req: NextRequest) {
       },
       update: {
         documentUrl: fileKey,
-        status: "PENDING", // ?�제�????�사 초기??        issuedDate: issuedDate ? new Date(issuedDate) : null,
+        status: "PENDING", // 재제출 시 심사 초기화
+        issuedDate: issuedDate ? new Date(issuedDate) : null,
         rejectedAt: null,
         rejectionReason: null,
       },

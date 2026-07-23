@@ -11,7 +11,7 @@ const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
   if (!session?.user?.id || session.user.role !== "WORKER") {
-    return NextResponse.json({ error: "권한???�습?�다." }, { status: 401 })
+    return NextResponse.json({ error: "권한이 없습니다." }, { status: 401 })
   }
 
   const profile = await prisma.workerProfile.findUnique({
@@ -19,19 +19,19 @@ export async function POST(req: NextRequest) {
     select: { id: true },
   })
   if (!profile) {
-    return NextResponse.json({ error: "?�로?�이 ?�습?�다." }, { status: 404 })
+    return NextResponse.json({ error: "프로필이 없습니다." }, { status: 404 })
   }
 
   const formData = await req.formData()
   const file = formData.get("file") as File | null
   if (!file) {
-    return NextResponse.json({ error: "?�일???�습?�다." }, { status: 400 })
+    return NextResponse.json({ error: "파일이 없습니다." }, { status: 400 })
   }
   if (!ALLOWED_MIME.includes(file.type)) {
-    return NextResponse.json({ error: "JPG, PNG, WEBP ?�일�??�로??가?�합?�다." }, { status: 400 })
+    return NextResponse.json({ error: "JPG, PNG, WEBP 파일만 업로드 가능합니다." }, { status: 400 })
   }
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "?�일 ?�기??5MB ?�하?�야 ?�니??" }, { status: 400 })
+    return NextResponse.json({ error: "파일 크기는 5MB 이하여야 합니다." }, { status: 400 })
   }
 
   const ext = file.type === "image/webp" ? "webp" : file.type === "image/png" ? "png" : "jpg"

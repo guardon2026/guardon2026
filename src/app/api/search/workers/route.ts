@@ -4,7 +4,7 @@ import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { AvailabilityStatus, CredentialStatus } from "@prisma/client"
 
-// PostgreSQL raw 쿼리?�서 배열??문자?�로 ?????�어 ?�규??
+// PostgreSQL raw 쿼리에서 배열이 문자열로 올 수 있어 정규화
 function toArray(value: unknown): string[] {
   if (Array.isArray(value)) return value as string[]
   if (typeof value === "string") {
@@ -14,15 +14,15 @@ function toArray(value: unknown): string[] {
 }
 
 // GET /api/search/workers
-// 쿼리 ?�라미터: lat, lng, radiusKm(default 20), workField, credentialType,
+// 쿼리 파라미터: lat, lng, radiusKm(default 20), workField, credentialType,
 //               availability(default AVAILABLE), minExperience(default 0)
 export async function GET(req: NextRequest) {
   const session = await getServerSession()
 
-  // COMPANY_OWNER 권한 ?�요
+  // COMPANY_OWNER 권한 필요
   if (!session?.user || session.user.role !== "COMPANY_OWNER") {
     return NextResponse.json(
-      { error: "?�근 권한???�습?�다. ?�체 ?�?�만 ?�력 검?�이 가?�합?�다." },
+      { error: "접근 권한이 없습니다. 업체 대표만 인력 검색이 가능합니다." },
       { status: 401 }
     )
   }
@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
   const availabilityParam = searchParams.get("availability") ?? "AVAILABLE"
   const minExperienceParam = searchParams.get("minExperience") ?? "0"
 
-  // ?�도·경도 ?�수 검�?
+  // 위도·경도 필수 검증
   if (!latParam || !lngParam) {
     return NextResponse.json(
-      { error: "?�도(lat)?� 경도(lng)???�수 ?�라미터?�니??" },
+      { error: "위도(lat)와 경도(lng)는 필수 파라미터입니다." },
       { status: 400 }
     )
   }
@@ -51,25 +51,25 @@ export async function GET(req: NextRequest) {
   const minExperience = parseInt(minExperienceParam, 10) || 0
   const availability = availabilityParam as AvailabilityStatus
 
-  // ?�자 검�?
+  // 숫자 검증
   if (isNaN(lat) || isNaN(lng) || isNaN(radiusKm)) {
     return NextResponse.json(
-      { error: "?�도, 경도, 반경 값이 ?�바르�? ?�습?�다." },
+      { error: "위도, 경도, 반경 값이 올바르지 않습니다." },
       { status: 400 }
     )
   }
 
-  // ?�효??AvailabilityStatus 검�?
+  // 유효한 AvailabilityStatus 검증
   const validAvailability: AvailabilityStatus[] = ["AVAILABLE", "UNAVAILABLE", "BUSY"]
   if (!validAvailability.includes(availability)) {
     return NextResponse.json(
-      { error: "가???�태 값이 ?�바르�? ?�습?�다." },
+      { error: "가용 상태 값이 올바르지 않습니다." },
       { status: 400 }
     )
   }
 
   try {
-    // PostGIS $queryRaw ??tagged template literal ?�수 (T-01-02-01)
+    // PostGIS $queryRaw — tagged template literal 필수 (T-01-02-01)
     type RawWorkerRow = {
       id: string
       userId: string
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       distance_m: number
     }
 
-    // location???�는 ?�력?� PostGIS 반경 검?? NULL???�력?� city/district ?�스?�로 ?�함
+    // location이 있는 인력은 PostGIS 반경 검색, NULL인 인력은 city/district 텍스트로 포함
     const rawResults = await prisma.$queryRaw<RawWorkerRow[]>`
       SELECT
         wp.id,
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest) {
       LIMIT 50
     `
 
-    // workField ?�터 (Prisma ?�벨)
+    // workField 필터 (Prisma 레벨)
     let filtered = rawResults
     if (workField) {
       filtered = filtered.filter((w) =>
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest) {
     // workerProfile ID 목록
     const workerProfileIds = filtered.map((w) => w.id)
 
-    // ?�격�?조회 (APPROVED ?�태�?
+    // 자격증 조회 (APPROVED 상태만)
     const credentials = await prisma.credential.findMany({
       where: {
         workerProfileId: { in: workerProfileIds },
@@ -153,7 +153,7 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // credentialType ?�터 (?�청???�격�?보유?�만)
+    // credentialType 필터 (요청한 자격증 보유자만)
     let finalFiltered = filtered
     if (credentialType) {
       const workerProfilesWithCredential = new Set(
@@ -166,7 +166,7 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    // ?�격�?�?구성
+    // 자격증 맵 구성
     const credentialMap: Record<string, typeof credentials> = {}
     for (const cred of credentials) {
       if (!credentialMap[cred.workerProfileId]) {
@@ -175,7 +175,7 @@ export async function GET(req: NextRequest) {
       credentialMap[cred.workerProfileId].push(cred)
     }
 
-    // ?�답 ?�이??조합
+    // 응답 데이터 조합
     const workers = finalFiltered.map((w) => ({
       id: w.id,
       userId: w.userId,
@@ -195,7 +195,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[GET /api/search/workers] error:", error)
     return NextResponse.json(
-      { error: "?�력 검??�??�류가 발생?�습?�다. ?�시 ???�시 ?�도??주세??" },
+      { error: "인력 검색 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요." },
       { status: 500 }
     )
   }

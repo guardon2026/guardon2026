@@ -17,24 +17,24 @@ import {
   Prisma,
 } from "@prisma/client"
 
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-// ?�션 검�?
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
+// 세션 검증
+// ─────────────────────────────────────────
 
 async function requireCompanyOwnerSession() {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return { error: "로그?�이 ?�요?�니??", status: 401 as const }
+    return { error: "로그인이 필요합니다.", status: 401 as const }
   }
   if (session.user.role !== UserRole.COMPANY_OWNER) {
-    return { error: "?�체 ?�??계정�??�근?????�습?�다.", status: 403 as const }
+    return { error: "업체 대표 계정만 접근할 수 있습니다.", status: 403 as const }
   }
   return { userId: session.user.id }
 }
 
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-// ?�청 바디 ?�서
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
+// 요청 바디 파서
+// ─────────────────────────────────────────
 
 interface ScheduleDay {
   date: string
@@ -158,48 +158,48 @@ function parseBody(body: unknown): SosRequestBody | null {
   }
 }
 
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
 // POST /api/sos/requests
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // 1. ?�증 ?�인
+  // 1. 인증 확인
   const authResult = await requireCompanyOwnerSession()
   if ("error" in authResult) {
     return NextResponse.json({ error: authResult.error }, { status: authResult.status })
   }
 
-  // 2. ?�체 ?�인 ?�인
+  // 2. 업체 승인 확인
   let company
   try {
     company = await requireApprovedCompany(authResult.userId)
   } catch (e) {
     if (e instanceof CompanyNotApprovedError) {
       return NextResponse.json(
-        { error: "?�인???�체�?SOS ?�청???�록?????�습?�다." },
+        { error: "승인된 업체만 SOS 요청을 등록할 수 있습니다." },
         { status: 403 }
       )
     }
     throw e
   }
 
-  // 3. ?�청 바디 ?�싱
+  // 3. 요청 바디 파싱
   let body: unknown
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: "?�못???�청 ?�식?�니??" }, { status: 400 })
+    return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 })
   }
 
   const data = parseBody(body)
   if (!data) {
-    return NextResponse.json({ error: "?�청 ?�이?��? ?�바르�? ?�습?�다." }, { status: 400 })
+    return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 3-1. 최�??�금 방어
-  // 배치 ?�정??근무?�간???�으�??�짜�??�제 근무?�간 × 최�??�급(10,320???�로 최�? ?�급 ?�정.
-  // ?�간 ?�보가 ?�는 경우 법정 기본 8?�간(82,560?? 기�? ?�용.
-  const MIN_HOURLY_WAGE = 10_320 // 2026??최�??�급
+  // 3-1. 최저임금 방어
+  // 배치 일정에 근무시간이 있으면 날짜별 실제 근무시간 × 최저시급(10,320원)으로 최저 일급 산정.
+  // 시간 정보가 없는 경우 법정 기본 8시간(82,560원) 기준 적용.
+  const MIN_HOURLY_WAGE = 10_320 // 2026년 최저시급
   const scheduledHours = data.scheduleDays
     ?.filter((d) => d.startTime && d.endTime)
     .map((d) => {
@@ -213,15 +213,15 @@ export async function POST(req: NextRequest) {
   if (data.hourlyRate < MIN_DAILY_WAGE) {
     return NextResponse.json(
       {
-        error: `?�급?� 최장 근무??${maxScheduledHours}?�간) 기�? 최�??�금(${MIN_DAILY_WAGE.toLocaleString()}?? ?�상?�어???�니?? (최�??�급 10,320??× ${maxScheduledHours}h)`,
+        error: `일급은 최장 근무일(${maxScheduledHours}시간) 기준 최저임금(${MIN_DAILY_WAGE.toLocaleString()}원) 이상이어야 합니다. (최저시급 10,320원 × ${maxScheduledHours}h)`,
         minWage: MIN_DAILY_WAGE,
       },
       { status: 400 }
     )
   }
 
-  // 3-2. ?�인???�액 ?�인 (매칭 ?�수�?+ 긴급??추�? 비용 + 부가??
-  // ?�건비는 ?�체 ?�?��? 경비 ?�력?�게 직접 ?�체 ???�랫??결제?�서 ?�외
+  // 3-2. 포인트 잔액 확인 (매칭 수수료 + 긴급도 추가 비용 + 부가세)
+  // 인건비는 업체 대표가 경비 인력에게 직접 이체 — 플랫폼 결제에서 제외
   const URGENCY_FEE: Record<string, number> = {
     NORMAL: 0,
     FAST: 5_000,
@@ -232,9 +232,9 @@ export async function POST(req: NextRequest) {
     ? data.scheduleDays.reduce((sum, d) => sum + (d.requiredCount ?? 1), 0)
     : data.requiredCount
   const urgencyFee = URGENCY_FEE[data.urgencyLevel ?? "NORMAL"] ?? 0
-  // 긴급??추�? 비용?� 경비 ?�력 ?�급???�함?�어 직접 ?�체 ???�수�?기�??�만 반영
+  // 긴급도 추가 비용은 경비 인력 일급에 포함되어 직접 이체 — 수수료 기준에만 반영
   const effectiveDailyRate = data.hourlyRate + urgencyFee
-  const laborCost = effectiveDailyRate * totalCount // ?�수�??�정 기�???(결제 ??�� ?�님)
+  const laborCost = effectiveDailyRate * totalCount // 수수료 산정 기준용 (결제 항목 아님)
   const serviceFee = Math.ceil(laborCost * 0.05)
   const vat = Math.ceil(serviceFee * 0.1)
   const requiredPoints = serviceFee + vat
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
   if (!pointAccount || pointAccount.balance < requiredPoints) {
     return NextResponse.json(
       {
-        error: `?�인?��? 부족합?�다. ?�요: ${requiredPoints.toLocaleString()}P, 보유: ${(pointAccount?.balance ?? 0).toLocaleString()}P`,
+        error: `포인트가 부족합니다. 필요: ${requiredPoints.toLocaleString()}P, 보유: ${(pointAccount?.balance ?? 0).toLocaleString()}P`,
         requiredPoints,
         currentBalance: pointAccount?.balance ?? 0,
       },
@@ -252,7 +252,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 3-3. 근무 ?�정�?24?�간 초과 검�?
+  // 3-3. 근무 일정별 24시간 초과 검증
   if (data.scheduleDays && data.scheduleDays.length > 0) {
     for (const d of data.scheduleDays) {
       if (d.date && d.endDate && d.startTime && d.endTime) {
@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
         const endMs = new Date(`${d.endDate}T${d.endTime}`).getTime()
         if (endMs - startMs > 24 * 60 * 60 * 1000) {
           return NextResponse.json(
-            { error: "?�나??근무 ?�정?� 24?�간??초과?????�습?�다." },
+            { error: "하나의 근무 일정은 24시간을 초과할 수 없습니다." },
             { status: 400 }
           )
         }
@@ -268,17 +268,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 4. scheduledAt / scheduledEndAt ISO ?�짜 ?�싱
+  // 4. scheduledAt / scheduledEndAt ISO 날짜 파싱
   const scheduledAt = new Date(data.scheduledAt)
   if (isNaN(scheduledAt.getTime())) {
-    return NextResponse.json({ error: "배치 ?�짜·?�간 ?�식???�바르�? ?�습?�다." }, { status: 400 })
+    return NextResponse.json({ error: "배치 날짜·시간 형식이 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 최소 12?�간 ???�청 조건 검�?
+  // 최소 12시간 전 신청 조건 검증
   const minScheduledAt = new Date(Date.now() + 12 * 60 * 60 * 1000)
   if (scheduledAt < minScheduledAt) {
     return NextResponse.json(
-      { error: "배치 ?�작 ?�시???�재 ?�각?�로부??최소 12?�간 ?�후?�야 ?�니??" },
+      { error: "배치 시작 일시는 현재 시각으로부터 최소 12시간 이후여야 합니다." },
       { status: 400 }
     )
   }
@@ -286,24 +286,24 @@ export async function POST(req: NextRequest) {
   if (data.scheduledEndAt) {
     scheduledEndAt = new Date(data.scheduledEndAt)
     if (isNaN(scheduledEndAt.getTime()) || scheduledEndAt <= scheduledAt) {
-      return NextResponse.json({ error: "종료 ?�시???�작 ?�시보다 ?�후?�야 ?�니??" }, { status: 400 })
+      return NextResponse.json({ error: "종료 일시는 시작 일시보다 이후여야 합니다." }, { status: 400 })
     }
   }
   let applicationDeadline: Date | null = null
   if (data.applicationDeadline) {
     applicationDeadline = new Date(data.applicationDeadline)
     if (isNaN(applicationDeadline.getTime())) {
-      return NextResponse.json({ error: "?�청 마감 ?�간 ?�식???�바르�? ?�습?�다." }, { status: 400 })
+      return NextResponse.json({ error: "신청 마감 시간 형식이 올바르지 않습니다." }, { status: 400 })
     }
   }
 
-  // 5. 집결지 주소?�서 city/district ?�싱 (간단 ?�싱 ???�확??값�? 추후 주소 API ?�동)
+  // 5. 집결지 주소에서 city/district 파싱 (간단 파싱 — 정확한 값은 추후 주소 API 연동)
   const addressParts = data.locationAddress.split(" ")
   const city = addressParts[0] ?? ""
   const district = addressParts[1] ?? ""
   const region = [city, district].filter(Boolean).join(" ")
 
-  // 6. SOS ?�청 ?�성
+  // 6. SOS 요청 생성
   const sosRequest = await prisma.sosRequest.create({
     data: {
       companyId: company.id,
@@ -349,7 +349,7 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // 6-1. ?�인??차감
+  // 6-1. 포인트 차감
   await prisma.$transaction([
     prisma.pointAccount.update({
       where: { id: pointAccount.id },
@@ -360,31 +360,31 @@ export async function POST(req: NextRequest) {
         accountId: pointAccount.id,
         amount: -requiredPoints,
         type: "SOS_DEDUCT",
-        description: `SOS ?�청: ${data.title} (매칭 ?�수�?${serviceFee.toLocaleString()}??+ 부가??${vat.toLocaleString()}??/ ?�건�?${laborCost.toLocaleString()}??{urgencyFee > 0 ? ` [긴급??${urgencyFee.toLocaleString()}???�함]` : ""}?� 직접 ?�체)`,
+        description: `SOS 요청: ${data.title} (매칭 수수료 ${serviceFee.toLocaleString()}원 + 부가세 ${vat.toLocaleString()}원 / 인건비 ${laborCost.toLocaleString()}원${urgencyFee > 0 ? ` [긴급도 ${urgencyFee.toLocaleString()}원 포함]` : ""}은 직접 이체)`,
         sosRequestId: sosRequest.id,
       },
     }),
   ])
 
-  // 7. PostGIS location ?�데?�트 (lat/lng 모두 ?�을 ??
+  // 7. PostGIS location 업데이트 (lat/lng 모두 있을 때)
   if (data.latitude != null && data.longitude != null) {
     try {
-      // tagged template literal ?�수 (T-01-02-01)
+      // tagged template literal 필수 (T-01-02-01)
       await prisma.$queryRaw`
         UPDATE sos_requests
         SET location = ST_SetSRID(ST_MakePoint(${data.longitude}, ${data.latitude}), 4326)::geography
         WHERE id = ${sosRequest.id}
       `
     } catch {
-      // location ?�데?�트 ?�패?�도 ?�청 ?�성?� ?�공?�로 처리
+      // location 업데이트 실패해도 요청 생성은 성공으로 처리
     }
   }
 
-  // 8. ?�력 매칭 ?�행
+  // 8. 인력 매칭 실행
   const matched = await matchWorkers(sosRequest.id)
   const matchedCount = matched.length
 
-  // 9. SosMatch + Notification ?�성
+  // 9. SosMatch + Notification 생성
   if (matched.length > 0) {
     const now = new Date()
 
@@ -403,14 +403,14 @@ export async function POST(req: NextRequest) {
         userId: m.userId,
         sosRequestId: sosRequest.id,
         type: "SOS_REQUEST",
-        title: "SOS 긴급 ?�청 ?�림",
-        body: "긴급 경비 ?�력 배치 ?�청???�수?�었?�니?? 지�??�인??주세??",
+        title: "SOS 긴급 요청 알림",
+        body: "긴급 경비 인력 배치 요청이 접수되었습니다. 지금 확인해 주세요.",
         sentAt: now,
       })),
     )
   }
 
-  // 10. 반경 ?�장 �?미해�?체크 ?��?줄링 (async, don't await)
+  // 10. 반경 확장 및 미해결 체크 스케줄링 (async, don't await)
   scheduleRadiusExpansion(sosRequest.id)
   scheduleUnresolvedCheck(sosRequest.id)
 

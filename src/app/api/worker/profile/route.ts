@@ -5,17 +5,17 @@ import { prisma } from "@/lib/prisma"
 import { WorkField, CredentialType, AvailabilityStatus } from "@prisma/client"
 import { matchSosRequestsForWorker } from "@/lib/sos-matcher"
 
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-// 공통 ?�퍼
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
+// 공통 헬퍼
+// ─────────────────────────────────────────
 
 async function requireWorkerSession() {
   const session = await getServerSession()
   if (!session?.user?.id) {
-    return { error: "로그?�이 ?�요?�니??", status: 401 as const }
+    return { error: "로그인이 필요합니다.", status: 401 as const }
   }
   if (session.user.role !== "WORKER") {
-    return { error: "경비 ?�력 계정�??�근?????�습?�다.", status: 403 as const }
+    return { error: "경비 인력 계정만 접근할 수 있습니다.", status: 403 as const }
   }
   return { userId: session.user.id }
 }
@@ -98,9 +98,9 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   }
 }
 
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
 // GET /api/worker/profile
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
 
 export async function GET() {
   const auth_result = await requireWorkerSession()
@@ -126,9 +126,9 @@ export async function GET() {
   return NextResponse.json({ profile: profile ?? null })
 }
 
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-// POST /api/worker/profile ???�규 ?�성
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
+// POST /api/worker/profile — 신규 생성
+// ─────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const auth_result = await requireWorkerSession()
@@ -136,38 +136,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: auth_result.error }, { status: auth_result.status })
   }
 
-  // ?��? 존재?�면 충돌
+  // 이미 존재하면 충돌
   const existing = await prisma.workerProfile.findUnique({
     where: { userId: auth_result.userId },
     select: { id: true },
   })
   if (existing) {
-    return NextResponse.json({ error: "?��? ?�로?�이 존재?�니??" }, { status: 409 })
+    return NextResponse.json({ error: "이미 프로필이 존재합니다." }, { status: 409 })
   }
 
   let body: unknown
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: "?�못???�청 ?�식?�니??" }, { status: 400 })
+    return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 })
   }
 
   const data = parseBody(body)
   if (!data) {
-    return NextResponse.json({ error: "?�청 ?�이?��? ?�바르�? ?�습?�다." }, { status: 400 })
+    return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // ?�수 ?�드 검�?  if (!data.workFields || data.workFields.length === 0) {
-    return NextResponse.json({ error: "?�무 분야�??�나 ?�상 ?�택??주세??" }, { status: 400 })
+  // 필수 필드 검증
+  if (!data.workFields || data.workFields.length === 0) {
+    return NextResponse.json({ error: "업무 분야를 하나 이상 선택해 주세요." }, { status: 400 })
   }
   if (!data.address?.trim()) {
-    return NextResponse.json({ error: "주소�??�력??주세??" }, { status: 400 })
+    return NextResponse.json({ error: "주소를 입력해 주세요." }, { status: 400 })
   }
   if (!data.city?.trim()) {
-    return NextResponse.json({ error: "?�·도�??�력??주세??" }, { status: 400 })
+    return NextResponse.json({ error: "시·도를 입력해 주세요." }, { status: 400 })
   }
   if (!data.district?.trim()) {
-    return NextResponse.json({ error: "�?�군???�력??주세??" }, { status: 400 })
+    return NextResponse.json({ error: "구·군을 입력해 주세요." }, { status: 400 })
   }
 
   const profile = await prisma.workerProfile.create({
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // 주소 기반 좌표 ?�정
+  // 주소 기반 좌표 설정
   const coords = await geocodeAddress(data.address.trim())
   if (coords) {
     await prisma.workerProfile.update({
@@ -197,15 +198,15 @@ export async function POST(req: NextRequest) {
     await updateLocation(profile.id, coords.lat, coords.lng)
   }
 
-  // 가???�점??진행 중인 SOS ?�청 �?조건??맞는 것에 ?�림 발송 (fire-and-forget)
+  // 가입 시점에 진행 중인 SOS 요청 중 조건에 맞는 것에 알림 발송 (fire-and-forget)
   void matchSosRequestsForWorker(profile.id, auth_result.userId)
 
   return NextResponse.json({ profile }, { status: 201 })
 }
 
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
-// PATCH /api/worker/profile ??기존 ?�정
-// ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+// ─────────────────────────────────────────
+// PATCH /api/worker/profile — 기존 수정
+// ─────────────────────────────────────────
 
 export async function PATCH(req: NextRequest) {
   const auth_result = await requireWorkerSession()
@@ -218,27 +219,27 @@ export async function PATCH(req: NextRequest) {
     select: { id: true },
   })
   if (!existing) {
-    return NextResponse.json({ error: "?�로?�을 찾을 ???�습?�다." }, { status: 404 })
+    return NextResponse.json({ error: "프로필을 찾을 수 없습니다." }, { status: 404 })
   }
 
   let body: unknown
   try {
     body = await req.json()
   } catch {
-    return NextResponse.json({ error: "?�못???�청 ?�식?�니??" }, { status: 400 })
+    return NextResponse.json({ error: "잘못된 요청 형식입니다." }, { status: 400 })
   }
 
   const data = parseBody(body)
   if (!data) {
-    return NextResponse.json({ error: "?�청 ?�이?��? ?�바르�? ?�습?�다." }, { status: 400 })
+    return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // workFields가 ?�달??경우 비어?�으�??�류
+  // workFields가 전달된 경우 비어있으면 오류
   if (data.workFields !== undefined && data.workFields.length === 0) {
-    return NextResponse.json({ error: "?�무 분야�??�나 ?�상 ?�택??주세??" }, { status: 400 })
+    return NextResponse.json({ error: "업무 분야를 하나 이상 선택해 주세요." }, { status: 400 })
   }
 
-  // undefined ?�드???�데?�트?�서 ?�외 (Prisma??undefined�?무시)
+  // undefined 필드는 업데이트에서 제외 (Prisma는 undefined를 무시)
   const updateData: Record<string, unknown> = {}
   if (data.workFields !== undefined) updateData.workFields = data.workFields
   if (data.declaredCredentials !== undefined) updateData.declaredCredentials = data.declaredCredentials
@@ -256,7 +257,8 @@ export async function PATCH(req: NextRequest) {
     data: updateData,
   })
 
-  // 주소가 변경된 경우 좌표 ?�설??  if (data.address !== undefined) {
+  // 주소가 변경된 경우 좌표 재설정
+  if (data.address !== undefined) {
     const coords = await geocodeAddress(data.address.trim())
     if (coords) {
       await prisma.workerProfile.update({
@@ -267,7 +269,7 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // ?�무 분야·주소 변�???조건??맞는 ?�성 SOS ?�매�?(fire-and-forget)
+  // 업무 분야·주소 변경 시 조건에 맞는 활성 SOS 재매칭 (fire-and-forget)
   if (data.workFields !== undefined || data.address !== undefined) {
     void matchSosRequestsForWorker(existing.id, auth_result.userId)
   }
