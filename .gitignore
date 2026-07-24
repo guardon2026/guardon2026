@@ -1,11 +1,8 @@
 .planning/
 node_modules/
-.next/*
-!.next/standalone
-!.next/standalone/**
-!.next/static
-!.next/static/**
-.next/standalone/.env
+.next/cache/
+.next/standalone/
+.next/trace
 .env.local
 .env
 tsconfig.tsbuildinfo
