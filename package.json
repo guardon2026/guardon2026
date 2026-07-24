@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "echo skip",
-    "start": "node .next/standalone/server.js",
+    "start": "node server.js",
     "lint": "next lint"
   },
   "prisma": {
