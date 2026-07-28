@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { CheckCircle2, Circle } from "lucide-react"
+import { CheckCircle2, Circle, ChevronDown } from "lucide-react"
 import { AUTH } from "@/lib/constants"
 
 type ConsentState = {
@@ -10,10 +10,25 @@ type ConsentState = {
   LOCATION: boolean
 }
 
-const CONSENT_ITEMS: { key: keyof ConsentState; label: string; required: boolean }[] = [
-  { key: "PRIVACY", label: AUTH.consentPersonalInfo, required: true },
-  { key: "LOCATION", label: AUTH.consentLocation, required: true },
-  { key: "TERMS", label: AUTH.consentTerms, required: true },
+const CONSENT_ITEMS: { key: keyof ConsentState; label: string; required: boolean; detail: string }[] = [
+  {
+    key: "PRIVACY",
+    label: AUTH.consentPersonalInfo,
+    required: true,
+    detail: `수집 항목: 카카오 계정 정보(이름, 이메일, 프로필 사진), 서비스 이용 기록\n\n수집 목적: 회원 가입 및 본인 확인, 서비스 제공 및 개선, 고객 문의 처리\n\n보유 기간: 회원 탈퇴 시 즉시 삭제 (단, 관계 법령에 따라 일정 기간 보관할 수 있음)\n\n※ 위 동의를 거부할 권리가 있으나, 거부 시 서비스 이용이 제한됩니다.`,
+  },
+  {
+    key: "LOCATION",
+    label: AUTH.consentLocation,
+    required: true,
+    detail: `수집 항목: GPS 기반 위치 정보 (현장 출·퇴근 확인 시)\n\n수집 목적: 경비원 현장 출·퇴근 확인 및 SOS 긴급 위치 전송\n\n보유 기간: 출·퇴근 기록 보존 기간(최대 3년) 또는 회원 탈퇴 시까지\n\n※ 위치정보 수집에 동의하지 않을 경우 현장 출·퇴근 및 SOS 기능을 이용할 수 없습니다.`,
+  },
+  {
+    key: "TERMS",
+    label: AUTH.consentTerms,
+    required: true,
+    detail: `제1조 (목적) 본 약관은 GuardOn 서비스 이용에 관한 조건 및 절차, 회사와 회원 간의 권리·의무 및 책임 사항을 규정합니다.\n\n제2조 (서비스 이용) 회원은 본 약관에 동의하고 서비스를 이용할 수 있으며, 관계 법령을 준수하여야 합니다.\n\n제3조 (금지 행위) 타인의 정보 도용, 서비스 방해, 불법 정보 게시 등의 행위를 금지합니다.\n\n제4조 (서비스 중단) 회사는 시스템 점검·장애·천재지변 등의 사유로 서비스를 일시 중단할 수 있습니다.\n\n제5조 (준거법) 본 약관은 대한민국 법령에 따라 해석되며, 분쟁 시 서울중앙지방법원을 관할 법원으로 합니다.`,
+  },
 ]
 
 const STEPS = ["역할 선택", "약관 동의", "완료"]
@@ -25,6 +40,7 @@ export default function ConsentPage() {
     PRIVACY: false,
     LOCATION: false,
   })
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = useState(false)
   const [pendingRole, setPendingRole] = useState<string | null>(null)
 
@@ -122,27 +138,49 @@ export default function ConsentPage() {
 
           {/* 개별 항목 */}
           <div className="space-y-3">
-            {CONSENT_ITEMS.map(({ key, label, required }) => (
-              <label
+            {CONSENT_ITEMS.map(({ key, label, required, detail }) => (
+              <div
                 key={key}
-                className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-colors
-                  ${consent[key] ? "border-brand bg-blue-50/50" : "border-gray-100 bg-gray-50 hover:border-gray-200"}`}
+                className={`rounded-xl border transition-colors
+                  ${consent[key] ? "border-brand bg-blue-50/50" : "border-gray-100 bg-gray-50"}`}
               >
-                <input
-                  type="checkbox"
-                  checked={consent[key]}
-                  onChange={(e) =>
-                    setConsent((prev) => ({ ...prev, [key]: e.target.checked }))
-                  }
-                  className="w-4 h-4 accent-brand"
-                />
-                <span className="text-sm text-gray-700 flex-1">{label}</span>
-                {required && (
-                  <span className="text-xs font-semibold text-sos bg-red-50 px-2 py-0.5 rounded-full shrink-0">
-                    필수
-                  </span>
+                <label className="flex items-center gap-3 p-4 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={consent[key]}
+                    onChange={(e) =>
+                      setConsent((prev) => ({ ...prev, [key]: e.target.checked }))
+                    }
+                    className="w-4 h-4 accent-brand shrink-0"
+                  />
+                  <span className="text-sm text-gray-700 flex-1">{label}</span>
+                  {required && (
+                    <span className="text-xs font-semibold text-sos bg-red-50 px-2 py-0.5 rounded-full shrink-0">
+                      필수
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))
+                    }}
+                    className="ml-1 text-gray-400 hover:text-gray-600 transition-colors shrink-0"
+                    aria-label="약관 내용 펼치기"
+                  >
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform duration-200 ${expanded[key] ? "rotate-180" : ""}`}
+                    />
+                  </button>
+                </label>
+                {expanded[key] && (
+                  <div className="px-4 pb-4">
+                    <div className="text-xs text-gray-500 leading-relaxed whitespace-pre-line bg-white rounded-lg p-3 border border-gray-100">
+                      {detail}
+                    </div>
+                  </div>
                 )}
-              </label>
+              </div>
             ))}
           </div>
 
