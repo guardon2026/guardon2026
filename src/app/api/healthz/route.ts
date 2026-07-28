@@ -6,9 +6,13 @@ export async function GET() {
     hasClientId: !!process.env.KAKAO_CLIENT_ID,
     clientIdPrefix: process.env.KAKAO_CLIENT_ID?.slice(0, 6),
     hasClientSecret: !!process.env.KAKAO_CLIENT_SECRET,
+    clientSecretLength: process.env.KAKAO_CLIENT_SECRET?.length ?? 0,
     hasDatabaseUrl: !!process.env.DATABASE_URL,
     dbUrlPrefix: process.env.DATABASE_URL?.slice(0, 30),
     nodeEnv: process.env.NODE_ENV,
+    nextauthUrl: process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? '(not set)',
+    authTrustHost: process.env.AUTH_TRUST_HOST ?? '(not set)',
+    nodeTlsReject: process.env.NODE_TLS_REJECT_UNAUTHORIZED ?? '(not set)',
   }
 
   let db: { status: string; error?: string } = { status: 'untested' }
