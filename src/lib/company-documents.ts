@@ -7,10 +7,9 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/png",
   "image/webp",
   "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ])
 
-const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 export function isAllowedCompanyDocument(file: File) {
   return ALLOWED_MIME_TYPES.has(file.type) && file.size > 0 && file.size <= MAX_FILE_SIZE_BYTES
@@ -18,13 +17,13 @@ export function isAllowedCompanyDocument(file: File) {
 
 export function companyDocumentError(file: File) {
   if (!ALLOWED_MIME_TYPES.has(file.type)) {
-    return "JPG, PNG, WEBP, PDF, DOCX 파일만 업로드할 수 있습니다."
+    return "JPG, PNG, WEBP, PDF 파일만 업로드할 수 있습니다."
   }
   if (file.size <= 0) {
     return "빈 파일은 업로드할 수 없습니다."
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return "파일은 20MB 이하만 업로드할 수 있습니다."
+    return "파일은 10MB 이하만 업로드할 수 있습니다."
   }
   return null
 }

@@ -547,7 +547,7 @@ export const CREDENTIAL_PAGE_LABELS = {
   SECTION_LIST:   "보유 자격증",
   SECTION_UPLOAD: "자격증 업로드",
   SELECT_TYPE:    "자격증 종류를 선택해 주세요",
-  SELECT_FILE:    "파일 선택 (JPG, PNG, WEBP, PDF, DOCX, 최대 20MB)",
+  SELECT_FILE:    "파일 선택 (JPG, PNG, WEBP, PDF, 최대 10MB)",
   ISSUED_DATE:    "발급일 (선택)",
   UPLOAD_BTN:     "업로드",
   UPLOADING:      "업로드 중...",
