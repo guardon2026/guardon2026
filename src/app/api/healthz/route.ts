@@ -20,5 +20,13 @@ export async function GET() {
     db = { status: 'error', error: e instanceof Error ? e.message : String(e) }
   }
 
-  return Response.json({ env, db })
+  let authInit: { status: string; error?: string } = { status: 'untested' }
+  try {
+    const { handlers } = await import('@/lib/auth')
+    authInit = { status: handlers ? 'ok' : 'no-handlers' }
+  } catch (e: unknown) {
+    authInit = { status: 'error', error: e instanceof Error ? e.message : String(e) }
+  }
+
+  return Response.json({ env, db, authInit })
 }
