@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, MessageCircle, Upload, ShieldCheck } from "lucide-react"
+import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, MessageCircle, Upload, ShieldCheck, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -57,6 +57,32 @@ export default function RegisterPage() {
   const [showTooltip, setShowTooltip] = useState(false)
   const [businessRegistrationFile, setBusinessRegistrationFile] = useState<File | null>(null)
   const [securityLicenseFile, setSecurityLicenseFile] = useState<File | null>(null)
+
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.src = "//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+    script.async = true
+    document.head.appendChild(script)
+    return () => { document.head.removeChild(script) }
+  }, [])
+
+  function openAddressSearch() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    new (window as any).daum.Postcode({
+      oncomplete(data: { roadAddress: string; jibunAddress: string; sido: string; sigungu: string }) {
+        const fullAddress = data.roadAddress || data.jibunAddress
+        const sigungu = data.sigungu || ""
+        const district = sigungu.includes(" ") ? sigungu.split(" ").slice(-1)[0] : sigungu
+        setFormData((prev) => ({
+          ...prev,
+          address: fullAddress,
+          city: data.sido,
+          district,
+        }))
+        setErrors((prev) => ({ ...prev, address: undefined, city: undefined, district: undefined }))
+      },
+    }).open()
+  }
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -367,14 +393,26 @@ export default function RegisterPage() {
                   {COMPANY_ONBOARDING.FIELDS.ADDRESS_LABEL}
                   <span className="text-sos ml-0.5">*</span>
                 </Label>
-                <Input
-                  id="address"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder={COMPANY_ONBOARDING.FIELDS.ADDRESS_PLACEHOLDER}
-                  className={errors.address ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="address"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder={COMPANY_ONBOARDING.FIELDS.ADDRESS_PLACEHOLDER}
+                    readOnly
+                    className={`flex-1 bg-gray-50 ${errors.address ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}`}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={openAddressSearch}
+                    className="shrink-0 gap-1.5"
+                  >
+                    <Search className="w-4 h-4" />
+                    주소 검색
+                  </Button>
+                </div>
                 {errors.address && <p className="text-sm text-sos">{errors.address}</p>}
               </div>
 
@@ -388,9 +426,9 @@ export default function RegisterPage() {
                     id="city"
                     name="city"
                     value={formData.city}
-                    onChange={handleChange}
+                    readOnly
                     placeholder={COMPANY_ONBOARDING.FIELDS.CITY_PLACEHOLDER}
-                    className={errors.city ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}
+                    className={`bg-gray-50 ${errors.city ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}`}
                   />
                   {errors.city && <p className="text-sm text-sos">{errors.city}</p>}
                 </div>
@@ -403,9 +441,9 @@ export default function RegisterPage() {
                     id="district"
                     name="district"
                     value={formData.district}
-                    onChange={handleChange}
+                    readOnly
                     placeholder={COMPANY_ONBOARDING.FIELDS.DISTRICT_PLACEHOLDER}
-                    className={errors.district ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}
+                    className={`bg-gray-50 ${errors.district ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}`}
                   />
                   {errors.district && <p className="text-sm text-sos">{errors.district}</p>}
                 </div>
