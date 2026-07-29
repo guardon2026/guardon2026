@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     .filter((file): file is File => file instanceof File && file.size > 0)
 
   // 5. 서버 사이드 검증 (클라이언트 우회 방어)
-  if (!name || !licenseNumber || !businessRegistrationNumber || !address || !city || !district || !phone) {
+  if (!name || !licenseNumber || !businessRegistrationNumber || !address || !phone) {
     return Response.json(
       { error: "필수 항목을 모두 입력해 주세요.", code: "MISSING_FIELDS" },
       { status: 400 }

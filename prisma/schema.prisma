@@ -215,8 +215,8 @@ model Company {
   licenseVerified Boolean       @default(false)  // 관리자 승인 여부 (FR7)
   description     String?
   address         String
-  city            String                          // 검색 필터용 (FR12)
-  district        String                          // 시/구 단위
+  city            String  @default("")
+  district        String  @default("")
   phone           String
   kakaoOpenChatUrl String?                         // 카카오 오픈채팅 링크 (경비 인력 문의용)
   status          CompanyStatus @default(PENDING)

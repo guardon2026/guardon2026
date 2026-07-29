@@ -141,8 +141,6 @@ export default function RegisterPage() {
         ? `${formData.address} ${formData.detailAddress.trim()}`
         : formData.address
       payload.append("address", fullAddress)
-      payload.append("city", formData.city)
-      payload.append("district", formData.district)
       payload.append("phone", formData.phone)
       payload.append("description", formData.description)
       payload.append("kakaoOpenChatUrl", formData.kakaoOpenChatUrl)
