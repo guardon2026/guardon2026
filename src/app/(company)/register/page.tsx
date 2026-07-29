@@ -14,6 +14,7 @@ interface FormData {
   licenseNumber: string
   businessRegistrationNumber: string
   address: string
+  detailAddress: string
   city: string
   district: string
   phone: string
@@ -28,8 +29,6 @@ interface FormErrors {
   businessRegistrationFile?: string
   securityLicenseFile?: string
   address?: string
-  city?: string
-  district?: string
   phone?: string
 }
 
@@ -45,6 +44,7 @@ export default function RegisterPage() {
     licenseNumber: "",
     businessRegistrationNumber: "",
     address: "",
+    detailAddress: "",
     city: "",
     district: "",
     phone: "",
@@ -116,8 +116,6 @@ export default function RegisterPage() {
       newErrors.securityLicenseFile = COMPANY_ONBOARDING.ERROR.SECURITY_FILE_REQUIRED
     }
     if (!formData.address.trim()) newErrors.address = COMPANY_ONBOARDING.ERROR.ADDRESS_REQUIRED
-    if (!formData.city.trim()) newErrors.city = COMPANY_ONBOARDING.ERROR.CITY_REQUIRED
-    if (!formData.district.trim()) newErrors.district = COMPANY_ONBOARDING.ERROR.DISTRICT_REQUIRED
     if (!formData.phone.trim()) newErrors.phone = COMPANY_ONBOARDING.ERROR.PHONE_REQUIRED
 
     setErrors(newErrors)
@@ -139,7 +137,10 @@ export default function RegisterPage() {
       payload.append("name", formData.name)
       payload.append("licenseNumber", formData.licenseNumber)
       payload.append("businessRegistrationNumber", formData.businessRegistrationNumber)
-      payload.append("address", formData.address)
+      const fullAddress = formData.detailAddress.trim()
+        ? `${formData.address} ${formData.detailAddress.trim()}`
+        : formData.address
+      payload.append("address", fullAddress)
       payload.append("city", formData.city)
       payload.append("district", formData.district)
       payload.append("phone", formData.phone)
@@ -416,37 +417,15 @@ export default function RegisterPage() {
                 {errors.address && <p className="text-sm text-sos">{errors.address}</p>}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="city">
-                    {COMPANY_ONBOARDING.FIELDS.CITY_LABEL}
-                    <span className="text-sos ml-0.5">*</span>
-                  </Label>
-                  <Input
-                    id="city"
-                    name="city"
-                    value={formData.city}
-                    readOnly
-                    placeholder={COMPANY_ONBOARDING.FIELDS.CITY_PLACEHOLDER}
-                    className={`bg-gray-50 ${errors.city ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}`}
-                  />
-                  {errors.city && <p className="text-sm text-sos">{errors.city}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="district">
-                    {COMPANY_ONBOARDING.FIELDS.DISTRICT_LABEL}
-                    <span className="text-sos ml-0.5">*</span>
-                  </Label>
-                  <Input
-                    id="district"
-                    name="district"
-                    value={formData.district}
-                    readOnly
-                    placeholder={COMPANY_ONBOARDING.FIELDS.DISTRICT_PLACEHOLDER}
-                    className={`bg-gray-50 ${errors.district ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}`}
-                  />
-                  {errors.district && <p className="text-sm text-sos">{errors.district}</p>}
-                </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="detailAddress">상세 주소</Label>
+                <Input
+                  id="detailAddress"
+                  name="detailAddress"
+                  value={formData.detailAddress}
+                  onChange={handleChange}
+                  placeholder="예) 3층 301호"
+                />
               </div>
             </div>
 
