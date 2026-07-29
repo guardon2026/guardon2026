@@ -1,8 +1,6 @@
 .planning/
 node_modules/
-.next/cache/
-.next/standalone/
-.next/trace
+.next/
 .env.local
 .env
 tsconfig.tsbuildinfo
