@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, MessageCircle, Upload, ShieldCheck, Search } from "lucide-react"
+import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, Upload, ShieldCheck, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,7 +19,6 @@ interface FormData {
   district: string
   phone: string
   description: string
-  kakaoOpenChatUrl: string
 }
 
 interface FormErrors {
@@ -49,7 +48,6 @@ export default function RegisterPage() {
     district: "",
     phone: "",
     description: "",
-    kakaoOpenChatUrl: "",
   })
   const [errors, setErrors] = useState<FormErrors>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
@@ -143,7 +141,6 @@ export default function RegisterPage() {
       payload.append("address", fullAddress)
       payload.append("phone", formData.phone)
       payload.append("description", formData.description)
-      payload.append("kakaoOpenChatUrl", formData.kakaoOpenChatUrl)
       if (businessRegistrationFile) {
         payload.append("businessRegistrationFile", businessRegistrationFile)
       }
@@ -451,21 +448,6 @@ export default function RegisterPage() {
                   />
                 </div>
                 {errors.phone && <p className="text-sm text-sos">{errors.phone}</p>}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="kakaoOpenChatUrl" className="flex items-center gap-1.5">
-                  <MessageCircle className="w-3.5 h-3.5 text-yellow-500" />
-                  카카오 오픈채팅 링크
-                </Label>
-                <Input
-                  id="kakaoOpenChatUrl"
-                  name="kakaoOpenChatUrl"
-                  value={formData.kakaoOpenChatUrl}
-                  onChange={handleChange}
-                  placeholder="https://open.kakao.com/o/..."
-                />
-                <p className="text-xs text-gray-400">경비 인력이 수락 전 문의할 수 있는 카카오 오픈채팅 링크를 입력해 주세요.</p>
               </div>
 
               <div className="space-y-1.5">
