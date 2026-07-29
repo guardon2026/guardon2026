@@ -384,7 +384,7 @@ export default function RegisterPage() {
             <div className="space-y-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5" />
-                위치 정보
+                사업장 주소
               </p>
 
               <div className="space-y-1.5">
