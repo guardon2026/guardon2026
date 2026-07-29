@@ -5,7 +5,6 @@ import path from "path"
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
-  "image/webp",
   "application/pdf",
 ])
 
@@ -17,7 +16,7 @@ export function isAllowedCompanyDocument(file: File) {
 
 export function companyDocumentError(file: File) {
   if (!ALLOWED_MIME_TYPES.has(file.type)) {
-    return "JPG, PNG, WEBP, PDF 파일만 업로드할 수 있습니다."
+    return "JPG, PNG, PDF 파일만 업로드할 수 있습니다."
   }
   if (file.size <= 0) {
     return "빈 파일은 업로드할 수 없습니다."

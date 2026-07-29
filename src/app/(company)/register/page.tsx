@@ -300,7 +300,7 @@ export default function RegisterPage() {
                 <p className="text-sm font-semibold text-blue-900">관리자 심사 후 등록이 완료됩니다.</p>
                 <p className="mt-1 text-xs leading-relaxed text-blue-700">
                   사업자등록증과 경비업 허가증을 제출해 주세요.
-                  파일은 JPG, PNG, WEBP, PDF 형식으로 10MB 이하만 업로드할 수 있습니다.
+                  파일은 JPG, PNG, PDF 형식으로 10MB 이하만 업로드할 수 있습니다.
                 </p>
               </div>
 
@@ -319,7 +319,7 @@ export default function RegisterPage() {
                   <input
                     id="businessRegistrationFile"
                     type="file"
-                    accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                     className="sr-only"
                     onChange={(e) => {
                       setBusinessRegistrationFile(e.target.files?.[0] ?? null)
@@ -345,7 +345,7 @@ export default function RegisterPage() {
                   <input
                     id="securityLicenseFile"
                     type="file"
-                    accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                     className="sr-only"
                     onChange={(e) => {
                       setSecurityLicenseFile(e.target.files?.[0] ?? null)
@@ -371,7 +371,7 @@ export default function RegisterPage() {
                     id="additionalProofFiles"
                     type="file"
                     multiple
-                    accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
                     className="sr-only"
                     onChange={(e) => setAdditionalProofFiles(Array.from(e.target.files ?? []))}
                   />
