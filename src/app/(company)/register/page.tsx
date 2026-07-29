@@ -57,7 +57,6 @@ export default function RegisterPage() {
   const [showTooltip, setShowTooltip] = useState(false)
   const [businessRegistrationFile, setBusinessRegistrationFile] = useState<File | null>(null)
   const [securityLicenseFile, setSecurityLicenseFile] = useState<File | null>(null)
-  const [additionalProofFiles, setAdditionalProofFiles] = useState<File[]>([])
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -126,7 +125,6 @@ export default function RegisterPage() {
       if (securityLicenseFile) {
         payload.append("securityLicenseFile", securityLicenseFile)
       }
-      additionalProofFiles.forEach((file) => payload.append("additionalProofFiles", file))
 
       const res = await fetch("/api/company/register", {
         method: "POST",
@@ -354,28 +352,6 @@ export default function RegisterPage() {
                   />
                 </label>
                 {errors.securityLicenseFile && <p className="text-sm text-sos">{errors.securityLicenseFile}</p>}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="additionalProofFiles">
-                  {COMPANY_ONBOARDING.FIELDS.ADDITIONAL_FILES_LABEL}
-                </Label>
-                <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm transition-colors hover:bg-gray-50">
-                  <span className={additionalProofFiles.length > 0 ? "font-medium text-gray-900" : "text-gray-500"}>
-                    {additionalProofFiles.length > 0
-                      ? `${additionalProofFiles.length}개 파일 선택됨`
-                      : COMPANY_ONBOARDING.FIELDS.ADDITIONAL_FILES_PLACEHOLDER}
-                  </span>
-                  <Upload className="h-4 w-4 text-gray-400" />
-                  <input
-                    id="additionalProofFiles"
-                    type="file"
-                    multiple
-                    accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
-                    className="sr-only"
-                    onChange={(e) => setAdditionalProofFiles(Array.from(e.target.files ?? []))}
-                  />
-                </label>
               </div>
             </div>
 
