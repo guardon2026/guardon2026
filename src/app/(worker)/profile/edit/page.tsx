@@ -251,12 +251,12 @@ export default function ProfileEditPage() {
           })
           if (!createRes.ok) {
             const d = await createRes.json().catch(() => ({}))
-            setErrors({ general: d.error ?? WORKER_PROFILE.ERROR.SAVE_FAILED })
+            setErrors({ general: `POST ${createRes.status}: ${d.error ?? "알 수 없는 오류"}` })
             return
           }
         } else {
           const data = await res.json().catch(() => ({}))
-          setErrors({ general: data.error ?? WORKER_PROFILE.ERROR.SAVE_FAILED })
+          setErrors({ general: `PATCH ${res.status}: ${data.error ?? "알 수 없는 오류"}` })
           return
         }
       }
@@ -267,8 +267,8 @@ export default function ProfileEditPage() {
         router.push("/profile")
         router.refresh()
       }, 2000)
-    } catch {
-      setErrors({ general: WORKER_PROFILE.ERROR.SAVE_FAILED })
+    } catch (err) {
+      setErrors({ general: `예외: ${String(err)}` })
     } finally {
       setIsSubmitting(false)
     }
