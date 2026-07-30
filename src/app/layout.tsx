@@ -2,6 +2,7 @@ import "@fontsource/pretendard/400.css"
 import "@fontsource/pretendard/600.css"
 import "./globals.css"
 import type { Metadata } from "next"
+import { Providers } from "@/components/providers"
 
 export const metadata: Metadata = {
   title: "GuardOn",
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="font-sans antialiased bg-white text-gray-900">{children}</body>
+      <body className="font-sans antialiased bg-white text-gray-900">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   )
 }

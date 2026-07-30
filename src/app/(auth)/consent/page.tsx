@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { CheckCircle2, Circle, ChevronDown } from "lucide-react"
 import { AUTH } from "@/lib/constants"
 
@@ -35,6 +36,7 @@ const STEPS = ["역할 선택", "약관 동의", "완료"]
 
 export default function ConsentPage() {
   const router = useRouter()
+  const { update } = useSession()
   const [consent, setConsent] = useState<ConsentState>({
     TERMS: false,
     PRIVACY: false,
@@ -74,6 +76,7 @@ export default function ConsentPage() {
       })
       if (!res.ok) throw new Error("등록 실패")
       sessionStorage.removeItem("pending_role")
+      await update()
       if (pendingRole === "COMPANY_OWNER") {
         router.push("/register")
       } else {

@@ -16,9 +16,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   adapter: PrismaAdapter(prisma),
   callbacks: {
-    async jwt({ token, user }) {
-      // 최초 로그인 또는 role이 미설정 상태(consent 직후)일 때 DB에서 role 조회
-      if (user || !token.role) {
+    async jwt({ token, user, trigger }) {
+      if (user || trigger === "update") {
         const uid = (user?.id ?? token.userId) as string | undefined
         if (uid) {
           const dbUser = await prisma.user.findUnique({
