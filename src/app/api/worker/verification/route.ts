@@ -25,23 +25,37 @@ export async function PATCH(req: Request) {
   }
 
   const body = await req.json()
-  const { type, rrn, bankName, bankAccount, bankHolder } = body
+  const { type, rrn, realName, bankName, bankAccount, bankHolder } = body
 
   const profile = await prisma.workerProfile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: { id: true, rrnVerifiedAt: true },
   })
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 })
 
   if (type === "rrn") {
+    if (profile.rrnVerifiedAt) {
+      return NextResponse.json({ error: "이미 실명 인증이 완료되었습니다." }, { status: 409 })
+    }
     if (!rrn || !validateRrn(rrn)) {
       return NextResponse.json({ error: "주민등록번호 형식이 올바르지 않습니다." }, { status: 400 })
     }
-    const updated = await prisma.workerProfile.update({
-      where: { id: profile.id },
-      data: { rrn: maskRrn(rrn), rrnVerifiedAt: new Date() },
-      select: { rrn: true, rrnVerifiedAt: true },
-    })
+    if (typeof realName !== "string" || !realName.trim()) {
+      return NextResponse.json({ error: "실명을 입력해 주세요." }, { status: 400 })
+    }
+    const trimmedName = realName.trim()
+
+    const [updated] = await prisma.$transaction([
+      prisma.workerProfile.update({
+        where: { id: profile.id },
+        data: { rrn: maskRrn(rrn), rrnVerifiedAt: new Date() },
+        select: { rrn: true, rrnVerifiedAt: true },
+      }),
+      prisma.user.update({
+        where: { id: session.user.id },
+        data: { name: trimmedName },
+      }),
+    ])
     return NextResponse.json(updated)
   }
 

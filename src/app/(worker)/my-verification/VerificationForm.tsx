@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
+import { useSession } from "next-auth/react"
 import { CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Props {
   rrnVerifiedAt: Date | null
+  verifiedName: string | null
   bankVerifiedAt: Date | null
   bankName: string | null
   bankAccount: string | null
@@ -19,10 +21,13 @@ const BANKS = [
   "전북은행", "제주은행", "우체국", "새마을금고", "신협",
 ]
 
-export default function VerificationForm({ rrnVerifiedAt, bankVerifiedAt, bankName, bankAccount, bankHolder }: Props) {
+export default function VerificationForm({ rrnVerifiedAt, verifiedName, bankVerifiedAt, bankName, bankAccount, bankHolder }: Props) {
+  const { update } = useSession()
   const [rrnInput, setRrnInput] = useState("")
   const [showRrn, setShowRrn] = useState(false)
+  const [realNameInput, setRealNameInput] = useState("")
   const [rrnDone, setRrnDone] = useState(!!rrnVerifiedAt)
+  const [savedName, setSavedName] = useState(verifiedName ?? "")
   const [rrnLoading, setRrnLoading] = useState(false)
   const [rrnError, setRrnError] = useState("")
 
@@ -41,17 +46,24 @@ export default function VerificationForm({ rrnVerifiedAt, bankVerifiedAt, bankNa
 
   async function submitRrn() {
     setRrnError("")
+    if (!realNameInput.trim()) {
+      setRrnError("실명을 입력해 주세요.")
+      return
+    }
     setRrnLoading(true)
     try {
       const res = await fetch("/api/worker/verification", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "rrn", rrn: rrnInput }),
+        body: JSON.stringify({ type: "rrn", rrn: rrnInput, realName: realNameInput.trim() }),
       })
       const data = await res.json()
       if (!res.ok) { setRrnError(data.error); return }
+      setSavedName(realNameInput.trim())
+      await update()
       setRrnDone(true)
       setRrnInput("")
+      setRealNameInput("")
     } catch {
       setRrnError("오류가 발생했습니다. 다시 시도해 주세요.")
     } finally {
@@ -96,12 +108,23 @@ export default function VerificationForm({ rrnVerifiedAt, bankVerifiedAt, bankNa
 
         {rrnDone ? (
           <div className="bg-green-50 rounded-xl px-4 py-3 text-sm text-green-700 font-medium">
-            주민등록번호가 등록되었습니다. 뒷자리는 안전하게 마스킹 처리됩니다.
-            <br />
-            <span className="text-xs font-normal text-green-600">※ 형식만 확인되며, 실제 본인 여부는 검증되지 않습니다.</span>
+            <p>실명: {savedName}</p>
+            <p className="mt-1">주민등록번호가 등록되었습니다. 뒷자리는 안전하게 마스킹 처리됩니다.</p>
+            <p className="text-xs font-normal text-green-600 mt-1">※ 실명은 등록 후 변경할 수 없습니다. 형식만 확인되며, 실제 본인 여부는 검증되지 않습니다.</p>
           </div>
         ) : (
           <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">실명</label>
+              <input
+                type="text"
+                value={realNameInput}
+                onChange={(e) => setRealNameInput(e.target.value)}
+                placeholder="주민등록증상 실명"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
+              />
+              <p className="text-xs text-gray-400 mt-1">등록 후에는 변경할 수 없으니 정확히 입력해 주세요.</p>
+            </div>
             <div className="relative">
               <input
                 type={showRrn ? "text" : "password"}
@@ -123,10 +146,10 @@ export default function VerificationForm({ rrnVerifiedAt, bankVerifiedAt, bankNa
             <p className="text-xs text-gray-400">뒷자리 첫 숫자만 저장되며 나머지는 즉시 마스킹 처리됩니다.</p>
             <button
               onClick={submitRrn}
-              disabled={rrnLoading || rrnInput.length < 14}
+              disabled={rrnLoading || rrnInput.length < 14 || !realNameInput.trim()}
               className={cn(
                 "w-full py-2.5 rounded-xl text-sm font-semibold transition-colors",
-                rrnInput.length >= 14 && !rrnLoading
+                rrnInput.length >= 14 && realNameInput.trim() && !rrnLoading
                   ? "bg-brand text-white hover:opacity-90"
                   : "bg-gray-100 text-gray-400 cursor-not-allowed",
               )}

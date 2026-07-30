@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import Link from "next/link"
 import Script from "next/script"
 import Image from "next/image"
 import { Camera } from "lucide-react"
@@ -94,6 +95,7 @@ export default function ProfileEditPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [daumReady, setDaumReady] = useState(false)
+  const [nameLocked, setNameLocked] = useState(false)
 
   useEffect(() => {
     async function loadProfile() {
@@ -101,6 +103,7 @@ export default function ProfileEditPage() {
         const res = await fetch("/api/worker/profile")
         if (res.ok) {
           const data = await res.json()
+          setNameLocked(!!data.nameLocked)
           if (data.profile) {
             const p = data.profile
             setProfileImageUrl(p.profileImageUrl ?? null)
@@ -356,7 +359,7 @@ export default function ProfileEditPage() {
         <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">이름</h2>
           <div className="space-y-1.5">
-            <Label htmlFor="name">활동명</Label>
+            <Label htmlFor="name">{nameLocked ? "실명" : "활동명"}</Label>
             <Input
               id="name"
               type="text"
@@ -364,7 +367,18 @@ export default function ProfileEditPage() {
               onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
               placeholder="업체·다른 경비 인력에게 표시될 이름"
               maxLength={30}
+              disabled={nameLocked}
+              className={nameLocked ? "bg-gray-50 text-gray-500 cursor-not-allowed" : undefined}
             />
+            {nameLocked ? (
+              <p className="text-xs text-gray-400">
+                본인 인증(실명)이 완료되어 이름을 변경할 수 없습니다.
+              </p>
+            ) : (
+              <p className="text-xs text-gray-400">
+                <Link href="/my-verification" className="text-brand hover:underline">본인 인증</Link>을 완료하면 실명으로 고정됩니다.
+              </p>
+            )}
             {errors.name && <p className="text-xs text-sos">{errors.name}</p>}
           </div>
         </div>

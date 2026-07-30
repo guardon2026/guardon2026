@@ -131,7 +131,11 @@ export async function GET() {
     }),
   ])
 
-  return NextResponse.json({ profile: profile ?? null, name: user?.name ?? null })
+  return NextResponse.json({
+    profile: profile ?? null,
+    name: user?.name ?? null,
+    nameLocked: !!profile?.rrnVerifiedAt,
+  })
 }
 
 // ─────────────────────────────────────────
@@ -236,7 +240,7 @@ export async function PATCH(req: NextRequest) {
 
   const existing = await prisma.workerProfile.findUnique({
     where: { userId: auth_result.userId },
-    select: { id: true },
+    select: { id: true, rrnVerifiedAt: true },
   })
   if (!existing) {
     return NextResponse.json({ error: "프로필을 찾을 수 없습니다." }, { status: 404 })
@@ -262,7 +266,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "이름을 입력해 주세요." }, { status: 400 })
   }
 
-  if (data.name !== undefined) {
+  // 실명 인증(rrn) 완료 후에는 이름을 변경할 수 없음 — 본인 인증 페이지에서만 실명 등록 가능
+  if (data.name !== undefined && !existing.rrnVerifiedAt) {
     await prisma.user.update({
       where: { id: auth_result.userId },
       data: { name: data.name.trim() },

@@ -21,6 +21,7 @@ export default async function MyVerificationPage() {
       bankAccount: true,
       bankHolder: true,
       bankVerifiedAt: true,
+      user: { select: { name: true } },
     },
   })
   if (!profile) redirect("/profile/edit")
@@ -35,6 +36,7 @@ export default async function MyVerificationPage() {
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-4 text-xs text-blue-700 space-y-1">
         <p className="font-semibold">안내</p>
+        <p>· 주민등록번호 인증 시 실명을 함께 등록하며, 등록 후에는 변경할 수 없습니다.</p>
         <p>· 주민등록번호 뒷자리는 첫 숫자만 저장되며 나머지는 즉시 마스킹 처리됩니다.</p>
         <p>· 계좌 정보는 급여 지급 및 포인트 출금에만 사용됩니다.</p>
         <p>· 등록된 정보는 암호화되어 안전하게 보관됩니다.</p>
@@ -43,6 +45,7 @@ export default async function MyVerificationPage() {
 
       <VerificationForm
         rrnVerifiedAt={profile.rrnVerifiedAt}
+        verifiedName={profile.user.name}
         bankVerifiedAt={profile.bankVerifiedAt}
         bankName={profile.bankName}
         bankAccount={profile.bankAccount}
