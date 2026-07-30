@@ -22,10 +22,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (uid) {
           const dbUser = await prisma.user.findUnique({
             where: { id: uid, deletedAt: null },
-            select: { role: true, id: true },
+            select: { role: true, id: true, name: true },
           })
           token.role = dbUser?.role
           token.userId = dbUser?.id
+          token.name = dbUser?.name
         }
       }
       return token
@@ -39,14 +40,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   events: {
-    // Kakao 최초 가입 시 name 이 null 이면 기본값 설정
+    // 카카오 프로필 이름을 그대로 쓰지 않고 기본값으로 대체 — 이름은 프로필 수정에서 직접 설정
     async createUser({ user }) {
-      if (!user.name) {
-        await prisma.user.update({
-          where: { id: user.id! },
-          data: { name: "카카오 사용자" },
-        })
-      }
+      await prisma.user.update({
+        where: { id: user.id! },
+        data: { name: "가드온 사용자" },
+      })
     },
   },
 })

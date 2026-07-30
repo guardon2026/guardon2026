@@ -21,6 +21,7 @@ async function requireWorkerSession() {
 }
 
 function parseBody(body: unknown): {
+  name?: string
   workFields?: WorkField[]
   declaredCredentials?: CredentialType[]
   experienceYears?: number
@@ -52,6 +53,7 @@ function parseBody(body: unknown): {
   }
 
   return {
+    name: typeof b.name === "string" ? b.name : undefined,
     workFields: b.workFields as WorkField[] | undefined,
     declaredCredentials: b.declaredCredentials as CredentialType[] | undefined,
     experienceYears: b.experienceYears !== undefined ? Number(b.experienceYears) : undefined,
@@ -108,22 +110,28 @@ export async function GET() {
     return NextResponse.json({ error: auth_result.error }, { status: auth_result.status })
   }
 
-  const profile = await prisma.workerProfile.findUnique({
-    where: { userId: auth_result.userId },
-    include: {
-      credentials: {
-        select: {
-          id: true,
-          type: true,
-          status: true,
-          issuedDate: true,
-          approvedAt: true,
+  const [profile, user] = await Promise.all([
+    prisma.workerProfile.findUnique({
+      where: { userId: auth_result.userId },
+      include: {
+        credentials: {
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            issuedDate: true,
+            approvedAt: true,
+          },
         },
       },
-    },
-  })
+    }),
+    prisma.user.findUnique({
+      where: { id: auth_result.userId },
+      select: { name: true },
+    }),
+  ])
 
-  return NextResponse.json({ profile: profile ?? null })
+  return NextResponse.json({ profile: profile ?? null, name: user?.name ?? null })
 }
 
 // ─────────────────────────────────────────
@@ -158,6 +166,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 필수 필드 검증
+  if (!data.name?.trim()) {
+    return NextResponse.json({ error: "이름을 입력해 주세요." }, { status: 400 })
+  }
   if (!data.workFields || data.workFields.length === 0) {
     return NextResponse.json({ error: "업무 분야를 하나 이상 선택해 주세요." }, { status: 400 })
   }
@@ -170,6 +181,11 @@ export async function POST(req: NextRequest) {
   if (!data.district?.trim()) {
     return NextResponse.json({ error: "구·군을 입력해 주세요." }, { status: 400 })
   }
+
+  await prisma.user.update({
+    where: { id: auth_result.userId },
+    data: { name: data.name.trim() },
+  })
 
   const profile = await prisma.workerProfile.create({
     data: {
@@ -241,6 +257,16 @@ export async function PATCH(req: NextRequest) {
   // workFields가 전달된 경우 비어있으면 오류
   if (data.workFields !== undefined && data.workFields.length === 0) {
     return NextResponse.json({ error: "업무 분야를 하나 이상 선택해 주세요." }, { status: 400 })
+  }
+  if (data.name !== undefined && !data.name.trim()) {
+    return NextResponse.json({ error: "이름을 입력해 주세요." }, { status: 400 })
+  }
+
+  if (data.name !== undefined) {
+    await prisma.user.update({
+      where: { id: auth_result.userId },
+      data: { name: data.name.trim() },
+    })
   }
 
   // undefined 필드는 업데이트에서 제외 (Prisma는 undefined를 무시)

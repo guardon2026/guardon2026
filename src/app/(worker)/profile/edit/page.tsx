@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import Script from "next/script"
 import Image from "next/image"
 import { Camera } from "lucide-react"
@@ -40,6 +41,7 @@ declare global {
 }
 
 interface FormState {
+  name: string
   workFields: WorkFieldKey[]
   declaredCredentials: CredentialKey[]
   experienceYears: string
@@ -53,6 +55,7 @@ interface FormState {
 }
 
 interface FormErrors {
+  name?: string
   workFields?: string
   address?: string
   city?: string
@@ -65,6 +68,7 @@ interface FormErrors {
 
 export default function ProfileEditPage() {
   const router = useRouter()
+  const { update } = useSession()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null)
@@ -73,6 +77,7 @@ export default function ProfileEditPage() {
   const [avatarUploading, setAvatarUploading] = useState(false)
 
   const [form, setForm] = useState<FormState>({
+    name: "",
     workFields: [],
     declaredCredentials: [],
     experienceYears: "0",
@@ -100,6 +105,7 @@ export default function ProfileEditPage() {
             const p = data.profile
             setProfileImageUrl(p.profileImageUrl ?? null)
             setForm({
+              name: data.name ?? "",
               workFields: (p.workFields ?? []) as WorkFieldKey[],
               declaredCredentials: (p.declaredCredentials ?? []) as CredentialKey[],
               experienceYears: String(p.experienceYears ?? 0),
@@ -111,6 +117,8 @@ export default function ProfileEditPage() {
               desiredHourlyRate: p.desiredHourlyRate != null ? String(p.desiredHourlyRate) : "",
               bio: p.bio ?? "",
             })
+          } else {
+            setForm((prev) => ({ ...prev, name: data.name ?? "" }))
           }
         }
       } catch {
@@ -194,6 +202,7 @@ export default function ProfileEditPage() {
 
   function validate(): FormErrors {
     const errs: FormErrors = {}
+    if (!form.name.trim()) errs.name = "이름을 입력해 주세요."
     if (form.workFields.length === 0) errs.workFields = WORKER_PROFILE.ERROR.WORK_FIELDS_REQUIRED
     if (!form.address.trim()) errs.address = WORKER_PROFILE.ERROR.ADDRESS_REQUIRED
     if (!form.city.trim()) errs.city = WORKER_PROFILE.ERROR.CITY_REQUIRED
@@ -224,6 +233,7 @@ export default function ProfileEditPage() {
       }
 
       const body: Record<string, unknown> = {
+        name: form.name.trim(),
         workFields: form.workFields,
         declaredCredentials: form.declaredCredentials,
         experienceYears: Number(form.experienceYears),
@@ -261,6 +271,7 @@ export default function ProfileEditPage() {
         }
       }
 
+      await update()
       setSuccessMsg(WORKER_PROFILE.SUCCESS)
       setTimeout(() => {
         setSuccessMsg(null)
@@ -339,6 +350,23 @@ export default function ProfileEditPage() {
           <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
           <p className="text-xs text-gray-400">JPG, PNG, WEBP · 최대 5MB</p>
           {errors.avatar && <p className="text-xs text-sos">{errors.avatar}</p>}
+        </div>
+
+        {/* 이름 */}
+        <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">이름</h2>
+          <div className="space-y-1.5">
+            <Label htmlFor="name">활동명</Label>
+            <Input
+              id="name"
+              type="text"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              placeholder="업체·다른 경비 인력에게 표시될 이름"
+              maxLength={30}
+            />
+            {errors.name && <p className="text-xs text-sos">{errors.name}</p>}
+          </div>
         </div>
 
         {/* 경력 사항 */}
