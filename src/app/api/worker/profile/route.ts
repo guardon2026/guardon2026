@@ -188,14 +188,18 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // 주소 기반 좌표 설정
-  const coords = await geocodeAddress(data.address.trim())
-  if (coords) {
-    await prisma.workerProfile.update({
-      where: { id: profile.id },
-      data: { latitude: coords.lat, longitude: coords.lng },
-    })
-    await updateLocation(profile.id, coords.lat, coords.lng)
+  // 주소 기반 좌표 설정 (실패해도 프로필 생성은 성공)
+  try {
+    const coords = await geocodeAddress(data.address.trim())
+    if (coords) {
+      await prisma.workerProfile.update({
+        where: { id: profile.id },
+        data: { latitude: coords.lat, longitude: coords.lng },
+      })
+      await updateLocation(profile.id, coords.lat, coords.lng)
+    }
+  } catch {
+    // 좌표 설정 실패는 무시 — 프로필은 정상 생성됨
   }
 
   // 가입 시점에 진행 중인 SOS 요청 중 조건에 맞는 것에 알림 발송 (fire-and-forget)
@@ -257,15 +261,19 @@ export async function PATCH(req: NextRequest) {
     data: updateData,
   })
 
-  // 주소가 변경된 경우 좌표 재설정
+  // 주소가 변경된 경우 좌표 재설정 (실패해도 저장은 성공)
   if (data.address !== undefined) {
-    const coords = await geocodeAddress(data.address.trim())
-    if (coords) {
-      await prisma.workerProfile.update({
-        where: { id: existing.id },
-        data: { latitude: coords.lat, longitude: coords.lng },
-      })
-      await updateLocation(existing.id, coords.lat, coords.lng)
+    try {
+      const coords = await geocodeAddress(data.address.trim())
+      if (coords) {
+        await prisma.workerProfile.update({
+          where: { id: existing.id },
+          data: { latitude: coords.lat, longitude: coords.lng },
+        })
+        await updateLocation(existing.id, coords.lat, coords.lng)
+      }
+    } catch {
+      // 좌표 설정 실패는 무시
     }
   }
 
