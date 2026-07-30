@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     )
   }
 
-  // 7. Company 생성 또는 재신청 갱신 (status=PENDING, isActive=false)
+  // 7. Company 생성 또는 재신청 갱신 (즉시 승인)
   try {
     const [businessRegistrationFileUrl, securityLicenseFileUrl, ...additionalProofFileUrls] =
       await Promise.all([
@@ -133,13 +133,13 @@ export async function POST(request: Request) {
       phone,
       description: description || null,
       kakaoOpenChatUrl: kakaoOpenChatUrl || null,
-      status: "PENDING" as const,
-      isActive: false,
-      licenseVerified: false,
-      approvedAt: null,
+      status: "APPROVED" as const,
+      isActive: true,
+      licenseVerified: true,
+      approvedAt: new Date(),
       rejectedAt: null,
       rejectionReason: null,
-      reviewedAt: null,
+      reviewedAt: new Date(),
     }
 
     const company = existing

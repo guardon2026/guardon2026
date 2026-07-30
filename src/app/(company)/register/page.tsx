@@ -151,7 +151,7 @@ export default function RegisterPage() {
       })
 
       if (res.ok) {
-        router.push("/pending")
+        router.push("/sos")
       } else if (res.status === 409) {
         const data = await res.json()
         if (data.code === "ALREADY_REGISTERED") {
@@ -314,8 +314,7 @@ export default function RegisterPage() {
               </p>
 
               <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-4">
-                <p className="text-sm font-semibold text-blue-900">관리자 심사 후 등록이 완료됩니다.</p>
-                <p className="mt-1 text-xs leading-relaxed text-blue-700">
+                <p className="text-sm leading-relaxed text-blue-700">
                   사업자등록증과 경비업 허가증을 제출해 주세요.
                   파일은 JPG, PNG, PDF 형식으로 10MB 이하만 업로드할 수 있습니다.
                 </p>
