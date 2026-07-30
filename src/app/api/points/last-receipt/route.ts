@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, Prisma } from "@prisma/client"
 
-// GET /api/points/last-receipt — 업체 대표의 가장 최근 충전 영수증 정보 반환
+// GET /api/points/last-receipt — 경비 업체의 가장 최근 충전 영수증 정보 반환
 export async function GET() {
   const session = await getServerSession()
   if (!session?.user?.id) {

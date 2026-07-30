@@ -7,7 +7,7 @@ import { createNotifications } from "@/lib/notify"
 
 // ─────────────────────────────────────────
 // POST /api/sos/matches/[matchId]/complete
-// 경비 인력이 업무 완료를 업체 대표에게 보고합니다.
+// 경비 인력이 업무 완료를 경비 업체에게 보고합니다.
 // ─────────────────────────────────────────
 
 export async function POST(
@@ -65,7 +65,7 @@ export async function POST(
     data: { missionReportedAt: new Date() },
   })
 
-  // 업체 대표에게 임무 완료 알림 발송
+  // 경비 업체에게 임무 완료 알림 발송
   await createNotifications([
     {
       userId: companyOwnerId,

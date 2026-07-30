@@ -208,7 +208,7 @@ export default function MyCompanyPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-start justify-between">
-        <PageHeader title="업체 대표 정보" subtitle="업체 정보를 확인하고 수정합니다" />
+        <PageHeader title="경비 업체 정보" subtitle="업체 정보를 확인하고 수정합니다" />
         {!editing ? (
           <Button
             onClick={() => setEditing(true)}

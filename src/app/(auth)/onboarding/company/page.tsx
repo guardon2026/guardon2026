@@ -24,7 +24,7 @@ export default function CompanyOnboardingPage() {
 
           {/* 타이틀 */}
           <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-gray-900">업체 대표로 시작합니다</h2>
+            <h2 className="text-2xl font-bold text-gray-900">경비 업체로 시작합니다</h2>
             <p className="text-sm text-gray-500 leading-relaxed">
               경비업 허가번호와 업체 정보를 등록하면<br />
               즉시 인력 매칭 서비스를 이용하실 수 있습니다.

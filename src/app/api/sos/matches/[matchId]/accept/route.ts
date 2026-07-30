@@ -55,7 +55,7 @@ export async function POST(
     )
   }
 
-  // 4-1. 월 8일/60시간 제한 검증 (동일 업체 대표 프로젝트 기준)
+  // 4-1. 월 8일/60시간 제한 검증 (동일 경비 업체 프로젝트 기준)
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
@@ -141,7 +141,7 @@ export async function POST(
     }),
   ])
 
-  // 6. 업체 대표에게 수락 알림 + 경비 인력에게 안내 알림 발송
+  // 6. 경비 업체에게 수락 알림 + 경비 인력에게 안내 알림 발송
   const workerName = session.user.name ?? "경비 인력"
   const sosTitle = match.sosRequest.title
   const companyOwnerId = match.sosRequest.company.ownerId

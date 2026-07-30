@@ -1150,7 +1150,7 @@ export default function SosNewPage() {
                             경비 인력 실수령액: <strong>{(refPay - incomeTax - localTax).toLocaleString()}원</strong>
                             {" "}(소득세 {incomeTax.toLocaleString()}원 + 지방소득세 {localTax.toLocaleString()}원 원천징수)
                           </p>
-                          <p className="text-blue-600">소득세와 지방소득세는 직원이 부담하는 것은 맞지만 신고는 업체 대표님이 프로젝트 완료 후 직접 원천징수를 수행하셔야 합니다.</p>
+                          <p className="text-blue-600">소득세와 지방소득세는 직원이 부담하는 것은 맞지만 신고는 경비 업체님이 프로젝트 완료 후 직접 원천징수를 수행하셔야 합니다.</p>
                         </div>
                       ) : (
                         <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
@@ -1219,7 +1219,7 @@ export default function SosNewPage() {
               {/* 영수증 / 세금계산서 발행 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">지출 영수증 발행</p>
-                <p className="text-xs text-gray-500 -mt-2">SOS 확정 후 가드온 매칭 수수료 + 부가세에 대한 지출 영수증(현금영수증 또는 세금계산서)을 발행해 드립니다. 인건비는 업체 대표님이 경비 인력에게 직접 이체하시면 됩니다.</p>
+                <p className="text-xs text-gray-500 -mt-2">SOS 확정 후 가드온 매칭 수수료 + 부가세에 대한 지출 영수증(현금영수증 또는 세금계산서)을 발행해 드립니다. 인건비는 경비 업체님이 경비 인력에게 직접 이체하시면 됩니다.</p>
 
                 {/* 직전 충전 영수증 자동 적용 배너 */}
                 {lastReceipt && !receiptBannerDismissed && (
@@ -1374,7 +1374,7 @@ export default function SosNewPage() {
                     </div>
                   )}
                   <p className="text-[11px] text-gray-400 -mt-1 mb-1">
-                    ※ 인건비는 업체 대표님이 경비 인력에게 직접 지급합니다
+                    ※ 인건비는 경비 업체님이 경비 인력에게 직접 지급합니다
                   </p>
                   <div className="flex justify-between text-gray-600">
                     <span>가드온 매칭 수수료 (인건비의 5%)</span>

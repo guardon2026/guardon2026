@@ -122,7 +122,7 @@ export async function PUT(
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 })
   }
   if (session.user.role !== UserRole.COMPANY_OWNER) {
-    return NextResponse.json({ error: "업체 대표 계정만 접근할 수 있습니다." }, { status: 403 })
+    return NextResponse.json({ error: "경비 업체 계정만 접근할 수 있습니다." }, { status: 403 })
   }
 
   // 2. 업체 승인 확인

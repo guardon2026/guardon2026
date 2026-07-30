@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
   // COMPANY_OWNER 권한 필요
   if (!session?.user || session.user.role !== "COMPANY_OWNER") {
     return NextResponse.json(
-      { error: "접근 권한이 없습니다. 업체 대표만 인력 검색이 가능합니다." },
+      { error: "접근 권한이 없습니다. 경비 업체만 인력 검색이 가능합니다." },
       { status: 401 }
     )
   }

@@ -15,7 +15,7 @@ export default function MissionCompleteButton({
   const [error, setError] = useState("")
 
   async function handleComplete() {
-    if (!confirm("업체 대표에게 임무 완료를 보고하시겠습니까?")) return
+    if (!confirm("경비 업체에게 임무 완료를 보고하시겠습니까?")) return
     setLoading(true)
     setError("")
     try {

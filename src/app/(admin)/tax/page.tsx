@@ -23,7 +23,7 @@ export default async function TaxPage() {
   const session = await getServerSession()
   if (!session || session.user.role !== UserRole.ADMIN) redirect("/login")
 
-  // 현금영수증 / 세금계산서 대상: 업체 대표 SELF_CHARGE 중 receiptInfo 있는 것
+  // 현금영수증 / 세금계산서 대상: 경비 업체 SELF_CHARGE 중 receiptInfo 있는 것
   const chargeWithReceipt = await prisma.pointTransaction.findMany({
     where: {
       type: "SELF_CHARGE",

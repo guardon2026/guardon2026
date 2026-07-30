@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   // 2. 역할 확인: COMPANY_OWNER만 허용
   if (session.user.role !== "COMPANY_OWNER") {
     return Response.json(
-      { error: "업체 대표 계정만 업체를 등록할 수 있습니다." },
+      { error: "경비 업체 계정만 업체를 등록할 수 있습니다." },
       { status: 403 }
     )
   }

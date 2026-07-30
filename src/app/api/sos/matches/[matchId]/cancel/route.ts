@@ -8,7 +8,7 @@ import { createNotifications } from "@/lib/notify"
 // POST /api/sos/matches/[matchId]/cancel
 // 경비 인력이 수락한 SOS 매치를 취소합니다.
 // - 수락 후 1시간 이내: 보증 포인트 전액 환불
-// - 1시간 초과: 보증 포인트 업체 대표에게 취소 수수료로 지급
+// - 1시간 초과: 보증 포인트 경비 업체에게 취소 수수료로 지급
 
 export async function POST(
   _req: NextRequest,
@@ -68,7 +68,7 @@ export async function POST(
   })
   const workerFee = workerDeductTx ? Math.abs(workerDeductTx.amount) : 0
 
-  // 업체 대표 포인트 계정
+  // 경비 업체 포인트 계정
   const companyAccount = await prisma.pointAccount.findUnique({
     where: { userId: companyOwnerId },
   })
@@ -103,7 +103,7 @@ export async function POST(
           },
         })
       } else {
-        // 1시간 초과: 보증 포인트 → 업체 대표에게 취소 수수료로 지급
+        // 1시간 초과: 보증 포인트 → 경비 업체에게 취소 수수료로 지급
         if (companyAccount) {
           await tx.pointAccount.update({
             where: { id: companyAccount.id },
@@ -137,7 +137,7 @@ export async function POST(
         ? `'${sosTitle}' 수락을 취소했습니다. 보증 포인트 ${workerFee.toLocaleString()}P가 환불되었습니다.`
         : `'${sosTitle}' 수락을 취소했습니다.`,
     })
-    // 업체 대표: 취소 통보
+    // 경비 업체: 취소 통보
     notifs.push({
       userId: companyOwnerId,
       sosRequestId,
@@ -156,7 +156,7 @@ export async function POST(
         ? `'${sosTitle}' 수락을 취소했습니다. 1시간 초과로 보증 포인트 ${workerFee.toLocaleString()}P가 업체에 취소 수수료로 지급되었습니다.`
         : `'${sosTitle}' 수락을 취소했습니다.`,
     })
-    // 업체 대표: 취소 통보 + 수수료 수취 안내
+    // 경비 업체: 취소 통보 + 수수료 수취 안내
     notifs.push({
       userId: companyOwnerId,
       sosRequestId,

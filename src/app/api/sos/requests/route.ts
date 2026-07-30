@@ -27,7 +27,7 @@ async function requireCompanyOwnerSession() {
     return { error: "로그인이 필요합니다.", status: 401 as const }
   }
   if (session.user.role !== UserRole.COMPANY_OWNER) {
-    return { error: "업체 대표 계정만 접근할 수 있습니다.", status: 403 as const }
+    return { error: "경비 업체 계정만 접근할 수 있습니다.", status: 403 as const }
   }
   return { userId: session.user.id }
 }
@@ -221,7 +221,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 3-2. 포인트 잔액 확인 (매칭 수수료 + 긴급도 추가 비용 + 부가세)
-  // 인건비는 업체 대표가 경비 인력에게 직접 이체 — 플랫폼 결제에서 제외
+  // 인건비는 경비 업체가 경비 인력에게 직접 이체 — 플랫폼 결제에서 제외
   const URGENCY_FEE: Record<string, number> = {
     NORMAL: 0,
     FAST: 5_000,

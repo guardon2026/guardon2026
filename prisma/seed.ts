@@ -24,7 +24,7 @@ async function main() {
   // 1. 기본 dev 유저 3명 upsert
   // ─────────────────────────────────────────
   const devUsers = [
-    { id: "dev-company_owner", role: "COMPANY_OWNER" as const, name: "[DEV] 업체 대표",  email: "dev-company_owner@guardon.dev" },
+    { id: "dev-company_owner", role: "COMPANY_OWNER" as const, name: "[DEV] 경비 업체",  email: "dev-company_owner@guardon.dev" },
     { id: "dev-worker",        role: "WORKER"         as const, name: "[DEV] 경비 인력",  email: "dev-worker@guardon.dev" },
     { id: "dev-admin",         role: "ADMIN"           as const, name: "[DEV] 관리자",     email: "dev-admin@guardon.dev" },
   ]

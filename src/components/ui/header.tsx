@@ -35,7 +35,7 @@ const NAV_LINKS: Record<Role, NavLink[]> = {
   ],
 }
 
-// 업체 대표 전용 "내 정보" 드롭다운 항목
+// 경비 업체 전용 "내 정보" 드롭다운 항목
 const MY_INFO_LINKS: NavLink[] = [
   { label: "업체 정보",  href: "/my-company" },
   { label: "설정",      href: "/settings" },
@@ -51,7 +51,7 @@ const ROLE_HOME: Record<Role, string> = {
 }
 
 const ROLE_BADGE_LABELS: Record<Role, string> = {
-  COMPANY_OWNER: "업체 대표",
+  COMPANY_OWNER: "경비 업체",
   WORKER:        "경비 인력",
   ADMIN:         "관리자",
 }
@@ -133,7 +133,7 @@ export function Header({ role, unreadNotifications = 0, pointBalance }: HeaderPr
             )
           })}
 
-          {/* 업체 대표 전용 "내 정보" 드롭다운 */}
+          {/* 경비 업체 전용 "내 정보" 드롭다운 */}
           {role === "COMPANY_OWNER" && (
             <div ref={dropdownRef} className="relative">
               <button

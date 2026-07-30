@@ -199,7 +199,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
                   <span>{taxInfo.netPay.toLocaleString()}원</span>
                 </div>
                 <p className="text-xs text-blue-600 mt-1">
-                  업체 대표가 프로젝트 완료 후 원천징수를 수행하며, 14일 이내 계좌이체로 정산됩니다.
+                  경비 업체가 프로젝트 완료 후 원천징수를 수행하며, 14일 이내 계좌이체로 정산됩니다.
                 </p>
               </>
             ) : (

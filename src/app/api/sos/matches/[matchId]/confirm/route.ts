@@ -7,7 +7,7 @@ import { createNotifications } from "@/lib/notify"
 
 // ─────────────────────────────────────────
 // POST /api/sos/matches/[matchId]/confirm
-// 업체 대표가 수락된 인력을 최종 확정합니다.
+// 경비 업체가 수락된 인력을 최종 확정합니다.
 // ─────────────────────────────────────────
 
 export async function POST(
@@ -22,7 +22,7 @@ export async function POST(
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 })
   }
   if (session.user.role !== UserRole.COMPANY_OWNER) {
-    return NextResponse.json({ error: "업체 대표 계정만 확정할 수 있습니다." }, { status: 403 })
+    return NextResponse.json({ error: "경비 업체 계정만 확정할 수 있습니다." }, { status: 403 })
   }
 
   // 2. 매치 조회 (SOS 요청 및 업체 정보 포함)

@@ -6,7 +6,7 @@ const VALID_ROLES: UserRole[] = ["COMPANY_OWNER", "WORKER", "ADMIN"]
 
 // dev_user 쿠키로 명시된 경우 해당 ID/이름/이메일을 사용, 없으면 역할 기반 기본값
 const DEV_USER_MAP: Record<string, { id: string; name: string; email: string; role: UserRole }> = {
-  "dev-company_owner": { id: "dev-company_owner", name: "[DEV] 업체 대표",  email: "dev-company_owner@guardon.dev", role: "COMPANY_OWNER" },
+  "dev-company_owner": { id: "dev-company_owner", name: "[DEV] 경비 업체",  email: "dev-company_owner@guardon.dev", role: "COMPANY_OWNER" },
   "dev-worker":        { id: "dev-worker",        name: "[DEV] 경비 인력",  email: "dev-worker@guardon.dev",        role: "WORKER" },
   "dev-worker2":       { id: "dev-worker2",       name: "[DEV] 경비 인력2", email: "dev-worker2@guardon.dev",       role: "WORKER" },
   "dev-admin":         { id: "dev-admin",          name: "[DEV] 관리자",     email: "dev-admin@guardon.dev",         role: "ADMIN" },

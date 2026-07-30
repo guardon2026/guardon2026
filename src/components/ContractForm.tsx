@@ -47,7 +47,7 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
   const router = useRouter()
   const isEmployer = role === "employer"
 
-  // 업체 대표 필드
+  // 경비 업체 필드
   const [bizNumber, setBizNumber] = useState(contract?.employerBizNumber ?? prefill?.employerBizNumber ?? "")
   const [empName,   setEmpName]   = useState(contract?.employerName    ?? prefill?.employerName    ?? "")
   const [ceoName,   setCeoName]   = useState(contract?.employerCeoName ?? "")
@@ -158,7 +158,7 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
           <Row label="업무 내용" value={sosInfo.title} />
         </Section>
 
-        {/* 사업주(업체 대표) 정보 */}
+        {/* 사업주(경비 업체) 정보 */}
         <Section title={`사업주 정보 ${isEmployer && !mySigned ? "(직접 입력)" : ""}`}>
           {isEmployer && !mySigned ? (
             <div className="space-y-3 py-1">
@@ -210,7 +210,7 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
         {/* 원천징수 안내 */}
         <Section title="원천징수 안내">
           <p className="text-xs text-gray-500 leading-relaxed py-1">
-            사업주(업체 대표)는 근로자에게 일급을 지급할 때 일용근로소득세 및 지방소득세를 원천징수하여 납부하여야 합니다.
+            사업주(경비 업체)는 근로자에게 일급을 지급할 때 일용근로소득세 및 지방소득세를 원천징수하여 납부하여야 합니다.
             일급 150,000원 초과분에 대해 소득세 6% × (1-55%) = 2.7%, 지방소득세 0.27%가 적용됩니다.
             원천징수 후 세후 차인지급액을 근로자 계좌로 이체합니다.
           </p>

@@ -37,7 +37,7 @@ export default async function AdminPointsPage() {
     orderBy: { createdAt: "desc" },
   })
 
-  // 업체 대표의 충전 내역 중 영수증 정보가 있는 것
+  // 경비 업체의 충전 내역 중 영수증 정보가 있는 것
   const chargeReceipts = await prisma.pointTransaction.findMany({
     where: {
       type: "SELF_CHARGE",
@@ -60,7 +60,7 @@ export default async function AdminPointsPage() {
       <PageHeader title="포인트 관리" subtitle="유저에게 포인트를 충전합니다." />
       <PointChargeForm users={users} />
 
-      {/* 업체 대표 충전 영수증 발행 내역 */}
+      {/* 경비 업체 충전 영수증 발행 내역 */}
       {chargeReceipts.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">

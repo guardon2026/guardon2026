@@ -14,7 +14,7 @@ interface UserItem {
 }
 
 const ROLE_LABELS: Record<string, string> = {
-  COMPANY_OWNER: "업체 대표",
+  COMPANY_OWNER: "경비 업체",
   WORKER: "경비 인력",
 }
 
