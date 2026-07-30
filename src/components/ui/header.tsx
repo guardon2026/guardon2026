@@ -3,8 +3,9 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useRef, useEffect } from "react"
+import { signOut } from "next-auth/react"
 import { cn } from "@/lib/utils"
-import { Coins, ChevronDown, User } from "lucide-react"
+import { Coins, ChevronDown, User, LogOut } from "lucide-react"
 
 export type Role = "COMPANY_OWNER" | "WORKER" | "ADMIN"
 
@@ -166,13 +167,22 @@ export function Header({ role, unreadNotifications = 0, pointBalance }: HeaderPr
                       {link.label}
                     </Link>
                   ))}
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <button
+                      onClick={() => signOut({ callbackUrl: "/login" })}
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      로그아웃
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
           )}
         </nav>
 
-        {/* 우측: 포인트 잔액 + 역할 전환 */}
+        {/* 우측: 포인트 잔액 + 로그아웃 */}
         <div className="flex items-center gap-2 shrink-0">
           {pointBalance !== undefined && role === "COMPANY_OWNER" && (
             <Link
@@ -191,6 +201,15 @@ export function Header({ role, unreadNotifications = 0, pointBalance }: HeaderPr
               <Coins className="w-3.5 h-3.5 text-amber-500" />
               <span className="text-xs font-bold text-gray-700">{pointBalance.toLocaleString()}P</span>
             </Link>
+          )}
+          {role !== "COMPANY_OWNER" && (
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+              title="로그아웃"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           )}
         </div>
 
