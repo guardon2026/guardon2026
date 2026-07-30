@@ -94,6 +94,21 @@ export default function LoginPage() {
               </button>
             </form>
 
+            {/* 다른 카카오 계정으로 로그인 */}
+            <form
+              action={async () => {
+                "use server"
+                await signIn("kakao", { redirectTo: "/after-login" }, { prompt: "login" })
+              }}
+            >
+              <button
+                type="submit"
+                className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors text-center"
+              >
+                다른 카카오 계정으로 로그인
+              </button>
+            </form>
+
             {/* 개발 환경 전용 */}
             {isDev && (
               <>
