@@ -31,7 +31,6 @@ interface FormErrors {
   phone?: string
 }
 
-const LICENSE_REGEX = /^[\d가-힣\-]+$/
 
 const STEPS = ["업체 정보 입력", "검토 대기", "승인 완료"]
 
@@ -99,8 +98,6 @@ export default function RegisterPage() {
     if (!formData.name.trim()) newErrors.name = COMPANY_ONBOARDING.ERROR.NAME_REQUIRED
     if (!formData.licenseNumber.trim()) {
       newErrors.licenseNumber = COMPANY_ONBOARDING.ERROR.LICENSE_REQUIRED
-    } else if (!LICENSE_REGEX.test(formData.licenseNumber) || formData.licenseNumber.length < 5) {
-      newErrors.licenseNumber = COMPANY_ONBOARDING.ERROR.LICENSE_FORMAT
     }
     if (!formData.businessRegistrationNumber.trim()) {
       newErrors.businessRegistrationNumber = COMPANY_ONBOARDING.ERROR.BUSINESS_NUMBER_REQUIRED

@@ -64,18 +64,6 @@ export async function POST(request: Request) {
     )
   }
 
-  const licenseRegex = /^[\d가-힣\-]+$/
-  if (!licenseRegex.test(licenseNumber) || licenseNumber.length < 5) {
-    return Response.json(
-      {
-        error: "허가번호 형식이 올바르지 않습니다.",
-        field: "licenseNumber",
-        code: "INVALID_LICENSE_FORMAT",
-      },
-      { status: 400 }
-    )
-  }
-
   const businessNumberRegex = /^\d{3}-?\d{2}-?\d{5}$/
   if (!businessNumberRegex.test(businessRegistrationNumber)) {
     return Response.json(
