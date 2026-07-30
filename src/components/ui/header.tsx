@@ -192,12 +192,6 @@ export function Header({ role, unreadNotifications = 0, pointBalance }: HeaderPr
               <span className="text-xs font-bold text-gray-700">{pointBalance.toLocaleString()}P</span>
             </Link>
           )}
-          <Link
-            href="/dev-login"
-            className="text-sm text-gray-500 hover:text-gray-900 transition-colors min-h-[36px] px-3 rounded-lg hover:bg-gray-50 inline-flex items-center"
-          >
-            역할 전환
-          </Link>
         </div>
 
       </div>
