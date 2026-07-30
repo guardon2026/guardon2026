@@ -3,7 +3,6 @@ import {
   Shield,
   Zap,
   BadgeCheck,
-  Users,
   Clock,
   MapPin,
   Bell,
@@ -208,10 +207,8 @@ export default function HomePage() {
             {[
               { icon: <Zap className="w-4 h-4 text-red-500" />, bg: "bg-red-50", title: "SOS 긴급 매칭", desc: "긴급 결원 즉시 해결" },
               { icon: <BadgeCheck className="w-4 h-4 text-blue-600" />, bg: "bg-blue-50", title: "자격증 인증 뱃지", desc: "경비지도사·신변보호사 등" },
-              { icon: <Users className="w-4 h-4 text-violet-500" />, bg: "bg-violet-50", title: "업체 간 인력 공유", desc: "유휴 인력 즉시 파견" },
-              { icon: <MapPin className="w-4 h-4 text-green-600" />, bg: "bg-green-50", title: "위치 기반 매칭", desc: "반경 N km 내 인력 탐색" },
+              { icon: <MapPin className="w-4 h-4 text-green-600" />, bg: "bg-green-50", title: "주소 기반 매칭", desc: "반경 N km 내 인력 탐색" },
               { icon: <Bell className="w-4 h-4 text-orange-500" />, bg: "bg-orange-50", title: "실시간 알림", desc: "카카오 알림톡·SMS 병행" },
-              { icon: <Clock className="w-4 h-4 text-teal-600" />, bg: "bg-teal-50", title: "24시간 자격 인증", desc: "서류 제출 후 하루 내 완료" },
               { icon: <Shield className="w-4 h-4 text-blue-600" />, bg: "bg-blue-50", title: "법적 구조 준수", desc: "직업안정법 기반 설계" },
               { icon: <Star className="w-4 h-4 text-yellow-500" />, bg: "bg-yellow-50", title: "신뢰 평점 시스템", desc: "업체·인력 양방향 평가" },
             ].map((f) => (
