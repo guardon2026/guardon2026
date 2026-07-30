@@ -473,35 +473,6 @@ export default function ProfileEditPage() {
             {errors.address && <p className="text-xs text-sos">{errors.address}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="city">{WORKER_PROFILE.FIELDS.CITY_LABEL}</Label>
-              <Input id="city" type="text" value={form.city} readOnly placeholder="자동 입력" className="bg-gray-50 cursor-default" />
-              {errors.city && <p className="text-xs text-sos">{errors.city}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="district">{WORKER_PROFILE.FIELDS.DISTRICT_LABEL}</Label>
-              <Input id="district" type="text" value={form.district} readOnly placeholder="자동 입력" className="bg-gray-50 cursor-default" />
-              {errors.district && <p className="text-xs text-sos">{errors.district}</p>}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="desiredHourlyRate">{WORKER_PROFILE.FIELDS.HOURLY_RATE_LABEL}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="desiredHourlyRate"
-                type="number"
-                min={0}
-                value={form.desiredHourlyRate}
-                onChange={(e) => setForm((p) => ({ ...p, desiredHourlyRate: e.target.value }))}
-                placeholder={WORKER_PROFILE.FIELDS.HOURLY_RATE_PLACEHOLDER}
-                className="w-36"
-              />
-              <span className="text-sm text-gray-600">원/시간</span>
-            </div>
-            {errors.desiredHourlyRate && <p className="text-xs text-sos">{errors.desiredHourlyRate}</p>}
-          </div>
         </div>
 
         {/* 소개 */}
