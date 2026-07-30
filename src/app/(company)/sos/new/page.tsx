@@ -183,13 +183,6 @@ function formatComma(raw: string): string {
   return Number(digits).toLocaleString("ko-KR")
 }
 
-function formatBusinessNumber(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 10)
-  if (digits.length <= 3) return digits
-  if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`
-  return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`
-}
-
 // 야간 근무 시간 계산 (22:00 ~ 06:00)
 function calcNightHours(startDt: Date, endDt: Date): number {
   const startDay = new Date(startDt)
@@ -273,18 +266,6 @@ export default function SosNewPage() {
   const workFieldOptions = SOS_WORK_FIELD_OPTIONS as unknown as WorkField[]
   const credentialOptions = SOS_CREDENTIAL_OPTIONS as unknown as CredentialType[]
 
-  // 영수증/세금계산서
-  const [receiptType, setReceiptType] = useState<"CASH_RECEIPT" | "TAX_INVOICE">("CASH_RECEIPT")
-  // 현금영수증
-  const [cashReceiptPurpose, setCashReceiptPurpose] = useState<"INCOME" | "EXPENSE">("INCOME")
-  const [cashReceiptNumber, setCashReceiptNumber] = useState("")
-  // 세금계산서
-  const [taxBusinessNumber, setTaxBusinessNumber] = useState("")
-  const [taxCompanyName, setTaxCompanyName] = useState("")
-  const [taxCeoName, setTaxCeoName] = useState("")
-  const [taxEmail, setTaxEmail] = useState("")
-  const [taxEmailError, setTaxEmailError] = useState("")
-
   // 지난 달 평균 일급
   const [avgDailyRate, setAvgDailyRate] = useState<number | null | "loading">("loading")
   useEffect(() => {
@@ -293,39 +274,6 @@ export default function SosNewPage() {
       .then((data) => setAvgDailyRate(data.avgDailyRate ?? null))
       .catch(() => setAvgDailyRate(null))
   }, [])
-
-  // 직전 충전 영수증 자동 적용
-  const [lastReceipt, setLastReceipt] = useState<Record<string, string> | null>(null)
-  const [lastReceiptDate, setLastReceiptDate] = useState<string | null>(null)
-  const [receiptBannerDismissed, setReceiptBannerDismissed] = useState(false)
-
-  useEffect(() => {
-    fetch("/api/points/last-receipt")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.receiptInfo) {
-          setLastReceipt(data.receiptInfo)
-          setLastReceiptDate(data.createdAt ?? null)
-        }
-      })
-      .catch(() => {})
-  }, [])
-
-  function applyLastReceipt() {
-    if (!lastReceipt) return
-    setReceiptType(lastReceipt.type as "CASH_RECEIPT" | "TAX_INVOICE")
-    if (lastReceipt.type === "CASH_RECEIPT") {
-      setCashReceiptPurpose((lastReceipt.purpose ?? "INCOME") as "INCOME" | "EXPENSE")
-      setCashReceiptNumber(lastReceipt.number ?? "")
-    } else {
-      setTaxBusinessNumber(lastReceipt.businessNumber ?? "")
-      setTaxCompanyName(lastReceipt.companyName ?? "")
-      setTaxCeoName(lastReceipt.ceoName ?? "")
-      setTaxEmail(lastReceipt.email ?? "")
-      setTaxEmailError("")
-    }
-    setReceiptBannerDismissed(true)
-  }
 
   const [addrModalOpen, setAddrModalOpen] = useState(false)
   const [daumLoading, setDaumLoading] = useState(false)
@@ -504,9 +452,6 @@ export default function SosNewPage() {
             .filter(Boolean)
             .join("\n") || null,
           description: description.trim() || null,
-          receiptInfo: receiptType === "CASH_RECEIPT"
-            ? { type: "CASH_RECEIPT", purpose: cashReceiptPurpose, number: cashReceiptNumber.trim() }
-            : { type: "TAX_INVOICE", businessNumber: taxBusinessNumber.trim(), companyName: taxCompanyName.trim(), ceoName: taxCeoName.trim(), email: taxEmail.trim() },
         }),
       })
       if (!res.ok) {
@@ -1214,141 +1159,6 @@ export default function SosNewPage() {
                   />
                   {errors.description && <p className="text-xs text-sos">{errors.description}</p>}
                 </div>
-              </div>
-
-              {/* 영수증 / 세금계산서 발행 */}
-              <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">지출 영수증 발행</p>
-                <p className="text-xs text-gray-500 -mt-2">SOS 확정 후 가드온 매칭 수수료 + 부가세에 대한 지출 영수증(현금영수증 또는 세금계산서)을 발행해 드립니다. 인건비는 경비 업체님이 경비 인력에게 직접 이체하시면 됩니다.</p>
-
-                {/* 직전 충전 영수증 자동 적용 배너 */}
-                {lastReceipt && !receiptBannerDismissed && (
-                  <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-blue-800">직전 지출 영수증 발행 정보를 적용하시겠습니까?</p>
-                      <p className="text-xs text-blue-600 mt-0.5">
-                        {lastReceipt.type === "CASH_RECEIPT"
-                          ? `현금영수증 · ${lastReceipt.purpose === "INCOME" ? "소득공제용" : "지출증빙용"} · ${lastReceipt.number ?? ""}`
-                          : `세금계산서 · ${lastReceipt.companyName ?? ""} · ${lastReceipt.businessNumber ?? ""}`}
-                        {lastReceiptDate && (
-                          <span className="ml-1 text-blue-400">
-                            ({new Date(lastReceiptDate).toLocaleDateString("ko-KR", { month: "long", day: "numeric" })} 충전 시 등록)
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={applyLastReceipt}
-                        className="text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-1.5 transition-colors"
-                      >
-                        적용
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setReceiptBannerDismissed(true)}
-                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 rounded-lg px-2 py-1.5 transition-colors"
-                      >
-                        닫기
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* 발행 유형 선택 */}
-                <div className="flex gap-3">
-                  {([
-                    { value: "CASH_RECEIPT", label: "현금영수증" },
-                    { value: "TAX_INVOICE", label: "세금계산서" },
-                  ] as const).map(({ value, label }) => (
-                    <label key={value} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="receiptType"
-                        value={value}
-                        checked={receiptType === value}
-                        onChange={() => setReceiptType(value)}
-                        className="accent-brand"
-                      />
-                      <span className="text-sm text-gray-700">{label}</span>
-                    </label>
-                  ))}
-                </div>
-
-                {/* 현금영수증 */}
-                {receiptType === "CASH_RECEIPT" && (
-                  <div className="space-y-2 pt-1">
-                    <p className="text-xs text-gray-500">소득공제용 (휴대폰번호)</p>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={cashReceiptNumber}
-                      onChange={(e) => {
-                        const raw = e.target.value.replace(/[^\d]/g, "")
-                        setCashReceiptNumber(formatPhoneNumber(raw))
-                      }}
-                      placeholder="예) 010-1234-5678"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                    />
-                  </div>
-                )}
-
-                {/* 세금계산서 */}
-                {receiptType === "TAX_INVOICE" && (
-                  <div className="space-y-3 pt-1">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-600">사업자등록번호 <span className="text-sos">*</span></label>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={taxBusinessNumber}
-                          onChange={(e) => setTaxBusinessNumber(formatBusinessNumber(e.target.value.replace(/\D/g, "")))}
-                          placeholder="000-00-00000"
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-600">상호 <span className="text-sos">*</span></label>
-                        <input
-                          type="text"
-                          value={taxCompanyName}
-                          onChange={(e) => setTaxCompanyName(e.target.value)}
-                          placeholder="법인명 또는 상호"
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-600">대표자명 <span className="text-sos">*</span></label>
-                        <input
-                          type="text"
-                          value={taxCeoName}
-                          onChange={(e) => setTaxCeoName(e.target.value)}
-                          placeholder="홍길동"
-                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-gray-600">이메일 <span className="text-sos">*</span></label>
-                        <input
-                          type="text"
-                          inputMode="email"
-                          value={taxEmail}
-                          onChange={(e) => {
-                            const v = e.target.value
-                            setTaxEmail(v)
-                            setTaxEmailError(v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "올바른 이메일 형식이 아닙니다." : "")
-                          }}
-                          placeholder="tax@example.com"
-                          className={`w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand ${taxEmailError ? "border-red-300 bg-red-50" : "border-gray-200"}`}
-                        />
-                        {taxEmailError && <p className="text-xs text-red-500 mt-1">{taxEmailError}</p>}
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400">입력하신 이메일로 세금계산서가 발송됩니다.</p>
-                  </div>
-                )}
               </div>
 
               {/* 결제 내역 */}
