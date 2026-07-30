@@ -22,7 +22,7 @@ export default function UnauthorizedPage() {
             홈으로 이동
           </Link>
           <Link
-            href="/dev-login"
+            href="/login"
             className="block w-full py-2.5 px-4 border border-gray-200 text-gray-600 text-sm rounded-xl hover:bg-gray-50 transition-colors"
           >
             다른 계정으로 로그인

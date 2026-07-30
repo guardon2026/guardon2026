@@ -77,11 +77,8 @@ export default function ConsentPage() {
       if (!res.ok) throw new Error("등록 실패")
       sessionStorage.removeItem("pending_role")
       await update()
-      if (pendingRole === "COMPANY_OWNER") {
-        router.push("/register")
-      } else {
-        router.push("/profile/edit")
-      }
+      // update() 후 미들웨어가 최신 JWT를 읽도록 hard redirect
+      window.location.href = pendingRole === "COMPANY_OWNER" ? "/register" : "/profile/edit"
     } catch {
       alert("오류가 발생했습니다. 다시 시도해 주세요.")
     } finally {
