@@ -121,12 +121,11 @@ export default async function SosPage({
       { applicationDeadline: { gt: new Date() } },
     ]
   }
-  if (scope === "mine") {
-    if (session.user.role === UserRole.COMPANY_OWNER && company) {
-      where.companyId = company.id
-    } else {
-      where.sosApplications = { some: { applicantUserId: session.user.id } }
-    }
+  if (session.user.role === UserRole.COMPANY_OWNER) {
+    // 경비 업체는 다른 업체의 SOS 요청을 볼 수 없고, 본인이 등록한 요청만 조회 가능
+    if (company) where.companyId = company.id
+  } else if (scope === "mine") {
+    where.sosApplications = { some: { applicantUserId: session.user.id } }
   }
   if (q) {
     where.AND = [
@@ -176,8 +175,12 @@ export default async function SosPage({
   return (
     <div className="space-y-6">
       <PageHeader
-        title="GuardOn SOS 게시판"
-        subtitle="검증된 경호 업체와 경호 인력이 긴급 요청을 확인하고 신청합니다."
+        title={session.user.role === UserRole.COMPANY_OWNER ? "내 SOS 긴급 요청" : "GuardOn SOS 게시판"}
+        subtitle={
+          session.user.role === UserRole.COMPANY_OWNER
+            ? "우리 업체가 등록한 긴급 요청을 확인합니다."
+            : "검증된 경호 업체가 등록한 긴급 요청을 확인하고 신청합니다."
+        }
         action={
           canCreate ? (
             <Link
@@ -240,20 +243,22 @@ export default async function SosPage({
         {scope === "mine" && <input type="hidden" name="scope" value="mine" />}
       </form>
 
-      <div className="flex items-center gap-2">
-        <Link
-          href={boardHref}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${scope === "board" ? "bg-gray-900 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
-        >
-          전체 SOS
-        </Link>
-        <Link
-          href={mineHref}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium ${scope === "mine" ? "bg-gray-900 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
-        >
-          {session.user.role === UserRole.COMPANY_OWNER ? "내가 올린 글" : "내 신청 글"}
-        </Link>
-      </div>
+      {session.user.role === UserRole.WORKER && (
+        <div className="flex items-center gap-2">
+          <Link
+            href={boardHref}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${scope === "board" ? "bg-gray-900 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
+          >
+            전체 SOS
+          </Link>
+          <Link
+            href={mineHref}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${scope === "mine" ? "bg-gray-900 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
+          >
+            내 신청 글
+          </Link>
+        </div>
+      )}
 
       {sosRequests.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-card">
