@@ -205,7 +205,7 @@ export const COMPANY_ONBOARDING = {
     NAME_LABEL:           "업체명",
     NAME_PLACEHOLDER:     "예) 한국경비주식회사",
     LICENSE_LABEL:        "경비업 허가번호",
-    LICENSE_PLACEHOLDER:  "예) 2024-서울-0001",
+    LICENSE_PLACEHOLDER:  "예) 제 1111 호",
     LICENSE_HINT:         "경비업법에 따른 허가번호를 입력해 주세요. (숫자, 하이픈 허용)",
     BUSINESS_NUMBER_LABEL:       "사업자등록번호",
     BUSINESS_NUMBER_PLACEHOLDER: "예) 123-45-67890",
