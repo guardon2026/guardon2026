@@ -310,9 +310,13 @@ export default function HomePage() {
               <Shield className="w-5 h-5 text-blue-400" />
               <span className="text-white font-bold text-sm">GuardOn</span>
             </div>
-            <p className="text-xs leading-relaxed text-slate-500">
-              대한민국 경비·보안 인력 B2B 매칭 플랫폼
-            </p>
+            <div className="text-xs leading-relaxed text-slate-500 space-y-1">
+              <p>주식회사 G360</p>
+              <p>서울시 강남구 봉은사로57길 6</p>
+              <p>Tel : 02-3447-7775 | E-mail : support@g360.kr</p>
+              <p>사업자번호 : 613-81-81792 | 전자상거래 : 제2019-성남분당A-0817호</p>
+              <p>정보관리책임자 : 권기풍</p>
+            </div>
           </div>
           <div>
             <h4 className="text-slate-300 text-xs font-semibold mb-3 uppercase tracking-wider">서비스</h4>
