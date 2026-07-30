@@ -249,7 +249,11 @@ export default function ProfileEditPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           })
-          if (!createRes.ok) { setErrors({ general: WORKER_PROFILE.ERROR.SAVE_FAILED }); return }
+          if (!createRes.ok) {
+            const d = await createRes.json().catch(() => ({}))
+            setErrors({ general: d.error ?? WORKER_PROFILE.ERROR.SAVE_FAILED })
+            return
+          }
         } else {
           const data = await res.json().catch(() => ({}))
           setErrors({ general: data.error ?? WORKER_PROFILE.ERROR.SAVE_FAILED })
