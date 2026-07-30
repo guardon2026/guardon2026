@@ -13,9 +13,16 @@ export async function GET() {
     select: {
       id: true,
       name: true,
+      licenseNumber: true,
+      businessRegistrationNumber: true,
       phone: true,
+      address: true,
+      city: true,
+      district: true,
       description: true,
       kakaoOpenChatUrl: true,
+      status: true,
+      approvedAt: true,
     },
   })
   if (!company) return NextResponse.json({ error: "등록된 업체가 없습니다." }, { status: 404 })
@@ -37,7 +44,11 @@ export async function PATCH(req: NextRequest) {
   }
 
   const updateData: Record<string, unknown> = {}
+  if (typeof body.name === "string" && body.name.trim()) updateData.name = body.name.trim()
   if (typeof body.phone === "string") updateData.phone = body.phone.trim()
+  if (typeof body.address === "string") updateData.address = body.address.trim()
+  if (typeof body.city === "string") updateData.city = body.city.trim()
+  if (typeof body.district === "string") updateData.district = body.district.trim()
   if (typeof body.description === "string") updateData.description = body.description.trim() || null
   if ("kakaoOpenChatUrl" in body) {
     const url = body.kakaoOpenChatUrl
@@ -58,7 +69,7 @@ export async function PATCH(req: NextRequest) {
   const updated = await prisma.company.update({
     where: { id: company.id },
     data: updateData,
-    select: { id: true, phone: true, description: true, kakaoOpenChatUrl: true },
+    select: { id: true, name: true, phone: true, address: true, city: true, district: true, description: true, kakaoOpenChatUrl: true },
   })
 
   return NextResponse.json({ company: updated })
