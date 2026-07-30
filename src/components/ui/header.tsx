@@ -43,6 +43,12 @@ const MY_INFO_LINKS: NavLink[] = [
   { label: "신고 정보",  href: "/tax-reports" },
 ]
 
+const ROLE_HOME: Record<Role, string> = {
+  COMPANY_OWNER: "/sos",
+  WORKER:        "/sos",
+  ADMIN:         "/members",
+}
+
 const ROLE_BADGE_LABELS: Record<Role, string> = {
   COMPANY_OWNER: "업체 대표",
   WORKER:        "경비 인력",
@@ -89,7 +95,7 @@ export function Header({ role, unreadNotifications = 0, pointBalance }: HeaderPr
 
         {/* 좌측: 로고 + 역할 배지 */}
         <div className="flex items-center gap-2 shrink-0">
-          <Link href="/" className="text-lg font-bold text-brand">
+          <Link href={ROLE_HOME[role]} className="text-lg font-bold text-brand">
             GuardOn
           </Link>
           <span className={cn(
