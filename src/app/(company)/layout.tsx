@@ -51,13 +51,22 @@ export default async function CompanyLayout({
   }
 
   const [{ status, name }, unreadNotifications, pointAccount] = await Promise.all([
-    getCompanyStatus(session.user.id),
+    getCompanyStatus(session.user.id).catch((e) => {
+      console.error("[company/layout] getCompanyStatus error:", e)
+      throw e
+    }),
     prisma.notification.count({
       where: { userId: session.user.id, isRead: false },
+    }).catch((e) => {
+      console.error("[company/layout] notification.count error:", e)
+      throw e
     }),
     prisma.pointAccount.findUnique({
       where: { userId: session.user.id },
       select: { balance: true },
+    }).catch((e) => {
+      console.error("[company/layout] pointAccount.findUnique error:", e)
+      throw e
     }),
   ])
   const pointBalance = pointAccount?.balance ?? 0
