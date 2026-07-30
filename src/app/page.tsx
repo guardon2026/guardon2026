@@ -281,7 +281,7 @@ export default function HomePage() {
             지금 바로 시작하세요
           </h2>
           <p className="text-blue-100 text-sm mb-8 leading-relaxed">
-            베타 기간 무료 이용 · G360·KKM 네트워크 25,000명 인력 DB 즉시 접근
+            베타 기간 무료 이용 · SOS 매칭 즉시 접근
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
