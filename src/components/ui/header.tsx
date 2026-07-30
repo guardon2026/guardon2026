@@ -202,15 +202,13 @@ export function Header({ role, unreadNotifications = 0, pointBalance }: HeaderPr
               <span className="text-xs font-bold text-gray-700">{pointBalance.toLocaleString()}P</span>
             </Link>
           )}
-          {role !== "COMPANY_OWNER" && (
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-              title="로그아웃"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+            title="로그아웃"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
 
       </div>
