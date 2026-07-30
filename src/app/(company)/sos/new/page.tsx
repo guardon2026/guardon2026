@@ -1373,8 +1373,8 @@ export default function SosNewPage() {
                       <span className="line-through">{laborCost.toLocaleString()}원</span>
                     </div>
                   )}
-                  <p className="text-[11px] text-gray-400 -mt-1 mb-1">
-                    ※ 인건비는 경비 업체님이 경비 인력에게 직접 지급합니다
+                  <p className="text-[11px] text-sos -mt-1 mb-1">
+                    ※ 인건비는 임무 완료 후 경비 인력에게 직접 지급해 주세요.
                   </p>
                   <div className="flex justify-between text-gray-600">
                     <span>가드온 매칭 수수료 (인건비의 5%)</span>
