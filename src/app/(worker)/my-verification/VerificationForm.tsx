@@ -89,14 +89,16 @@ export default function VerificationForm({ rrnVerifiedAt, bankVerifiedAt, bankNa
             <p className="text-xs text-gray-500 mt-0.5">근로계약서 및 원천징수 신고에 사용됩니다.</p>
           </div>
           {rrnDone
-            ? <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-3 py-1.5 rounded-full"><CheckCircle2 className="w-3.5 h-3.5" />인증 완료</span>
-            : <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full"><AlertCircle className="w-3.5 h-3.5" />미인증</span>
+            ? <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-3 py-1.5 rounded-full"><CheckCircle2 className="w-3.5 h-3.5" />형식 확인 완료</span>
+            : <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full"><AlertCircle className="w-3.5 h-3.5" />미등록</span>
           }
         </div>
 
         {rrnDone ? (
           <div className="bg-green-50 rounded-xl px-4 py-3 text-sm text-green-700 font-medium">
             주민등록번호가 등록되었습니다. 뒷자리는 안전하게 마스킹 처리됩니다.
+            <br />
+            <span className="text-xs font-normal text-green-600">※ 형식만 확인되며, 실제 본인 여부는 검증되지 않습니다.</span>
           </div>
         ) : (
           <div className="space-y-3">
@@ -143,7 +145,7 @@ export default function VerificationForm({ rrnVerifiedAt, bankVerifiedAt, bankNa
             <p className="text-xs text-gray-500 mt-0.5">급여 지급 및 포인트 출금에 사용됩니다.</p>
           </div>
           {bankDone
-            ? <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-3 py-1.5 rounded-full"><CheckCircle2 className="w-3.5 h-3.5" />등록 완료</span>
+            ? <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-3 py-1.5 rounded-full"><CheckCircle2 className="w-3.5 h-3.5" />형식 확인 완료</span>
             : <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full"><AlertCircle className="w-3.5 h-3.5" />미등록</span>
           }
         </div>
@@ -154,6 +156,7 @@ export default function VerificationForm({ rrnVerifiedAt, bankVerifiedAt, bankNa
               <p className="text-sm font-semibold text-green-800">{selBank || bankName}</p>
               <p className="text-sm text-green-700">{accountNum || bankAccount}</p>
               <p className="text-xs text-green-600">예금주: {holder || bankHolder}</p>
+              <p className="text-xs text-green-600 pt-1">※ 계좌번호 형식만 확인되며, 실제 예금주 일치 여부는 검증되지 않습니다.</p>
             </div>
             <button
               onClick={() => setBankDone(false)}

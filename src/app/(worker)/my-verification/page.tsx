@@ -38,6 +38,7 @@ export default async function MyVerificationPage() {
         <p>· 주민등록번호 뒷자리는 첫 숫자만 저장되며 나머지는 즉시 마스킹 처리됩니다.</p>
         <p>· 계좌 정보는 급여 지급 및 포인트 출금에만 사용됩니다.</p>
         <p>· 등록된 정보는 암호화되어 안전하게 보관됩니다.</p>
+        <p>· 현재는 입력 형식만 확인하며, 실명·계좌 실소유주 등 실제 진위 여부는 검증하지 않습니다.</p>
       </div>
 
       <VerificationForm
