@@ -166,7 +166,9 @@ export default async function PendingPage() {
             </Link>
           ) : null}
           <a
-            href="mailto:support@guardon.kr"
+            href="https://open.kakao.com/o/sUSzAqGi"
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full h-11 flex items-center justify-center gap-2
                        border border-gray-200 rounded-xl text-sm text-gray-600
                        hover:bg-gray-50 transition-colors"
