@@ -237,7 +237,7 @@ export default function HomePage() {
               ))}
             </div>
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">업체들의 실제 후기</h2>
-            <p className="text-gray-500 text-sm">G360·KKM 네트워크 베타 참여 업체</p>
+            <p className="text-gray-500 text-sm">GuardOn 네트워크 베타 참여 업체</p>
           </div>
           <div className="grid md:grid-cols-3 gap-5">
             {[
