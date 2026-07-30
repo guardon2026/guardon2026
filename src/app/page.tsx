@@ -313,8 +313,10 @@ export default function HomePage() {
             <div className="text-xs leading-relaxed text-slate-500 space-y-1">
               <p>주식회사 G360</p>
               <p>서울시 강남구 봉은사로57길 6</p>
-              <p>Tel : 02-3447-7775 | E-mail : support@g360.kr</p>
-              <p>사업자번호 : 613-81-81792 | 전자상거래 : 제2019-성남분당A-0817호</p>
+              <p>Tel : 02-3447-7775</p>
+              <p>E-mail : support@g360.kr</p>
+              <p>사업자번호 : 613-81-81792</p>
+              <p>전자상거래 : 제2019-성남분당A-0817호</p>
               <p>정보관리책임자 : 권기풍</p>
             </div>
           </div>
