@@ -203,7 +203,7 @@ export default function HomePage() {
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">플랫폼 핵심 기능</h2>
             <p className="text-gray-500 text-sm">경비·보안 시장에 꼭 필요한 기능만 담았습니다</p>
           </div>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
             {[
               { icon: <Zap className="w-4 h-4 text-red-500" />, bg: "bg-red-50", title: "SOS 긴급 매칭", desc: "긴급 결원 즉시 해결" },
               { icon: <BadgeCheck className="w-4 h-4 text-blue-600" />, bg: "bg-blue-50", title: "자격증 인증 뱃지", desc: "경비지도사·신변보호사 등" },
