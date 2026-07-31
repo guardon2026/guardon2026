@@ -1,7 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import Script from "next/script"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Search, MapPin, Star, Briefcase, SlidersHorizontal, Users, X } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -127,7 +126,17 @@ function WorkerCard({ worker }: { worker: WorkerResult }) {
 }
 
 export default function SearchPage() {
-  const [daumReady, setDaumReady] = useState(false)
+  const postcodeLoaded = useRef(false)
+
+  useEffect(() => {
+    if (!postcodeLoaded.current) {
+      const script = document.createElement("script")
+      script.src = "https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
+      script.async = true
+      document.head.appendChild(script)
+      postcodeLoaded.current = true
+    }
+  }, [])
 
   // 검색 기준지
   const [centerAddress, setCenterAddress] = useState("")
@@ -147,7 +156,7 @@ export default function SearchPage() {
 
   // 다음 우편번호 팝업
   function openPostcode() {
-    if (!daumReady || !window.daum?.Postcode) return
+    if (typeof window.daum === "undefined") return
     new window.daum.Postcode({
       oncomplete: async (data) => {
         const addr = data.roadAddress || `${data.sido} ${data.sigungu}`
@@ -235,10 +244,6 @@ export default function SearchPage() {
 
   return (
     <>
-      <Script
-        src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"
-        onLoad={() => setDaumReady(true)}
-      />
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <PageHeader title={SEARCH_LABELS.PAGE_TITLE} subtitle={SEARCH_LABELS.PAGE_SUBTITLE} />
@@ -269,8 +274,7 @@ export default function SearchPage() {
                       <button
                         type="button"
                         onClick={openPostcode}
-                        disabled={!daumReady}
-                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 text-xs text-gray-500 hover:border-brand hover:text-brand transition-colors disabled:opacity-50"
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-dashed border-gray-300 text-xs text-gray-500 hover:border-brand hover:text-brand transition-colors"
                       >
                         <MapPin className="w-3.5 h-3.5" />
                         주소 검색
