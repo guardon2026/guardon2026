@@ -474,7 +474,7 @@ export const HISTORY_LABELS = {
 
 export const ADMIN_LABELS = {
   PAGE_TITLE: "관리자 대시보드",
-  COMPANY_MANAGEMENT: "업체 관리",
+  COMPANY_MANAGEMENT: "경비 업체",
   CREDENTIAL_REVIEW: "자격증 심사",
   SOS_MONITOR: "SOS 모니터",
   STATS: "통계",

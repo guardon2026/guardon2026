@@ -32,7 +32,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
   {
     title: "회원 관리",
     items: [
-      { href: "/members", label: "업체 관리", icon: Building2 },
+      { href: "/members", label: "경비 업체", icon: Building2 },
       { href: "/workers", label: "경비 인력", icon: Users },
     ],
   },
