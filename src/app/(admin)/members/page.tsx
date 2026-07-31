@@ -5,69 +5,31 @@ import Link from "next/link"
 import { Building2 } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
 import { DataTable } from "@/components/ui/data-table"
-import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ADMIN_LABELS, COMPANY_STATUS_LABELS } from "@/lib/constants"
-import type { StatusVariant } from "@/components/ui/status-badge"
+import { ADMIN_LABELS } from "@/lib/constants"
 
-type TabKey = "ALL" | "PENDING" | "APPROVED" | "REJECTED"
-
-interface SearchParams {
-  tab?: string
-}
-
-const TAB_VARIANT: Record<string, StatusVariant> = {
-  PENDING:  "pending",
-  APPROVED: "approved",
-  REJECTED: "rejected",
-}
-
-export default async function AdminMembersPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>
-}) {
+export default async function AdminMembersPage() {
   const session = await getServerSession()
   if (!session || session.user.role !== "ADMIN") redirect("/login")
 
-  const { tab } = await searchParams
-  const currentTab: TabKey =
-    tab === "PENDING" || tab === "APPROVED" || tab === "REJECTED" ? tab : "ALL"
-
-  const whereClause =
-    currentTab === "ALL" ? {} : { status: currentTab as "PENDING" | "APPROVED" | "REJECTED" }
-
-  const [companies, pendingCount] = await Promise.all([
-    prisma.company.findMany({
-      where: whereClause,
-      include: {
-        owner: { select: { name: true, phone: true, deletedAt: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.company.count({ where: { status: "PENDING" } }),
-  ])
+  const companies = await prisma.company.findMany({
+    include: {
+      owner: { select: { name: true, phone: true, deletedAt: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
 
   // soft-delete된 owner의 업체 제외
   const filtered = companies.filter((c) => c.owner.deletedAt === null)
-
-  const tabs: { key: TabKey; label: string }[] = [
-    { key: "ALL", label: ADMIN_LABELS.TAB_ALL },
-    { key: "PENDING", label: ADMIN_LABELS.TAB_PENDING },
-    { key: "APPROVED", label: ADMIN_LABELS.TAB_APPROVED },
-    { key: "REJECTED", label: ADMIN_LABELS.TAB_REJECTED },
-  ]
 
   type CompanyRow = {
     id: string
     name: string
     licenseNumber: string
     city: string
-    documents: React.ReactNode
+    owner: string
     createdAt: string
-    status: React.ReactNode
     action: React.ReactNode
-    _isPending: boolean
   }
 
   const rows: CompanyRow[] = filtered.map((c) => ({
@@ -75,22 +37,8 @@ export default async function AdminMembersPage({
     name: c.name,
     licenseNumber: c.licenseNumber,
     city: `${c.city} ${c.district}`,
-    documents: (
-      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-        c.businessRegistrationFileUrl && c.securityLicenseFileUrl
-          ? "bg-green-50 text-green-700"
-          : "bg-amber-50 text-amber-700"
-      }`}>
-        {c.businessRegistrationFileUrl && c.securityLicenseFileUrl ? "제출 완료" : "서류 부족"}
-      </span>
-    ),
+    owner: c.owner.name ?? "-",
     createdAt: c.createdAt.toLocaleDateString("ko-KR"),
-    status: (
-      <StatusBadge
-        variant={TAB_VARIANT[c.status] ?? "pending"}
-        label={COMPANY_STATUS_LABELS[c.status] ?? c.status}
-      />
-    ),
     action: (
       <Link
         href={`/members/${c.id}`}
@@ -99,50 +47,23 @@ export default async function AdminMembersPage({
         상세보기
       </Link>
     ),
-    _isPending: c.status === "PENDING",
   }))
 
   return (
     <div className="space-y-6">
       <PageHeader
         title={ADMIN_LABELS.COMPANY_MANAGEMENT}
-        subtitle="등록된 경비업체를 심사하고 관리합니다."
-        badge={pendingCount > 0 ? { label: `${pendingCount}건 대기`, variant: "warning" } : undefined}
+        subtitle="등록된 경비 업체 목록입니다."
+        badge={{ label: `총 ${filtered.length}개`, variant: "default" }}
       />
-
-      {/* 탭 필터 */}
-      <div className="flex gap-2">
-        {tabs.map(({ key, label }) => (
-          <Link
-            key={key}
-            href={`/members?tab=${key}`}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-              currentTab === key
-                ? "bg-brand text-white"
-                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
-            }`}
-          >
-            {label}
-            {key === "PENDING" && pendingCount > 0 && (
-              <span
-                className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold ${
-                  currentTab === key ? "bg-white/20 text-white" : "bg-sos text-white"
-                }`}
-              >
-                {pendingCount}
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
 
       {/* 테이블 */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {filtered.length === 0 ? (
           <EmptyState
             icon={Building2}
-            title={ADMIN_LABELS.PENDING_COMPANIES_EMPTY}
-            description="조건에 맞는 업체가 없습니다."
+            title="등록된 업체가 없습니다"
+            description="아직 등록된 경비 업체가 없습니다."
           />
         ) : (
           <DataTable<CompanyRow>
@@ -150,14 +71,12 @@ export default async function AdminMembersPage({
               { key: "name", label: "업체명" },
               { key: "licenseNumber", label: "허가번호" },
               { key: "city", label: "지역" },
-              { key: "documents", label: "서류", render: (row) => row.documents },
-              { key: "createdAt", label: "신청일" },
-              { key: "status", label: "상태", render: (row) => row.status },
+              { key: "owner", label: "대표자" },
+              { key: "createdAt", label: "등록일" },
               { key: "action", label: "액션", render: (row) => row.action },
             ]}
             data={rows}
-            emptyMessage={ADMIN_LABELS.PENDING_COMPANIES_EMPTY}
-            rowClassName={(row) => row._isPending ? "bg-amber-50/30" : ""}
+            emptyMessage="등록된 업체가 없습니다."
           />
         )}
       </div>

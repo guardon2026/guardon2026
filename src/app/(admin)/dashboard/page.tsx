@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { Building2, FileCheck2, Zap, Users, ArrowRight } from "lucide-react"
+import { FileCheck2, Zap, Users, ArrowRight } from "lucide-react"
 import { StatCard } from "@/components/ui/stat-card"
 import { DataTable } from "@/components/ui/data-table"
 import { PageHeader } from "@/components/ui/page-header"
@@ -24,14 +24,12 @@ export default async function AdminDashboard() {
   if (!session || session.user.role !== "ADMIN") redirect("/login")
 
   const [
-    pendingCompanies,
     pendingCredentials,
     activeSos,
     totalWorkers,
     recentSos,
     recentCompanies,
   ] = await Promise.all([
-    prisma.company.count({ where: { status: "PENDING" } }),
     prisma.credential.count({ where: { status: "PENDING" } }),
     prisma.sosRequest.count({ where: { status: { in: ["DISPATCHING", "PENDING"] } } }),
     prisma.workerProfile.count({ where: { user: { deletedAt: null } } }),
@@ -71,14 +69,8 @@ export default async function AdminDashboard() {
     <div className="space-y-8">
       <PageHeader title="관리자 대시보드" subtitle="플랫폼 현황을 한눈에 확인하세요." />
 
-      {/* StatCard 2×2 그리드 */}
-      <div className="grid grid-cols-2 gap-5 xl:grid-cols-4">
-        <StatCard
-          label="승인 대기 업체"
-          value={pendingCompanies}
-          icon={Building2}
-          variant="default"
-        />
+      {/* StatCard */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         <StatCard
           label="검토 중 자격증"
           value={pendingCredentials}
@@ -100,40 +92,21 @@ export default async function AdminDashboard() {
       </div>
 
       {/* 처리 필요 섹션 */}
-      {(pendingCompanies > 0 || pendingCredentials > 0) && (
+      {pendingCredentials > 0 && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">처리 필요</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {pendingCompanies > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-amber-800">승인 대기 업체</p>
-                  <p className="text-2xl font-bold text-amber-900 mt-1">{pendingCompanies}개</p>
-                </div>
-                <Link
-                  href="/members?tab=PENDING"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors"
-                >
-                  심사하러 가기
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            )}
-            {pendingCredentials > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-orange-800">검토 중 자격증</p>
-                  <p className="text-2xl font-bold text-orange-900 mt-1">{pendingCredentials}건</p>
-                </div>
-                <Link
-                  href="/credentials"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 transition-colors"
-                >
-                  검토하러 가기
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            )}
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 flex items-center justify-between sm:max-w-md">
+            <div>
+              <p className="text-sm font-semibold text-orange-800">검토 중 자격증</p>
+              <p className="text-2xl font-bold text-orange-900 mt-1">{pendingCredentials}건</p>
+            </div>
+            <Link
+              href="/credentials"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 transition-colors"
+            >
+              검토하러 가기
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
       )}

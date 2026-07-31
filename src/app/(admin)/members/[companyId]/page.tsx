@@ -5,15 +5,6 @@ import Link from "next/link"
 import { ArrowLeft, ExternalLink, FileCheck2 } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { CompanyActionButtons } from "@/components/admin/CompanyActionButtons"
-import { ADMIN_LABELS, COMPANY_STATUS_LABELS } from "@/lib/constants"
-import type { StatusVariant } from "@/components/ui/status-badge"
-
-const STATUS_VARIANT: Record<string, StatusVariant> = {
-  PENDING:  "pending",
-  APPROVED: "approved",
-  REJECTED: "rejected",
-}
 
 export default async function AdminCompanyDetailPage({
   params,
@@ -39,7 +30,7 @@ export default async function AdminCompanyDetailPage({
     { label: "대표자",           value: company.owner.name },
     { label: "대표자 연락처",    value: company.owner.phone ?? "-" },
     { label: "업체 전화번호",    value: company.phone },
-    { label: "신청일",           value: company.createdAt.toLocaleDateString("ko-KR") },
+    { label: "등록일",           value: company.createdAt.toLocaleDateString("ko-KR") },
     { label: "시·도",            value: company.city },
     { label: "구·군",            value: company.district },
   ]
@@ -70,16 +61,7 @@ export default async function AdminCompanyDetailPage({
 
       <PageHeader
         title={company.name}
-        subtitle={`신청일: ${company.createdAt.toLocaleDateString("ko-KR")}`}
-        badge={{
-          label: COMPANY_STATUS_LABELS[company.status] ?? company.status,
-          variant:
-            company.status === "APPROVED"
-              ? "success"
-              : company.status === "REJECTED"
-              ? "danger"
-              : "warning",
-        }}
+        subtitle={`등록일: ${company.createdAt.toLocaleDateString("ko-KR")}`}
       />
 
       {/* 업체 정보 카드 (2컬럼 그리드) */}
@@ -113,7 +95,7 @@ export default async function AdminCompanyDetailPage({
         </div>
         {documentLinks.length === 0 ? (
           <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-            제출된 심사 서류가 없습니다. 사업자등록증과 경비업 증빙을 제출해야 승인할 수 있습니다.
+            제출된 서류가 없습니다.
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -133,42 +115,15 @@ export default async function AdminCompanyDetailPage({
         )}
       </div>
 
-      {/* 심사 액션 카드 */}
-      {company.status === "PENDING" && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">심사 처리</h2>
-          <CompanyActionButtons companyId={company.id} />
-        </div>
-      )}
-
-      {/* 승인 완료 상태 */}
-      {company.status === "APPROVED" && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
-          <div className="flex items-center gap-3">
-            <StatusBadge variant="approved" label="승인 완료" />
-            <p className="text-sm text-green-800">
-              이 업체는 승인되어 서비스를 이용 중입니다.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* 반려 상태 */}
-      {company.status === "REJECTED" && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <StatusBadge variant="rejected" label="반려됨" />
-          </div>
-          <p className="text-sm text-red-800">
-            이 업체 등록 신청은 반려 처리되었습니다.
+      {/* 이용 상태 */}
+      <div className={`rounded-2xl p-6 border ${company.isActive ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"}`}>
+        <div className="flex items-center gap-3">
+          <StatusBadge variant={company.isActive ? "approved" : "inactive"} label={company.isActive ? "이용 중" : "비활성"} />
+          <p className={`text-sm ${company.isActive ? "text-green-800" : "text-gray-600"}`}>
+            {company.isActive ? "이 업체는 서비스를 이용 중입니다." : "이 업체는 현재 비활성 상태입니다."}
           </p>
-          {company.rejectionReason && (
-            <p className="mt-3 rounded-xl border border-red-100 bg-white px-4 py-3 text-sm text-red-800">
-              반려 사유: {company.rejectionReason}
-            </p>
-          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
