@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 import {
   LayoutDashboard,
   Building2,
@@ -92,21 +93,20 @@ export function AdminSidebar() {
         ))}
       </nav>
 
-      {/* 하단: 역할 배지 + 역할 전환 */}
+      {/* 하단: 역할 배지 + 로그아웃 */}
       <div className="p-4 border-t border-gray-700/50 space-y-2">
         <div className="flex items-center gap-2 px-3 py-2">
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-brand/20 text-blue-300">
             ADMIN
           </span>
-          <span className="text-xs text-gray-500">개발 모드</span>
         </div>
-        <Link
-          href="/dev-login"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors"
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-gray-800/50 transition-colors"
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          역할 전환
-        </Link>
+          로그아웃
+        </button>
       </div>
     </aside>
   )
