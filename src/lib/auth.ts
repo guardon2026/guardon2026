@@ -1,6 +1,8 @@
 import NextAuth from "next-auth"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import Kakao from "next-auth/providers/kakao"
+import Credentials from "next-auth/providers/credentials"
+import bcrypt from "bcryptjs"
 import { prisma } from "./prisma"
 import { UserRole } from "@prisma/client"
 import authConfig from "./auth.config"
@@ -12,6 +14,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Kakao({
       clientId: process.env.KAKAO_CLIENT_ID!,
       clientSecret: process.env.KAKAO_CLIENT_SECRET ?? "",
+    }),
+    // 관리자 전용 이메일+비밀번호 로그인 — 카카오 계정과 무관하게 role=ADMIN 계정만 허용
+    Credentials({
+      id: "admin-credentials",
+      name: "Admin",
+      credentials: {
+        email: { label: "이메일", type: "email" },
+        password: { label: "비밀번호", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email
+        const password = credentials?.password
+        if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
+          return null
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email, deletedAt: null },
+          select: { id: true, email: true, name: true, role: true, password: true },
+        })
+        if (!user || user.role !== "ADMIN" || !user.password) return null
+
+        const valid = await bcrypt.compare(password, user.password)
+        if (!valid) return null
+
+        return { id: user.id, email: user.email, name: user.name }
+      },
     }),
   ],
   adapter: PrismaAdapter(prisma),
