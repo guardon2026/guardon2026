@@ -32,6 +32,7 @@ const NAV_LINKS: Record<Role, NavLink[]> = {
     { label: "업체 관리",  href: "/members" },
     { label: "자격증 심사", href: "/credentials" },
     { label: "포인트 관리", href: "/points" },
+    { label: "설정",      href: "/admin-settings" },
   ],
 }
 

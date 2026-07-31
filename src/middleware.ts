@@ -15,6 +15,7 @@ const ROLE_PATHS: Record<string, UserRole> = {
   "/sos-monitor": "ADMIN",
   "/reports": "ADMIN",
   "/stats": "ADMIN",
+  "/admin-settings": "ADMIN",
   // company 전용 페이지
   "/register": "COMPANY_OWNER",
   "/pending": "COMPANY_OWNER",
