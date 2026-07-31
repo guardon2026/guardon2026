@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
+import { randomUUID } from "crypto"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
-import { saveCompanyDocument } from "@/lib/company-documents"
+import { readCompanyDocument } from "@/lib/company-documents"
 
 // POST /api/company/register
 export async function POST(request: Request) {
@@ -111,14 +112,21 @@ export async function POST(request: Request) {
 
   // 7. Company 생성 또는 재신청 갱신 (즉시 승인)
   try {
-    const [businessRegistrationFileUrl, securityLicenseFileUrl, ...additionalProofFileUrls] =
+    const [businessRegistrationBuffer, securityLicenseBuffer, ...additionalProofBuffers] =
       await Promise.all([
-        saveCompanyDocument(businessRegistrationFile, session.user.id, "business-registration"),
-        saveCompanyDocument(securityLicenseFile, session.user.id, "security-proof"),
-        ...additionalProofFiles.map((file, index) =>
-          saveCompanyDocument(file, session.user.id, `additional-proof-${index + 1}`)
-        ),
+        readCompanyDocument(businessRegistrationFile),
+        readCompanyDocument(securityLicenseFile),
+        ...additionalProofFiles.map((file) => readCompanyDocument(file)),
       ])
+
+    // 파일 서빙 URL은 DB에 저장할 CompanyDocument의 id를 먼저 확정해 구성한다
+    const businessRegistrationDocId = randomUUID()
+    const securityLicenseDocId = randomUUID()
+    const additionalProofDocIds = additionalProofFiles.map(() => randomUUID())
+
+    const businessRegistrationFileUrl = `/api/company/documents/${businessRegistrationDocId}`
+    const securityLicenseFileUrl = `/api/company/documents/${securityLicenseDocId}`
+    const additionalProofFileUrls = additionalProofDocIds.map((id) => `/api/company/documents/${id}`)
 
     const data = {
       name,
@@ -159,23 +167,29 @@ export async function POST(request: Request) {
       prisma.companyDocument.createMany({
         data: [
           {
+            id: businessRegistrationDocId,
             companyId: company.id,
             type: "BUSINESS_REGISTRATION",
             fileUrl: businessRegistrationFileUrl,
+            fileData: businessRegistrationBuffer,
             fileName: businessRegistrationFile.name,
             mimeType: businessRegistrationFile.type,
           },
           {
+            id: securityLicenseDocId,
             companyId: company.id,
             type: "SECURITY_LICENSE",
             fileUrl: securityLicenseFileUrl,
+            fileData: securityLicenseBuffer,
             fileName: securityLicenseFile.name,
             mimeType: securityLicenseFile.type,
           },
           ...additionalProofFiles.map((file, index) => ({
+            id: additionalProofDocIds[index],
             companyId: company.id,
             type: "ADDITIONAL_PROOF",
             fileUrl: additionalProofFileUrls[index],
+            fileData: additionalProofBuffers[index],
             fileName: file.name,
             mimeType: file.type,
           })),

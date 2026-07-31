@@ -488,6 +488,7 @@ model CompanyDocument {
   companyId   String
   type        String   // BUSINESS_REGISTRATION | SECURITY_LICENSE | INSURANCE | OTHER
   fileUrl     String
+  fileData    Bytes?   // 파일 바이너리 — 배포마다 초기화되는 로컬 디스크 대신 DB에 영구 저장
   fileName    String?
   mimeType    String?
   status      String   @default("SUBMITTED")

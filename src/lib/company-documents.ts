@@ -1,7 +1,3 @@
-import { randomUUID } from "crypto"
-import { mkdir, writeFile } from "fs/promises"
-import path from "path"
-
 const ALLOWED_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -27,38 +23,9 @@ export function companyDocumentError(file: File) {
   return null
 }
 
-function extensionFor(file: File) {
-  const fromName = file.name.split(".").pop()?.toLowerCase()
-  if (fromName && /^[a-z0-9]+$/.test(fromName)) return fromName
-
-  switch (file.type) {
-    case "image/jpeg":
-      return "jpg"
-    case "image/png":
-      return "png"
-    case "image/webp":
-      return "webp"
-    case "application/pdf":
-      return "pdf"
-    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-      return "docx"
-    default:
-      return "bin"
-  }
-}
-
-export async function saveCompanyDocument(file: File, ownerId: string, kind: string) {
+/** 파일 검증 후 버퍼로 읽어들인다 (DB 저장용 — 로컬 디스크는 배포 시마다 초기화되어 사용하지 않음) */
+export async function readCompanyDocument(file: File) {
   const error = companyDocumentError(file)
   if (error) throw new Error(error)
-
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "company-documents", ownerId)
-  await mkdir(uploadDir, { recursive: true })
-
-  const filename = `${kind}-${Date.now()}-${randomUUID()}.${extensionFor(file)}`
-  const absolutePath = path.join(uploadDir, filename)
-  const buffer = Buffer.from(await file.arrayBuffer())
-
-  await writeFile(absolutePath, buffer)
-
-  return `/uploads/company-documents/${ownerId}/${filename}`
+  return Buffer.from(await file.arrayBuffer())
 }
