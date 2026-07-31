@@ -16,6 +16,8 @@ const ROLE_PATHS: Record<string, UserRole> = {
   "/reports": "ADMIN",
   "/stats": "ADMIN",
   "/admin-settings": "ADMIN",
+  "/dashboard": "ADMIN",
+  "/tax": "ADMIN",
   // company 전용 페이지
   "/register": "COMPANY_OWNER",
   "/pending": "COMPANY_OWNER",
