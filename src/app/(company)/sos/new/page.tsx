@@ -555,6 +555,17 @@ export default function SosNewPage() {
   const dailyWorkerCount = workDays.reduce((max, d) => Math.max(max, d.requiredCount || 1), 1)
   const totalHolidayPay = weeklyHolidayPay * dailyWorkerCount
   const laborCost = totalLaborCost + totalHolidayPay   // 수수료 산정 기준용 (결제 항목 아님)
+  // 월별 누적 근무일수 (동일 배치 일정 내 — 8일 이상이면 국민연금·건강보험 가입 대상 전환 가능)
+  const monthlyWorkDayCounts = (() => {
+    const counts = new Map<string, number>()
+    for (const d of dayHours) {
+      const month = d.date.slice(0, 7) // "YYYY-MM"
+      counts.set(month, (counts.get(month) ?? 0) + 1)
+    }
+    return counts
+  })()
+  const maxMonthlyWorkDays = monthlyWorkDayCounts.size > 0 ? Math.max(...monthlyWorkDayCounts.values()) : 0
+  const pensionHealthApplies = maxMonthlyWorkDays >= 8
   const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
   const vat = rateNum > 0 ? Math.ceil(serviceFee * 0.1) : 0
   const totalCharge = serviceFee + vat
@@ -1104,9 +1115,9 @@ export default function SosNewPage() {
                                 <span>산재보험 (경비업종 약 0.7%)</span>
                                 <span>약 {accInsurance.toLocaleString()}원</span>
                               </div>
-                              <div className="flex justify-between text-orange-400">
+                              <div className={`flex justify-between ${pensionHealthApplies ? "text-red-600 font-semibold" : "text-orange-400"}`}>
                                 <span>국민연금 · 건강보험</span>
-                                <span>1개월 미만 일용직 미적용</span>
+                                <span>{pensionHealthApplies ? "가입 대상 전환" : "1개월 미만 일용직 미적용"}</span>
                               </div>
                               <div className="flex justify-between font-semibold border-t border-orange-200 pt-1 mt-0.5">
                                 <span>사업주 추가 부담 합계</span>
@@ -1119,6 +1130,14 @@ export default function SosNewPage() {
                           </div>
                         )
                       })()}
+
+                      {/* 월 8일 이상 근무 시 국민연금·건강보험 가입 대상 전환 안내 */}
+                      {pensionHealthApplies && (
+                        <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                          ⚠️ 이번 배치 일정 중 특정 달에 <strong>{maxMonthlyWorkDays}일</strong> 근무가 예정되어 있습니다.
+                          같은 달 <strong>8일 이상</strong> 근무 시 국민연금·건강보험 가입 대상으로 전환될 수 있으니, 4대보험 가입 여부를 별도로 확인해 주세요.
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
