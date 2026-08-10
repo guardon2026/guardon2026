@@ -511,15 +511,11 @@ export default function SosNewPage() {
       const nightSupplement = Math.ceil(nightHours * MIN_HOURLY * 0.5)
       const minWage5up = Math.ceil(hours * MIN_HOURLY) + overtimeSupplement + nightSupplement
       const minWage = Math.ceil(hours * MIN_HOURLY)
-      // 실제 적용 시급 기준 일급 계산 (5인 미만: 가산 없이 시간 × 시급)
-      const dailyPay = rateNum > 0
-        ? over5Employees
-          ? Math.ceil(regularHours * rateNum + overtimeHours * rateNum * 1.5 + nightHours * rateNum * 0.5)
-          : Math.ceil(hours * rateNum)
-        : 0
-      const dailyPayBasePay = over5Employees ? Math.ceil(regularHours * rateNum) : Math.ceil(hours * rateNum)
-      const dailyPayOvertime = over5Employees ? Math.ceil(overtimeHours * rateNum * 1.5) : 0
+      // 실제 적용 시급 기준 일급 계산 (5인 미만: 연장·야간 가산 없이 실제 근무시간 × 시급)
+      const dailyPayBasePay = Math.ceil(regularHours * rateNum)
+      const dailyPayOvertime = over5Employees ? Math.ceil(overtimeHours * rateNum * 1.5) : Math.ceil(overtimeHours * rateNum)
       const dailyPayNight = over5Employees ? Math.ceil(nightHours * rateNum * 0.5) : 0
+      const dailyPay = rateNum > 0 ? dailyPayBasePay + dailyPayOvertime + dailyPayNight : 0
       return {
         date: d.date, hours, regularHours, overtimeHours, nightHours,
         basePay, overtimeSupplement, overtimeTotal, nightSupplement,
@@ -1024,7 +1020,9 @@ export default function SosNewPage() {
                                   </div>
                                   {d.overtimeHours > 0 && (
                                     <div className="flex justify-between text-orange-600">
-                                      <span>연장수당 ({d.overtimeHours % 1 === 0 ? d.overtimeHours : d.overtimeHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 1.5)</span>
+                                      <span>
+                                        {over5Employees ? "연장수당" : "연장근무"} ({d.overtimeHours % 1 === 0 ? d.overtimeHours : d.overtimeHours.toFixed(1)}h × {rateNum.toLocaleString()}원{over5Employees ? " × 1.5" : ", 가산 없음"})
+                                      </span>
                                       <span>+{d.dailyPayOvertime.toLocaleString()}원</span>
                                     </div>
                                   )}
