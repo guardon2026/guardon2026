@@ -12,7 +12,7 @@ export async function DELETE() {
 
   const userId = session.user.id
 
-  // 진행 중인 SOS 요청이 있으면 탈퇴 차단
+  // 진행 중인 SOS 요청이 있으면 탈퇴 차단 (업체 대표)
   const activeCompany = await prisma.company.findUnique({
     where: { ownerId: userId },
     select: { id: true },
@@ -27,6 +27,27 @@ export async function DELETE() {
     if (activeSos > 0) {
       return NextResponse.json(
         { error: "진행 중인 SOS 요청이 있어 탈퇴할 수 없습니다. 모든 요청을 완료하거나 취소한 후 다시 시도해 주세요." },
+        { status: 409 }
+      )
+    }
+  }
+
+  // 수락·확정된 배치가 있으면 탈퇴 차단 (경비 인력)
+  const workerProfile = await prisma.workerProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  })
+  if (workerProfile) {
+    const activeMatches = await prisma.sosMatch.count({
+      where: {
+        workerProfileId: workerProfile.id,
+        status: { in: ["ACCEPTED", "CONFIRMED"] },
+        sosRequest: { status: { notIn: ["CANCELLED", "COMPLETED"] } },
+      },
+    })
+    if (activeMatches > 0) {
+      return NextResponse.json(
+        { error: "진행 중인 배치가 있어 탈퇴할 수 없습니다. 배치를 완료하거나 취소한 후 다시 시도해 주세요." },
         { status: 409 }
       )
     }

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { AvailabilityToggle } from "./availability-toggle"
+import WithdrawSection from "./WithdrawSection"
 import { Star, Award, MapPin, Clock, DollarSign, User, FileText, Scale, Ruler, Coins, ChevronRight, CheckCircle2, ShieldCheck, ShieldAlert } from "lucide-react"
 import {
   WORKER_PUBLIC_PROFILE,
@@ -458,6 +459,8 @@ export default async function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <WithdrawSection />
     </div>
   )
 }
