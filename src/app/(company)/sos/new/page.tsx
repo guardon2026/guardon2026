@@ -555,17 +555,22 @@ export default function SosNewPage() {
   const dailyWorkerCount = workDays.reduce((max, d) => Math.max(max, d.requiredCount || 1), 1)
   const totalHolidayPay = weeklyHolidayPay * dailyWorkerCount
   const laborCost = totalLaborCost + totalHolidayPay   // 수수료 산정 기준용 (결제 항목 아님)
-  // 월별 누적 근무일수 (동일 배치 일정 내 — 8일 이상이면 국민연금·건강보험 가입 대상 전환 가능)
-  const monthlyWorkDayCounts = (() => {
-    const counts = new Map<string, number>()
+  // 월별 누적 근무일수·시간 (동일 배치 일정 내 — 8일 이상 또는 60시간 이상이면 국민연금·건강보험 가입 대상 전환 가능)
+  const { monthlyWorkDayCounts, monthlyWorkHours } = (() => {
+    const days = new Map<string, number>()
+    const hours = new Map<string, number>()
     for (const d of dayHours) {
       const month = d.date.slice(0, 7) // "YYYY-MM"
-      counts.set(month, (counts.get(month) ?? 0) + 1)
+      days.set(month, (days.get(month) ?? 0) + 1)
+      hours.set(month, (hours.get(month) ?? 0) + d.hours)
     }
-    return counts
+    return { monthlyWorkDayCounts: days, monthlyWorkHours: hours }
   })()
   const maxMonthlyWorkDays = monthlyWorkDayCounts.size > 0 ? Math.max(...monthlyWorkDayCounts.values()) : 0
-  const pensionHealthApplies = maxMonthlyWorkDays >= 8
+  const maxMonthlyWorkHours = monthlyWorkHours.size > 0 ? Math.max(...monthlyWorkHours.values()) : 0
+  const pensionHealthByDays = maxMonthlyWorkDays >= 8
+  const pensionHealthByHours = maxMonthlyWorkHours >= 60
+  const pensionHealthApplies = pensionHealthByDays || pensionHealthByHours
   const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
   const vat = rateNum > 0 ? Math.ceil(serviceFee * 0.1) : 0
   const totalCharge = serviceFee + vat
@@ -1131,11 +1136,15 @@ export default function SosNewPage() {
                         )
                       })()}
 
-                      {/* 월 8일 이상 근무 시 국민연금·건강보험 가입 대상 전환 안내 */}
+                      {/* 월 8일 이상 또는 60시간 이상 근무 시 국민연금·건강보험 가입 대상 전환 안내 */}
                       {pensionHealthApplies && (
                         <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                          ⚠️ 이번 배치 일정 중 특정 달에 <strong>{maxMonthlyWorkDays}일</strong> 근무가 예정되어 있습니다.
-                          같은 달 <strong>8일 이상</strong> 근무 시 국민연금·건강보험 가입 대상으로 전환될 수 있으니, 4대보험 가입 여부를 별도로 확인해 주세요.
+                          ⚠️ 이번 배치 일정 중 특정 달에 <strong>{maxMonthlyWorkDays}일</strong>
+                          {" "}(총 <strong>{maxMonthlyWorkHours % 1 === 0 ? maxMonthlyWorkHours : maxMonthlyWorkHours.toFixed(1)}시간</strong>) 근무가 예정되어 있습니다.
+                          같은 달 <strong>8일 이상</strong> 또는 <strong>60시간 이상</strong> 근무 시 국민연금·건강보험 가입 대상으로 전환될 수 있으니, 4대보험 가입 여부를 별도로 확인해 주세요.
+                          {pensionHealthByDays && !pensionHealthByHours && " (근무일수 기준 충족)"}
+                          {!pensionHealthByDays && pensionHealthByHours && " (근무시간 기준 충족)"}
+                          {pensionHealthByDays && pensionHealthByHours && " (근무일수·시간 기준 모두 충족)"}
                         </p>
                       )}
                     </div>
