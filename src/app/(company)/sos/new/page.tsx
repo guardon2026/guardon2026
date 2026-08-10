@@ -944,7 +944,7 @@ export default function SosNewPage() {
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">급여 및 기타</p>
                 <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 -mt-2">
-                  ⚖️ 근로기준법에 따라 연장·야간·주휴 수당이 의무 적용됩니다.
+                  ⚖️ 고객님의 안전한 경비 인력 사용을 위해 5인 이상 사업장 근로기준법에 따라 연장·야간·주휴 수당이 의무 적용됩니다.
                 </p>
 
                 <div className="space-y-1.5">
