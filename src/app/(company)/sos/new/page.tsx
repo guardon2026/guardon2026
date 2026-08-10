@@ -244,7 +244,6 @@ export default function SosNewPage() {
   const [dressCode, setDressCode] = useState("")
   const [siteManagers, setSiteManagers] = useState([{ id: 1, name: "", phone: "", comment: "" }])
   const [description, setDescription] = useState("")
-  const [over5Employees, setOver5Employees] = useState(false)
   const urgencyLevel = "NORMAL"
   const serviceType = "경호·보안"
   const applicationDeadline = ""
@@ -511,10 +510,10 @@ export default function SosNewPage() {
       const nightSupplement = Math.ceil(nightHours * MIN_HOURLY * 0.5)
       const minWage5up = Math.ceil(hours * MIN_HOURLY) + overtimeSupplement + nightSupplement
       const minWage = Math.ceil(hours * MIN_HOURLY)
-      // 실제 적용 시급 기준 일급 계산 (5인 미만: 연장·야간 가산 없이 실제 근무시간 × 시급)
+      // 실제 적용 시급 기준 일급 계산 (연장 1.5배·야간 0.5배 가산 항상 적용)
       const dailyPayBasePay = Math.ceil(regularHours * rateNum)
-      const dailyPayOvertime = over5Employees ? Math.ceil(overtimeHours * rateNum * 1.5) : Math.ceil(overtimeHours * rateNum)
-      const dailyPayNight = over5Employees ? Math.ceil(nightHours * rateNum * 0.5) : 0
+      const dailyPayOvertime = Math.ceil(overtimeHours * rateNum * 1.5)
+      const dailyPayNight = Math.ceil(nightHours * rateNum * 0.5)
       const dailyPay = rateNum > 0 ? dailyPayBasePay + dailyPayOvertime + dailyPayNight : 0
       return {
         date: d.date, hours, regularHours, overtimeHours, nightHours,
@@ -525,7 +524,7 @@ export default function SosNewPage() {
   // 주 단위 주휴수당 계산 (첫 근무일 기준 7일 윈도우)
   const totalWeeklyHours = dayHours.reduce((sum, d) => sum + d.hours, 0)
   const weeklyHolidayBreakdown: { weekHours: number; pay: number }[] = (() => {
-    if (!over5Employees || dayHours.length === 0) return []
+    if (dayHours.length === 0) return []
     const sorted = [...dayHours].sort((a, b) => a.date.localeCompare(b.date))
     const result: { weekHours: number; pay: number }[] = []
     let weekStart = new Date(sorted[0].date)
@@ -943,23 +942,10 @@ export default function SosNewPage() {
 
               {/* 일급 + 설명 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">급여 및 기타</p>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={over5Employees}
-                      onChange={(e) => setOver5Employees(e.target.checked)}
-                      className="w-4 h-4 accent-brand"
-                    />
-                    <span className="text-xs font-medium text-gray-600">5인 이상 사업장</span>
-                  </label>
-                </div>
-                {over5Employees && (
-                  <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 -mt-2">
-                    ⚖️ <strong>5인 이상 사업장</strong>은 근로기준법에 따라 연장·야간·주휴 수당이 의무 적용됩니다.
-                  </p>
-                )}
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">급여 및 기타</p>
+                <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 -mt-2">
+                  ⚖️ 근로기준법에 따라 연장·야간·주휴 수당이 의무 적용됩니다.
+                </p>
 
                 <div className="space-y-1.5">
                   <label className="text-sm font-medium text-gray-700">
@@ -997,7 +983,7 @@ export default function SosNewPage() {
                       </div>
                       <div className="space-y-2">
                         {dayHours.map((d, i) => {
-                          const effectiveMin = over5Employees ? d.minWage5up : d.minWage
+                          const effectiveMin = d.minWage5up
                           const isShort = rateNum > 0 && d.dailyPay < effectiveMin
                           return (
                             <div key={i} className="space-y-1">
@@ -1021,7 +1007,7 @@ export default function SosNewPage() {
                                   {d.overtimeHours > 0 && (
                                     <div className="flex justify-between text-orange-600">
                                       <span>
-                                        {over5Employees ? "연장수당" : "연장근무"} ({d.overtimeHours % 1 === 0 ? d.overtimeHours : d.overtimeHours.toFixed(1)}h × {rateNum.toLocaleString()}원{over5Employees ? " × 1.5" : ", 가산 없음"})
+                                        연장수당 ({d.overtimeHours % 1 === 0 ? d.overtimeHours : d.overtimeHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 1.5)
                                       </span>
                                       <span>+{d.dailyPayOvertime.toLocaleString()}원</span>
                                     </div>
@@ -1036,18 +1022,16 @@ export default function SosNewPage() {
                                     <span>합계 일급</span>
                                     <span>{d.dailyPay.toLocaleString()}원</span>
                                   </div>
-                                  {over5Employees && (
-                                    <div className="text-[10px] text-gray-400">
-                                      최저시급 기준: {(over5Employees ? d.minWage5up : d.minWage).toLocaleString()}원 {d.dailyPay < (over5Employees ? d.minWage5up : d.minWage) ? "⚠️ 미달" : "✅ 충족"}
-                                    </div>
-                                  )}
+                                  <div className="text-[10px] text-gray-400">
+                                    최저시급 기준: {d.minWage5up.toLocaleString()}원 {d.dailyPay < d.minWage5up ? "⚠️ 미달" : "✅ 충족"}
+                                  </div>
                                 </div>
                               )}
                             </div>
                           )
                         })}
                       </div>
-                      {over5Employees && weeklyHolidayBreakdown.length > 0 && (
+                      {weeklyHolidayBreakdown.length > 0 && (
                         <div className="pt-1.5 border-t border-gray-200 space-y-0.5">
                           {weeklyHolidayBreakdown.map((w, i) => (
                             w.pay > 0 ? (
@@ -1070,7 +1054,7 @@ export default function SosNewPage() {
                         </div>
                       )}
                       <p className="text-[11px] text-gray-400 pt-0.5 border-t border-gray-200">
-                        최저시급 10,320원 기준{over5Employees ? " · 5인 이상 사업장 기준 연장(×1.5)·야간(+0.5) 가산 포함" : " · 일급은 날짜별 실제 근무시간 × 최저시급 이상이어야 합니다"}
+                        최저시급 10,320원 기준 · 연장(×1.5)·야간(+0.5) 가산 포함
                       </p>
                     </div>
                   )}
