@@ -1080,26 +1080,63 @@ export default function SosNewPage() {
                     <div className="space-y-2 mt-2">
                       {(() => {
                         const refPay = maxDailyPay > 0 ? maxDailyPay : Math.ceil(rateNum * 8)
-                        const incomeTax = Math.floor(Math.max(0, refPay - 150_000) * 0.06 * 0.45)
+                        if (rateNum < 10_320) {
+                          return (
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                              ⚠️ 2026년 최저시급은 <strong>10,320원/시간</strong>입니다. 최저시급 이상으로 입력해 주세요.
+                            </p>
+                          )
+                        }
+
+                        const incomeTax = refPay >= 187_000 ? Math.floor(Math.max(0, refPay - 150_000) * 0.06 * 0.45) : 0
                         const localTax = Math.floor(incomeTax * 0.1)
-                        return rateNum < 10_320 ? (
-                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                          ⚠️ 2026년 최저시급은 <strong>10,320원/시간</strong>입니다. 최저시급 이상으로 입력해 주세요.
-                        </p>
-                      ) : refPay >= 187_000 ? (
-                        <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
-                          <p className="font-semibold text-blue-800">💡 원천징수 안내 (계산된 일급 {refPay.toLocaleString()}원 — 187,000원 이상 때)</p>
-                          <p className="text-blue-700">
-                            경비 인력 실수령액: <strong>{(refPay - incomeTax - localTax).toLocaleString()}원</strong>
-                            {" "}(소득세 {incomeTax.toLocaleString()}원 + 지방소득세 {localTax.toLocaleString()}원 원천징수)
-                          </p>
-                          <p className="text-blue-600">소득세와 지방소득세는 직원이 부담하는 것은 맞지만 신고는 경비 업체님이 프로젝트 완료 후 직접 원천징수를 수행하셔야 합니다.</p>
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                          ✅ 최저시급(10,320원) 충족 · 계산된 일급 {refPay.toLocaleString()}원이 187,000원 미만으로 일용근로소득세 비과세 구간으로 별도의 원천징수 신고는 필요하지 않습니다.
-                        </p>
-                      )
+                        const workerEmpInsurance = Math.floor(refPay * 0.009)        // 고용보험 근로자 부담 0.9%
+                        const workerPension = pensionHealthApplies ? Math.floor(refPay * 0.045) : 0     // 국민연금 근로자 부담 4.5%
+                        const workerHealthInsurance = pensionHealthApplies ? Math.floor(refPay * 0.03545) : 0  // 건강보험 근로자 부담 약 3.545%
+                        const totalDeduction = incomeTax + localTax + workerEmpInsurance + workerPension + workerHealthInsurance
+                        const netPay = refPay - totalDeduction
+
+                        return (
+                          <div className="text-xs bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 space-y-1">
+                            <p className="font-semibold text-blue-800">💡 근로자 공제 안내 (계산된 일급 {refPay.toLocaleString()}원 기준)</p>
+                            <div className="space-y-0.5 text-blue-700">
+                              <div className="flex justify-between">
+                                <span>고용보험 (근로자 0.9%)</span>
+                                <span>-{workerEmpInsurance.toLocaleString()}원</span>
+                              </div>
+                              {pensionHealthApplies && (
+                                <>
+                                  <div className="flex justify-between">
+                                    <span>국민연금 (근로자 4.5%)</span>
+                                    <span>-{workerPension.toLocaleString()}원</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>건강보험 (근로자 약 3.545%)</span>
+                                    <span>-{workerHealthInsurance.toLocaleString()}원</span>
+                                  </div>
+                                </>
+                              )}
+                              {incomeTax > 0 && (
+                                <div className="flex justify-between">
+                                  <span>소득세 + 지방소득세</span>
+                                  <span>-{(incomeTax + localTax).toLocaleString()}원</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex justify-between font-semibold text-blue-900 border-t border-blue-200 pt-1 mt-0.5">
+                              <span>경비 인력 실수령액</span>
+                              <span>{netPay.toLocaleString()}원</span>
+                            </div>
+                            <p className="text-blue-600">
+                              {incomeTax > 0
+                                ? "소득세·지방소득세는 근로자가 부담하지만 신고는 경비 업체님이 프로젝트 완료 후 직접 원천징수를 수행하셔야 합니다. "
+                                : "계산된 일급이 187,000원 미만으로 소득세는 비과세 구간입니다. "}
+                              {pensionHealthApplies
+                                ? "국민연금·건강보험은 근로자 부담분이며 원천공제 후 공단에 납부해야 합니다."
+                                : "산재보험은 사업주가 전액 부담하며, 고용보험은 근로자도 0.9%를 부담합니다."}
+                            </p>
+                          </div>
+                        )
                       })()}
 
                       {/* 사업주 부담 4대 보험료 안내 (유효 일급 입력 시 항상 표시) */}
