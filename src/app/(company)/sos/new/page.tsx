@@ -1176,14 +1176,11 @@ export default function SosNewPage() {
                       {/* 월 8일 이상 또는 60시간 이상 근무 시 국민연금·건강보험 가입 대상 전환 안내 */}
                       {pensionHealthApplies && (
                         <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                          ⚠️ 이 근무 일정을 <strong>한 명의 경비 인력이 전부 맡을 경우</strong>, 특정 달에{" "}
+                          이 근무 일정을 <strong>한 명의 경비 인력이 전부 맡을 경우</strong>, 특정 달에{" "}
                           <strong>{maxMonthlyWorkDays}일</strong>
                           {" "}(총 <strong>{maxMonthlyWorkHours % 1 === 0 ? maxMonthlyWorkHours : maxMonthlyWorkHours.toFixed(1)}시간</strong>) 근무가 됩니다.
-                          같은 달 <strong>8일 이상</strong> 또는 <strong>60시간 이상</strong> 근무 시 국민연금·건강보험 가입 대상으로 전환될 수 있으니, 4대보험 가입 여부를 별도로 확인해 주세요.
-                          {pensionHealthByDays && !pensionHealthByHours && " (근무일수 기준 충족)"}
-                          {!pensionHealthByDays && pensionHealthByHours && " (근무시간 기준 충족)"}
-                          {pensionHealthByDays && pensionHealthByHours && " (근무일수·시간 기준 모두 충족)"}
-                          {" "}여러 인력이 날짜를 나눠 맡는 경우 실제 적용 여부는 각 인력이 수락한 시점에 자동으로 판정되며, 배치 확정 후 상세 페이지에서 인력별로 확인할 수 있습니다.
+                          근로기준법 상 같은 달 <strong>8일 이상</strong> 또는 <strong>60시간 이상</strong> 근무 시 국민연금·건강보험 가입 대상으로 전환 됩니다.
+                          {" "}다만 실제 매칭 결과 여러 인력이 날짜를 나눠 근무를 맡는 경우 4대보험 적용 여부는 각 인력이 수락한 시점에 자동으로 판정되며, 배치 확정 후 상세 페이지에서 인력별로 확인할 수 있습니다.
                         </p>
                       )}
                     </div>
