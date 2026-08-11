@@ -408,6 +408,7 @@ model SosMatch {
   confirmedAt        DateTime?                       // 업체 최종 확정 시각 (FR21)
   missionReportedAt  DateTime?                       // 경비 인력 임무 완료 보고 시각
   missionConfirmedAt DateTime?                       // 업체 임무 완료 확인 시각 (요청 전체 COMPLETED 판정용)
+  paidAt             DateTime?                       // 업체가 실지급 완료로 표시한 시각 (오프라인 계좌이체, null = 미지급)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 

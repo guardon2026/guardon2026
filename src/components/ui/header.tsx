@@ -42,6 +42,7 @@ const MY_INFO_LINKS: NavLink[] = [
   { label: "설정",      href: "/settings" },
   { label: "포인트",    href: "/company-points" },
   { label: "근로계약서", href: "/contracts" },
+  { label: "인건비 정산", href: "/payroll" },
   { label: "신고 정보",  href: "/tax-reports" },
 ]
 
