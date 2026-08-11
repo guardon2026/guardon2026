@@ -48,6 +48,14 @@ function toDatetime(date: string, time: string): Date {
   return new Date(`${date}T${time}:00`)
 }
 
+/** 하루 근무 시간(시간 단위). startTime/endTime이 없으면 8시간으로 간주. */
+export function calcDayHours(day: { date: string; endDate?: string; startTime?: string; endTime?: string }): number {
+  if (!day.startTime || !day.endTime) return 8
+  const start = new Date(`${day.date}T${day.startTime}`)
+  const end = new Date(`${day.endDate ?? day.date}T${day.endTime}`)
+  return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
+}
+
 /**
  * SOS 요청의 근무 날짜 목록을 반환한다.
  * scheduleDays가 있으면 각 날짜, 없으면 scheduledAt 하루짜리 배열.
@@ -60,6 +68,41 @@ export function scheduleDatesFor(sosRequest: {
   const days = extractDays(sosRequest.scheduleDays)
   if (days) return days.map((d) => d.date)
   return [toISODate(sosRequest.scheduledAt)]
+}
+
+/**
+ * 특정 근로자가 특정 업체와 주어진 기간(주로 이번 달) 동안 실제로 수락·확정한
+ * 근무일수·시간을 집계한다. SOS 수락 시점의 4대보험(국민연금·건강보험) 가입 대상
+ * 여부 판정에 사용 — 8일 이상 또는 60시간 이상이면 가입 대상.
+ */
+export async function getMonthlyWorkStats(
+  workerProfileId: string,
+  companyId: string,
+  monthStartStr: string,
+  monthEndStr: string,
+  excludeMatchId?: string,
+): Promise<{ days: number; hours: number }> {
+  const matches = await prisma.sosMatch.findMany({
+    where: {
+      workerProfileId,
+      ...(excludeMatchId ? { id: { not: excludeMatchId } } : {}),
+      status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
+      scheduleDate: { gte: monthStartStr, lte: monthEndStr },
+      sosRequest: { companyId },
+    },
+    select: {
+      scheduleDate: true,
+      sosRequest: { select: { scheduleDays: true } },
+    },
+  })
+
+  let hours = 0
+  for (const m of matches) {
+    const dayEntry = extractDays(m.sosRequest.scheduleDays)?.find((d) => d.date === m.scheduleDate)
+    hours += dayEntry ? calcDayHours(dayEntry) : 8
+  }
+
+  return { days: matches.length, hours }
 }
 
 /**

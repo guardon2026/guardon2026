@@ -9,7 +9,7 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, DRESS_CODE_LABELS } from "@/lib/constants"
 import type { StatusVariant } from "@/components/ui/status-badge"
 import WorkerMatchActions from "./WorkerMatchActions"
-import { calcDailyTax, HIGH_RATE_THRESHOLD } from "@/lib/tax"
+import { calcDailyTax, calcInsuredDailyTax, HIGH_RATE_THRESHOLD } from "@/lib/tax"
 import { ScheduleDayList } from "@/components/sos/ScheduleDayList"
 
 interface Props {
@@ -69,7 +69,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
   // 이 워커의 이 요청 내 날짜별 매치 전체 (다일 근무는 날짜당 1행)
   const matches = await prisma.sosMatch.findMany({
     where: { sosRequestId: id, workerProfileId: workerProfile.id },
-    select: { id: true, status: true, scheduleDate: true },
+    select: { id: true, status: true, scheduleDate: true, insuranceStatus: true },
     orderBy: { scheduleDate: "asc" },
   })
   if (matches.length === 0) notFound()
@@ -102,10 +102,11 @@ export default async function WorkerSosDetailPage({ params }: Props) {
     (m) => m.status === SosMatchStatus.ACCEPTED || m.status === SosMatchStatus.CONFIRMED
   )
   const pendingCount = matches.filter((m) => m.status === SosMatchStatus.NOTIFIED).length
+  const anyInsured = matches.some((m) => m.insuranceStatus === "INSURED")
   const URGENCY_FEE: Record<string, number> = { NORMAL: 0, FAST: 5_000, URGENT: 10_000, CRITICAL: 15_000 }
   const urgencyBonus = URGENCY_FEE[sos.urgencyLevel ?? "NORMAL"] ?? 0
   const effectiveDailyRate = sos.hourlyRate + urgencyBonus  // 긴급도 추가 포함 실제 일급
-  const taxInfo = calcDailyTax(effectiveDailyRate)
+  const taxInfo = anyInsured ? calcInsuredDailyTax(effectiveDailyRate) : calcDailyTax(effectiveDailyRate)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -143,6 +144,12 @@ export default async function WorkerSosDetailPage({ params }: Props) {
               원천징수 후 세후 실수령 예상액 (1일 기준)
             </p>
           </div>
+          {anyInsured && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              이번 달 이 업체와의 누적 근무가 8일 또는 60시간을 넘어 국민연금·건강보험 가입
+              대상으로 전환되었습니다. 아래 금액에는 4대보험 근로자 부담분이 반영되어 있습니다.
+            </p>
+          )}
           <div className="space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600">일급 (세전)</span>
@@ -164,6 +171,22 @@ export default async function WorkerSosDetailPage({ params }: Props) {
                   <span>지방소득세</span>
                   <span>- {taxInfo.localTax.toLocaleString()}원</span>
                 </div>
+                {anyInsured && (
+                  <>
+                    <div className="flex justify-between text-gray-500">
+                      <span>국민연금 (근로자 4.5%)</span>
+                      <span>- {(taxInfo as ReturnType<typeof calcInsuredDailyTax>).pension.toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>건강보험 (근로자 약 3.545%)</span>
+                      <span>- {(taxInfo as ReturnType<typeof calcInsuredDailyTax>).health.toLocaleString()}원</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>고용보험 (근로자 0.9%)</span>
+                      <span>- {(taxInfo as ReturnType<typeof calcInsuredDailyTax>).employmentInsurance.toLocaleString()}원</span>
+                    </div>
+                  </>
+                )}
                 <div className={`flex justify-between border-t pt-1.5 font-bold ${
                   effectiveDailyRate >= HIGH_RATE_THRESHOLD ? "border-blue-200 text-blue-800" : "border-gray-200 text-gray-900"
                 }`}>

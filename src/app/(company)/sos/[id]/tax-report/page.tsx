@@ -4,39 +4,17 @@ import { ArrowLeft } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole } from "@prisma/client"
-import { calcDailyTax } from "@/lib/tax"
+import { calcDailyTax, calcInsuredDailyTax } from "@/lib/tax"
+import { extractDays, calcDayHours } from "@/lib/sos-matcher"
 import TaxReportExport from "./TaxReportExport"
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-interface ScheduleDay {
-  date: string
-  endDate?: string
-  startTime?: string
-  endTime?: string
-  requiredCount?: number
-}
-
-function parseDays(raw: unknown): ScheduleDay[] {
-  if (!Array.isArray(raw)) return []
-  return raw.filter(
-    (d): d is ScheduleDay => d && typeof d === "object" && typeof (d as ScheduleDay).date === "string"
-  )
-}
-
 function formatBirth(raw: string | null): string {
   if (!raw || raw.length < 6) return raw ?? "-"
   return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8) || "**"}`
-}
-
-function calcWorkHours(day: ScheduleDay): number {
-  if (!day.startTime || !day.endTime) return 8
-  const baseDate = day.date
-  const start = new Date(`${baseDate}T${day.startTime}`)
-  const end = new Date(`${day.endDate ?? baseDate}T${day.endTime}`)
-  return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
 }
 
 const URGENCY_FEE: Record<string, number> = { NORMAL: 0, FAST: 5_000, URGENT: 10_000, CRITICAL: 15_000 }
@@ -83,22 +61,22 @@ export default async function TaxReportPage({ params }: Props) {
     orderBy: { confirmedAt: "asc" },
   })
 
-  const scheduleDays = parseDays(sos.scheduleDays)
+  const scheduleDays = extractDays(sos.scheduleDays) ?? []
   const urgencyBonus = URGENCY_FEE[sos.urgencyLevel ?? "NORMAL"] ?? 0
   const effectiveDailyRate = sos.hourlyRate + urgencyBonus
-  const taxInfo = calcDailyTax(effectiveDailyRate)
 
   // 날짜별 근무시간 계산
   const dayDetails = scheduleDays.map((d) => ({
     date: d.date,
-    hours: calcWorkHours(d),
+    hours: calcDayHours(d),
     requiredCount: d.requiredCount ?? 1,
     startTime: d.startTime ?? "-",
     endTime: d.endTime ?? "-",
   }))
 
   // 근로자별로 그룹핑 — 매치가 날짜당 1행이므로 한 근로자가 여러 날짜를 확정했으면
-  // confirmedMatches에 여러 행으로 들어온다. 근로자별 실제 확정 근무일수 기준으로 집계한다.
+  // confirmedMatches에 여러 행으로 들어온다. 날짜별로 일용직/4대보험 대상이 다를 수 있으므로
+  // 날짜(매치)별로 세금·보험료를 각각 계산한 뒤 근로자 단위로 합산한다.
   const workerGroups = Array.from(
     confirmedMatches
       .reduce((map, m) => {
@@ -117,15 +95,40 @@ export default async function TaxReportPage({ params }: Props) {
       }, new Map<string, { workerProfileId: string; workerName: string; matches: typeof confirmedMatches }>())
       .values()
   ).map((g) => {
-    const workDates = g.matches.map((m) => m.scheduleDate).sort()
+    const sortedMatches = [...g.matches].sort((a, b) => a.scheduleDate.localeCompare(b.scheduleDate))
+    const workDates = sortedMatches.map((m) => m.scheduleDate)
+    const matchBreakdown = sortedMatches.map((m) => {
+      const insured = m.insuranceStatus === "INSURED"
+      const t = insured ? calcInsuredDailyTax(effectiveDailyRate) : calcDailyTax(effectiveDailyRate)
+      return {
+        scheduleDate: m.scheduleDate,
+        insured,
+        incomeTax: t.incomeTax,
+        localTax: t.localTax,
+        pension: insured ? (t as ReturnType<typeof calcInsuredDailyTax>).pension : 0,
+        health: insured ? (t as ReturnType<typeof calcInsuredDailyTax>).health : 0,
+        employmentInsurance: insured ? (t as ReturnType<typeof calcInsuredDailyTax>).employmentInsurance : 0,
+        netPay: t.netPay,
+      }
+    })
     const primary = g.matches[0]
     const contract = primary.workContract
+    const insuredDates = matchBreakdown.filter((d) => d.insured).map((d) => d.scheduleDate)
     return {
       ...g,
       workDates,
       workingDays: workDates.length,
       contract,
+      matchBreakdown,
+      insuredDates,
       allSigned: g.matches.every((m) => m.workContract?.employerSignedAt && m.workContract?.workerSignedAt),
+      totalGross: effectiveDailyRate * workDates.length,
+      totalIncomeTax: matchBreakdown.reduce((s, d) => s + d.incomeTax, 0),
+      totalLocalTax: matchBreakdown.reduce((s, d) => s + d.localTax, 0),
+      totalPension: matchBreakdown.reduce((s, d) => s + d.pension, 0),
+      totalHealth: matchBreakdown.reduce((s, d) => s + d.health, 0),
+      totalEmploymentInsurance: matchBreakdown.reduce((s, d) => s + d.employmentInsurance, 0),
+      totalNet: matchBreakdown.reduce((s, d) => s + d.netPay, 0),
     }
   })
 
@@ -135,10 +138,15 @@ export default async function TaxReportPage({ params }: Props) {
     birthDate: formatBirth(g.contract?.workerBirthDate ?? null),
     phone: g.contract?.workerPhone ?? g.matches[0].workerProfile.user.phone ?? "-",
     workDates: g.workDates,
+    insuredDates: g.insuredDates,
     dailyRate: effectiveDailyRate,
-    incomeTax: taxInfo.incomeTax,
-    localTax: taxInfo.localTax,
-    netPay: taxInfo.netPay,
+    totalGross: g.totalGross,
+    totalIncomeTax: g.totalIncomeTax,
+    totalLocalTax: g.totalLocalTax,
+    totalPension: g.totalPension,
+    totalHealth: g.totalHealth,
+    totalEmploymentInsurance: g.totalEmploymentInsurance,
+    netPay: g.totalNet,
   }))
 
   return (
@@ -239,19 +247,20 @@ export default async function TaxReportPage({ params }: Props) {
               const bankName   = contract?.workerBankName ?? "-"
               const accountNum = contract?.workerAccountNum ?? "-"
               const accountHolder = contract?.workerAccountHolder ?? "-"
-
-              const totalGross = effectiveDailyRate * g.workingDays
-              const totalIncomeTax = taxInfo.incomeTax * g.workingDays
-              const totalLocalTax  = taxInfo.localTax  * g.workingDays
-              const totalNet       = taxInfo.netPay    * g.workingDays
+              const anyInsuredDay = g.insuredDates.length > 0
 
               return (
                 <div key={g.workerProfileId} className="rounded-xl border border-gray-100 overflow-hidden">
                   {/* 근로자 헤더 */}
                   <div className="bg-gray-50 px-5 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-gray-900">{g.workerName}</span>
                       <span className="text-xs text-gray-500">{g.workDates.join(", ")}</span>
+                      {anyInsuredDay && (
+                        <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 font-medium">
+                          4대보험 대상 {g.insuredDates.length}/{g.workDates.length}일
+                        </span>
+                      )}
                       {g.allSigned
                         ? <span className="text-xs text-green-600 font-medium">✅ 계약서 서명 완료</span>
                         : <span className="text-xs text-amber-600 font-medium">⚠️ 계약서 미서명</span>
@@ -289,21 +298,53 @@ export default async function TaxReportPage({ params }: Props) {
                       <InfoRow label="예금주" value={accountHolder} />
                     </div>
 
-                    {/* 원천징수 계산 */}
+                    {/* 날짜별 소계 — 어느 날짜가 일용직/4대보험 대상인지 */}
+                    <div className="sm:col-span-2 mt-2 pt-3 border-t border-gray-100 space-y-2">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">날짜별 구분</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead>
+                            <tr className="text-gray-400 border-b border-gray-100">
+                              <th className="py-1.5 pr-3 font-medium">날짜</th>
+                              <th className="py-1.5 pr-3 font-medium">구분</th>
+                              <th className="py-1.5 pr-3 font-medium">세후 실수령액</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {g.matchBreakdown.map((d) => (
+                              <tr key={d.scheduleDate} className="text-gray-700">
+                                <td className="py-1.5 pr-3">{d.scheduleDate}</td>
+                                <td className="py-1.5 pr-3">
+                                  {d.insured
+                                    ? <span className="text-amber-700 font-medium">4대보험 대상</span>
+                                    : <span className="text-gray-500">일용직</span>}
+                                </td>
+                                <td className="py-1.5 pr-3">{d.netPay.toLocaleString()}원</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* 원천징수 계산 (합계) */}
                     <div className="sm:col-span-2 mt-2 pt-3 border-t border-gray-100 space-y-2">
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                        원천징수 계산 (확정 {g.workingDays}일 × {effectiveDailyRate.toLocaleString()}원)
+                        원천징수·4대보험 계산 (확정 {g.workingDays}일 × {effectiveDailyRate.toLocaleString()}원)
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                        <TaxBlock label="세전 총지급액" value={`${totalGross.toLocaleString()}원`} />
-                        <TaxBlock label={`소득세 (일당 ${taxInfo.incomeTax.toLocaleString()}원)`} value={`- ${totalIncomeTax.toLocaleString()}원`} sub />
-                        <TaxBlock label={`지방소득세 (일당 ${taxInfo.localTax.toLocaleString()}원)`} value={`- ${totalLocalTax.toLocaleString()}원`} sub />
-                        <TaxBlock label="총 세액" value={`- ${(totalIncomeTax + totalLocalTax).toLocaleString()}원`} sub />
-                        <TaxBlock label="차인지급액(세후)" value={`${totalNet.toLocaleString()}원`} highlight />
+                        <TaxBlock label="세전 총지급액" value={`${g.totalGross.toLocaleString()}원`} />
+                        <TaxBlock label="소득세" value={`- ${g.totalIncomeTax.toLocaleString()}원`} sub />
+                        <TaxBlock label="지방소득세" value={`- ${g.totalLocalTax.toLocaleString()}원`} sub />
+                        {anyInsuredDay && (
+                          <>
+                            <TaxBlock label="국민연금" value={`- ${g.totalPension.toLocaleString()}원`} sub />
+                            <TaxBlock label="건강보험" value={`- ${g.totalHealth.toLocaleString()}원`} sub />
+                            <TaxBlock label="고용보험" value={`- ${g.totalEmploymentInsurance.toLocaleString()}원`} sub />
+                          </>
+                        )}
+                        <TaxBlock label="차인지급액(세후)" value={`${g.totalNet.toLocaleString()}원`} highlight />
                       </div>
-                      {taxInfo.taxBracket === "EXEMPT" && (
-                        <p className="text-xs text-green-600">※ 일급 {effectiveDailyRate.toLocaleString()}원은 150,000원 이하 비과세 구간입니다.</p>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -319,10 +360,25 @@ export default async function TaxReportPage({ params }: Props) {
           <h2 className="text-sm font-bold text-gray-700 pb-2 border-b border-gray-100 mb-4">전체 지급 합계</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <TaxBlock label="총 근로자 수" value={`${workerGroups.length}명`} />
-            <TaxBlock label="세전 총지급액" value={`${workerGroups.reduce((s, g) => s + effectiveDailyRate * g.workingDays, 0).toLocaleString()}원`} />
-            <TaxBlock label="총 원천징수액" value={`${workerGroups.reduce((s, g) => s + (taxInfo.incomeTax + taxInfo.localTax) * g.workingDays, 0).toLocaleString()}원`} sub />
-            <TaxBlock label="총 차인지급액" value={`${workerGroups.reduce((s, g) => s + taxInfo.netPay * g.workingDays, 0).toLocaleString()}원`} highlight />
+            <TaxBlock label="세전 총지급액" value={`${workerGroups.reduce((s, g) => s + g.totalGross, 0).toLocaleString()}원`} />
+            <TaxBlock label="총 원천징수·4대보험액" value={`${workerGroups.reduce((s, g) => s + g.totalIncomeTax + g.totalLocalTax + g.totalPension + g.totalHealth + g.totalEmploymentInsurance, 0).toLocaleString()}원`} sub />
+            <TaxBlock label="총 차인지급액" value={`${workerGroups.reduce((s, g) => s + g.totalNet, 0).toLocaleString()}원`} highlight />
           </div>
+        </section>
+      )}
+
+      {/* 4대보험(국민연금·건강보험) 취득신고 안내 — 대상자가 있을 때만 표시 */}
+      {workerGroups.some((g) => g.insuredDates.length > 0) && (
+        <section className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 space-y-1.5 print:border print:rounded-none">
+          <p className="font-semibold text-sm text-amber-800">⚠️ 4대보험 취득신고 필요 안내</p>
+          {workerGroups
+            .filter((g) => g.insuredDates.length > 0)
+            .map((g) => (
+              <p key={g.workerProfileId} className="text-xs text-amber-700">
+                ⚠️ {g.workerName}님은 이번 달 국민연금·건강보험 가입 대상 근무일이 포함되어 있어
+                별도 4대보험 취득신고가 필요합니다.
+              </p>
+            ))}
         </section>
       )}
 

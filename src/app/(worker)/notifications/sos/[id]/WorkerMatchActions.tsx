@@ -16,19 +16,26 @@ export default function WorkerMatchActions({
   const [isPending, startTransition] = useTransition()
   const [actionType, setActionType] = useState<"accept" | "reject" | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [insuranceNotice, setInsuranceNotice] = useState(false)
 
   async function handleAction(type: "accept" | "reject") {
     setActionType(type)
     setError(null)
     try {
       const res = await fetch(`/api/sos/matches/${matchId}/${type}`, { method: "POST" })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         setError(data.error ?? "처리 중 오류가 발생했습니다.")
         setActionType(null)
         return
       }
-      startTransition(() => router.refresh())
+      if (type === "accept" && data.insuranceNotice) {
+        // 4대보험 전환 안내를 잠깐 보여준 뒤 새로고침
+        setInsuranceNotice(true)
+        setTimeout(() => startTransition(() => router.refresh()), 2500)
+      } else {
+        startTransition(() => router.refresh())
+      }
     } catch {
       setError("네트워크 오류가 발생했습니다.")
       setActionType(null)
@@ -38,6 +45,11 @@ export default function WorkerMatchActions({
   if (compact) {
     return (
       <div className="space-y-1">
+        {insuranceNotice && (
+          <p className="text-xs text-amber-700 max-w-[160px]">
+            이번 수락으로 4대보험 가입 대상 근무일이 발생했습니다.
+          </p>
+        )}
         {error && <p className="text-xs text-red-600 max-w-[140px]">{error}</p>}
         <div className="flex gap-1.5">
           <button
@@ -65,6 +77,11 @@ export default function WorkerMatchActions({
 
   return (
     <div className="space-y-2">
+      {insuranceNotice && (
+        <p className="text-xs text-amber-700">
+          이번 수락으로 4대보험 가입 대상 근무일이 발생했습니다.
+        </p>
+      )}
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex gap-3">
         <button

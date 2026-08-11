@@ -5,9 +5,14 @@ interface WorkerRow {
   birthDate: string
   phone: string
   workDates: string[]
+  insuredDates: string[]   // workDates 중 4대보험(국민연금·건강보험) 가입 대상인 날짜
   dailyRate: number
-  incomeTax: number
-  localTax: number
+  totalGross: number
+  totalIncomeTax: number
+  totalLocalTax: number
+  totalPension: number
+  totalHealth: number
+  totalEmploymentInsurance: number
   netPay: number
 }
 
@@ -30,19 +35,31 @@ export default function TaxReportExport({ sosTitle, employerName, employerBizNum
     URL.revokeObjectURL(url)
   }
 
+  function insuranceLabel(w: WorkerRow): string {
+    if (w.insuredDates.length === 0) return "일용직"
+    if (w.insuredDates.length === w.workDates.length) return "4대보험대상"
+    return `혼합(4대보험 ${w.insuredDates.length}/${w.workDates.length}일)`
+  }
+
   function handleWithholdingCsv() {
     const rows = [
-      ["구분", "성명", "생년월일", "연락처", "근무일수", "총지급액(세전)", "소득세", "지방소득세", "차인지급액(세후)"],
+      [
+        "구분", "성명", "생년월일", "연락처", "근무일수", "총지급액(세전)",
+        "소득세", "지방소득세", "국민연금", "건강보험", "고용보험", "차인지급액(세후)",
+      ],
       ...workers.map((w) => [
-        "일용근로자",
+        insuranceLabel(w),
         w.name,
         w.birthDate,
         w.phone,
         String(w.workDates.length),
-        String(w.dailyRate * w.workDates.length),
-        String(w.incomeTax * w.workDates.length),
-        String(w.localTax * w.workDates.length),
-        String(w.netPay * w.workDates.length),
+        String(w.totalGross),
+        String(w.totalIncomeTax),
+        String(w.totalLocalTax),
+        String(w.totalPension),
+        String(w.totalHealth),
+        String(w.totalEmploymentInsurance),
+        String(w.netPay),
       ]),
     ]
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n")
@@ -51,13 +68,19 @@ export default function TaxReportExport({ sosTitle, employerName, employerBizNum
 
   function handleLaborCsv() {
     const rows = [
-      ["성명", "생년월일", "연락처", "근무일자"],
+      ["성명", "생년월일", "연락처", "근무일자", "구분"],
       ...workers.flatMap((w) =>
-        w.workDates.map((date) => [w.name, w.birthDate, w.phone, date])
+        w.workDates.map((date) => [
+          w.name,
+          w.birthDate,
+          w.phone,
+          date,
+          w.insuredDates.includes(date) ? "4대보험대상" : "일용직",
+        ])
       ),
     ]
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n")
-    downloadCsv(csv, `일용직노무신고_${sosTitle}_${new Date().toLocaleDateString("ko-KR")}.csv`)
+    downloadCsv(csv, `노무신고_${sosTitle}_${new Date().toLocaleDateString("ko-KR")}.csv`)
   }
 
   function handlePrint() {

@@ -70,6 +70,12 @@ function applicationVariant(status: SosApplicationStatus): StatusVariant {
   }
 }
 
+function InsuranceBadge({ status }: { status: "DAILY_WORKER" | "INSURED" }) {
+  return status === "INSURED"
+    ? <StatusBadge variant="pending" label="4대보험 대상" />
+    : <StatusBadge variant="unresolved" label="일용직" />
+}
+
 function formatDateTime(date: Date | null | undefined) {
   if (!date) return "미정"
   return new Date(date).toLocaleString("ko-KR", {
@@ -342,7 +348,10 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                         {(acceptedByDate.get(day.date) ?? []).map((m) => (
                           <div key={m.id} className="rounded-xl border border-green-100 bg-green-50 p-4 flex items-center justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                                <InsuranceBadge status={m.insuranceStatus} />
+                              </div>
                               <p className="text-xs text-gray-500 mt-0.5">
                                 {m.workerProfile.user.phone ?? "-"}
                                 {m.workerProfile.credentials.filter(c => c.status === "APPROVED").length > 0 && (
@@ -465,7 +474,10 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                                 )}
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="space-y-1">
-                                    <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                                      <InsuranceBadge status={m.insuranceStatus} />
+                                    </div>
                                     {m.workerProfile.user.phone && (
                                       <p className="text-xs text-gray-600 flex items-center gap-1">
                                         <Phone className="w-3 h-3 text-gray-400" />

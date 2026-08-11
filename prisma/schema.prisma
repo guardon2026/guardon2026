@@ -70,6 +70,11 @@ enum SosMatchStatus {
   CONFIRMED  // 업체 최종 확정 (FR21)
 }
 
+enum SosMatchInsuranceStatus {
+  DAILY_WORKER  // 일용직 (원천징수만)
+  INSURED       // 국민연금·건강보험 가입 대상 전환
+}
+
 enum SosUrgency {
   NORMAL    // 일반
   FAST      // 빠른 모집
@@ -397,6 +402,7 @@ model SosMatch {
   workerProfileId String
   scheduleDate    String                           // "YYYY-MM-DD" — 항상 채워짐 (단일 근무일 포함)
   status          SosMatchStatus @default(NOTIFIED)
+  insuranceStatus SosMatchInsuranceStatus @default(DAILY_WORKER)  // 수락 시점에 실제 판정되어 저장됨
   notifiedAt      DateTime       @default(now())  // FR18
   respondedAt     DateTime?                       // 수락/거절 시각 (FR20)
   confirmedAt        DateTime?                       // 업체 최종 확정 시각 (FR21)

@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
-import { UserRole, SosMatchStatus } from "@prisma/client"
+import { UserRole, SosMatchStatus, SosMatchInsuranceStatus } from "@prisma/client"
 import { createNotifications } from "@/lib/notify"
+import { getMonthlyWorkStats, calcDayHours, extractDays } from "@/lib/sos-matcher"
 
 // ─────────────────────────────────────────
 // POST /api/sos/matches/[matchId]/accept
@@ -55,36 +56,26 @@ export async function POST(
     )
   }
 
-  // 4-1. 월 8일/60시간 제한 검증 (동일 경비 업체, 매치는 이제 날짜당 1행이므로 단순 카운트)
+  // 4-1. 이번 달 동일 업체 누적 근무 확인 → 4대보험(국민연금·건강보험) 가입 대상 여부 자동 판정
+  //      (더 이상 수락을 차단하지 않고, 올바른 보험 상태로 분류만 한다)
   const now = new Date()
   const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
   const monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
   const monthEndStr = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, "0")}-${String(monthEndDate.getDate()).padStart(2, "0")}`
 
-  const existingDays = await prisma.sosMatch.count({
-    where: {
-      workerProfileId: match.workerProfileId,
-      id: { not: matchId },
-      status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
-      scheduleDate: { gte: monthStartStr, lte: monthEndStr },
-      sosRequest: { companyId: match.sosRequest.companyId },
-    },
-  })
+  const { days: existingDays, hours: existingHours } = await getMonthlyWorkStats(
+    match.workerProfileId,
+    match.sosRequest.companyId,
+    monthStartStr,
+    monthEndStr,
+    matchId,
+  )
 
-  // 이번 매치는 날짜 1건
-  const thisDays = 1
+  const thisDayEntry = extractDays(match.sosRequest.scheduleDays)?.find((d) => d.date === match.scheduleDate)
+  const thisHours = thisDayEntry ? calcDayHours(thisDayEntry) : 8
 
-  if (existingDays + thisDays >= 8) {
-    return NextResponse.json(
-      {
-        error: `이번 달 동일 업체 배치 한도(월 8일 미만)를 초과합니다. 현재 ${existingDays}일 배치 완료 — 추가 ${thisDays}일 수락 시 ${existingDays + thisDays}일이 됩니다. 일용직 근로자 법적 기준을 준수하기 위해 동일 업체 월 8일 미만으로 제한됩니다.`,
-        existingDays,
-        thisDays,
-        limit: 8,
-      },
-      { status: 422 }
-    )
-  }
+  const crosses = existingDays + 1 >= 8 || existingHours + thisHours >= 60
+  const insuranceStatus = crosses ? SosMatchInsuranceStatus.INSURED : SosMatchInsuranceStatus.DAILY_WORKER
 
   // 4-2. 포인트 잔액 확인 (일급의 10%)
   const workerFee = Math.floor(match.sosRequest.hourlyRate * 0.1)
@@ -106,7 +97,7 @@ export async function POST(
   const [updated] = await prisma.$transaction([
     prisma.sosMatch.update({
       where: { id: matchId },
-      data: { status: SosMatchStatus.ACCEPTED, respondedAt: new Date() },
+      data: { status: SosMatchStatus.ACCEPTED, respondedAt: new Date(), insuranceStatus },
     }),
     prisma.pointAccount.update({
       where: { id: workerAccount.id },
@@ -137,5 +128,5 @@ export async function POST(
     },
   ])
 
-  return NextResponse.json({ match: updated })
+  return NextResponse.json({ match: updated, insuranceNotice: crosses })
 }
