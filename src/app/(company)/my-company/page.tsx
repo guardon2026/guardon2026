@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Building2, Phone, MapPin, MessageCircle, FileText,
-  Save, CheckCircle2, Pencil, X, ShieldCheck, AlertTriangle,
+  Save, CheckCircle2, Pencil, X, ShieldCheck, AlertTriangle, UserX,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -395,20 +395,30 @@ export default function MyCompanyPage() {
 
       {/* 회원 탈퇴 */}
       {!editing && (
-        <div className="pt-4 border-t border-gray-100">
-          <button
-            onClick={() => { setShowWithdraw(true); setWithdrawConfirm(""); setWithdrawError(null) }}
-            className="text-sm text-red-500 hover:text-red-700 hover:underline transition-colors"
-          >
-            회원 탈퇴
-          </button>
+        <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
+          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <UserX className="w-4 h-4" />
+            계정 관리
+          </h3>
+          <div className="flex items-center justify-between gap-4 rounded-xl bg-gray-50/70 px-4 py-3.5">
+            <div>
+              <p className="text-sm font-medium text-gray-700">회원 탈퇴</p>
+              <p className="text-xs text-gray-400 mt-0.5">탈퇴 시 모든 데이터가 삭제되며 되돌릴 수 없습니다.</p>
+            </div>
+            <button
+              onClick={() => { setShowWithdraw(true); setWithdrawConfirm(""); setWithdrawError(null) }}
+              className="shrink-0 px-3.5 py-2 rounded-lg border border-gray-200 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors"
+            >
+              탈퇴하기
+            </button>
+          </div>
         </div>
       )}
 
       {/* 탈퇴 확인 모달 */}
       {showWithdraw && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5 text-red-500" />
