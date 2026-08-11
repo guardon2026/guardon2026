@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_STATUS_LABELS } from "@/lib/constants"
 import MissionCompleteButton from "./MissionCompleteButton"
 import WorkerCancelButton from "./WorkerCancelButton"
+import { ScheduleDayList } from "@/components/sos/ScheduleDayList"
 
 function fmtDate(date: Date) {
   return date.toLocaleString("ko-KR", {
@@ -52,13 +53,6 @@ function sosStatusVariant(status: string) {
   }
 }
 
-interface ScheduleDay {
-  date: string
-  endDate?: string
-  startTime: string
-  endTime: string
-}
-
 export default async function WorkerSosDetailPage({
   params,
 }: {
@@ -93,7 +87,6 @@ export default async function WorkerSosDetailPage({
   if (match.status !== SosMatchStatus.CONFIRMED && match.status !== SosMatchStatus.ACCEPTED) notFound()
 
   const req = match.sosRequest
-  const scheduleDays = (req.scheduleDays as unknown as ScheduleDay[] | null) ?? null
 
   // 수락 취소 가능 여부 계산 (ACCEPTED 상태만)
   const acceptedAt = match.respondedAt ?? match.notifiedAt
@@ -146,32 +139,14 @@ export default async function WorkerSosDetailPage({
         )}
       </div>
 
-      {/* 배치 일정 */}
+      {/* 배치 일정 — 이 매치의 날짜(내 근무일)를 강조 표시 */}
       <InfoSection title="배치 일정" icon={Calendar}>
-        {scheduleDays && scheduleDays.length > 0 ? (
-          <div className="space-y-2">
-            {scheduleDays.map((d, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
-                <span className="w-5 h-5 rounded-full bg-brand/10 text-brand text-xs flex items-center justify-center font-semibold shrink-0">
-                  {i + 1}
-                </span>
-                <span className="text-gray-800">
-                  {d.date}
-                  {d.endDate && d.endDate !== d.date ? ` ~ ${d.endDate}` : ""}
-                  {"  "}
-                  <span className="text-gray-500">{d.startTime} ~ {d.endTime}</span>
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <InfoRow label="배치 일시" value={fmtDate(new Date(req.scheduledAt))} />
-            {req.scheduledEndAt && (
-              <InfoRow label="종료 일시" value={fmtDate(new Date(req.scheduledEndAt))} />
-            )}
-          </div>
-        )}
+        <ScheduleDayList
+          scheduleDays={req.scheduleDays}
+          scheduledAt={req.scheduledAt}
+          scheduledEndAt={req.scheduledEndAt}
+          highlightDate={match.scheduleDate}
+        />
       </InfoSection>
 
       {/* 집결지 */}

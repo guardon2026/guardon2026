@@ -107,7 +107,7 @@ export default async function WorkerHistoryPage() {
     return {
       id: req.id,
       matchId: match.id,
-      date: new Date(req.scheduledAt).toLocaleDateString("ko-KR", {
+      date: new Date(match.scheduleDate).toLocaleDateString("ko-KR", {
         year: "numeric",
         month: "long",
         day: "numeric",

@@ -59,18 +59,42 @@ export async function POST(
   const workerName = match.workerProfile.user.name ?? "경비 인력"
   const sosTitle = match.sosRequest.title
   const dailyPay = match.sosRequest.hourlyRate // hourlyRate 필드가 실제로는 일급
+  const now = new Date()
 
-  // SOS → COMPLETED, 워커 → AVAILABLE
-  await prisma.$transaction([
-    prisma.sosRequest.update({
+  // 이 매치의 임무완료 확인 기록
+  await prisma.sosMatch.update({
+    where: { id: matchId },
+    data: { missionConfirmedAt: now },
+  })
+
+  // 이 요청의 CONFIRMED 매치가 전부 임무완료 확인됐을 때만 요청 전체 COMPLETED로 전환
+  const remaining = await prisma.sosMatch.count({
+    where: { sosRequestId, status: SosMatchStatus.CONFIRMED, missionConfirmedAt: null },
+  })
+  if (remaining === 0) {
+    await prisma.sosRequest.update({
       where: { id: sosRequestId },
       data: { status: SosStatus.COMPLETED },
-    }),
-    prisma.workerProfile.update({
+    })
+  }
+
+  // 이 근로자가 같은 요청의 다른 날짜나 다른 요청에 여전히 활성 매치를 갖고 있지 않을 때만 AVAILABLE로 전환
+  const otherActiveMatches = await prisma.sosMatch.count({
+    where: {
+      workerProfileId,
+      id: { not: matchId },
+      OR: [
+        { status: SosMatchStatus.ACCEPTED },
+        { status: SosMatchStatus.CONFIRMED, missionConfirmedAt: null },
+      ],
+    },
+  })
+  if (otherActiveMatches === 0) {
+    await prisma.workerProfile.update({
       where: { id: workerProfileId },
       data: { availability: AvailabilityStatus.AVAILABLE },
-    }),
-  ])
+    })
+  }
 
   // 앱 알림 + 카카오톡 메시지 동시 발송
   const dueDate = new Date()

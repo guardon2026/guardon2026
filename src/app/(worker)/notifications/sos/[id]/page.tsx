@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation"
-import { ArrowLeft, MapPin, Users, Zap, Shirt, FileText, Phone, Clock, Calendar, Wallet } from "lucide-react"
+import { ArrowLeft, MapPin, Users, Zap, Shirt, FileText, Phone, Wallet } from "lucide-react"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
@@ -10,6 +10,7 @@ import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, DRESS_CODE_LABELS } from "@/lib/c
 import type { StatusVariant } from "@/components/ui/status-badge"
 import WorkerMatchActions from "./WorkerMatchActions"
 import { calcDailyTax, HIGH_RATE_THRESHOLD } from "@/lib/tax"
+import { ScheduleDayList } from "@/components/sos/ScheduleDayList"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -30,40 +31,6 @@ const MATCH_STATUS_LABELS: Record<SosMatchStatus, string> = {
   ACCEPTED:  "수락함",
   REJECTED:  "거절함",
   CONFIRMED: "확정됨",
-}
-
-interface ScheduleDay {
-  date: string
-  endDate?: string
-  startTime: string
-  endTime: string
-  requiredCount?: number
-}
-
-function extractDays(days: unknown): ScheduleDay[] | null {
-  if (!Array.isArray(days) || days.length === 0) return null
-  const result: ScheduleDay[] = []
-  for (const d of days) {
-    if (d && typeof d === "object") {
-      const e = d as Record<string, unknown>
-      if (typeof e.date === "string" && typeof e.startTime === "string" && typeof e.endTime === "string") {
-        result.push({
-          date: e.date,
-          endDate: typeof e.endDate === "string" ? e.endDate : undefined,
-          startTime: e.startTime,
-          endTime: e.endTime,
-          requiredCount: typeof e.requiredCount === "number" ? e.requiredCount : undefined,
-        })
-      }
-    }
-  }
-  return result.length > 0 ? result : null
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("ko-KR", {
-    month: "long", day: "numeric", weekday: "short",
-  })
 }
 
 function InfoRow({
@@ -99,17 +66,13 @@ export default async function WorkerSosDetailPage({ params }: Props) {
   })
   if (!workerProfile) redirect("/profile/edit")
 
-  // 이 워커의 매치인지 확인
-  const match = await prisma.sosMatch.findUnique({
-    where: {
-      sosRequestId_workerProfileId: {
-        sosRequestId: id,
-        workerProfileId: workerProfile.id,
-      },
-    },
-    select: { id: true, status: true },
+  // 이 워커의 이 요청 내 날짜별 매치 전체 (다일 근무는 날짜당 1행)
+  const matches = await prisma.sosMatch.findMany({
+    where: { sosRequestId: id, workerProfileId: workerProfile.id },
+    select: { id: true, status: true, scheduleDate: true },
+    orderBy: { scheduleDate: "asc" },
   })
-  if (!match) notFound()
+  if (matches.length === 0) notFound()
 
   const sos = await prisma.sosRequest.findUnique({
     where: { id },
@@ -134,9 +97,11 @@ export default async function WorkerSosDetailPage({ params }: Props) {
   })
   if (!sos) notFound()
 
-  const scheduleDays = extractDays(sos.scheduleDays)
-  const isAccepted = match.status === SosMatchStatus.ACCEPTED || match.status === SosMatchStatus.CONFIRMED
-  const canAct = match.status === SosMatchStatus.NOTIFIED
+  const matchByDate = new Map(matches.map((m) => [m.scheduleDate, m]))
+  const isAccepted = matches.some(
+    (m) => m.status === SosMatchStatus.ACCEPTED || m.status === SosMatchStatus.CONFIRMED
+  )
+  const pendingCount = matches.filter((m) => m.status === SosMatchStatus.NOTIFIED).length
   const URGENCY_FEE: Record<string, number> = { NORMAL: 0, FAST: 5_000, URGENT: 10_000, CRITICAL: 15_000 }
   const urgencyBonus = URGENCY_FEE[sos.urgencyLevel ?? "NORMAL"] ?? 0
   const effectiveDailyRate = sos.hourlyRate + urgencyBonus  // 긴급도 추가 포함 실제 일급
@@ -150,10 +115,17 @@ export default async function WorkerSosDetailPage({ params }: Props) {
           title={sos.title}
           subtitle="SOS 긴급 요청 상세"
           action={
-            <StatusBadge
-              variant={matchStatusVariant(match.status)}
-              label={MATCH_STATUS_LABELS[match.status]}
-            />
+            matches.length > 1 ? (
+              <StatusBadge
+                variant={pendingCount > 0 ? "pending" : "active"}
+                label={pendingCount > 0 ? `${pendingCount}일 응답 대기` : "전체 응답 완료"}
+              />
+            ) : (
+              <StatusBadge
+                variant={matchStatusVariant(matches[0].status)}
+                label={MATCH_STATUS_LABELS[matches[0].status]}
+              />
+            )
           }
         />
 
@@ -168,7 +140,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
             <p className={`text-xs font-semibold uppercase tracking-wide ${
               taxInfo.taxBracket === "EXEMPT" ? "text-green-700" : "text-blue-700"
             }`}>
-              원천징수 후 세후 실수령 예상액
+              원천징수 후 세후 실수령 예상액 (1일 기준)
             </p>
           </div>
           <div className="space-y-1.5 text-sm">
@@ -270,55 +242,31 @@ export default async function WorkerSosDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* 배치 일정 */}
+        {/* 배치 일정 — 날짜별로 개별 수락/거절 가능 */}
         <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">배치 일정</p>
-
-          {scheduleDays ? (
-            <div className="space-y-2">
-              {scheduleDays.map((day, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 text-sm">
-                  <Clock className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">
-                      {formatDate(day.date)}
-                      {day.endDate && day.endDate !== day.date && (
-                        <span className="text-gray-500"> → {formatDate(day.endDate)}</span>
-                      )}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {day.startTime} → {day.endTime}
-                      {day.requiredCount !== undefined && (
-                        <span className="ml-2 text-brand font-medium">{day.requiredCount}명</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-start gap-2.5">
-              <Calendar className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-gray-900">
-                  {new Date(sos.scheduledAt).toLocaleString("ko-KR", {
-                    year: "numeric", month: "long", day: "numeric",
-                    hour: "2-digit", minute: "2-digit",
-                  })}
-                </p>
-                {sos.scheduledEndAt && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    ~ {new Date(sos.scheduledEndAt).toLocaleString("ko-KR", {
-                      month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
-                    })}
-                  </p>
-                )}
-              </div>
-            </div>
+          {matches.length > 1 && (
+            <p className="text-xs text-gray-500">날짜별로 개별 수락·거절할 수 있습니다.</p>
           )}
+
+          <ScheduleDayList
+            scheduleDays={sos.scheduleDays}
+            scheduledAt={sos.scheduledAt}
+            scheduledEndAt={sos.scheduledEndAt}
+            renderDayAction={(day) => {
+              const m = matchByDate.get(day.date)
+              if (!m) return null
+              if (m.status === SosMatchStatus.NOTIFIED) {
+                return <WorkerMatchActions matchId={m.id} compact />
+              }
+              return (
+                <StatusBadge variant={matchStatusVariant(m.status)} label={MATCH_STATUS_LABELS[m.status]} />
+              )
+            }}
+          />
         </div>
 
-        {/* 현장 담당자 연락처 — 수락/확정 후에만 표시 */}
+        {/* 현장 담당자 연락처 — 하루라도 수락/확정 후에만 표시 */}
         {isAccepted && sos.siteManagerContact && (
           <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">현장 담당자 연락처</p>
@@ -332,9 +280,6 @@ export default async function WorkerSosDetailPage({ params }: Props) {
             </div>
           </div>
         )}
-
-        {/* 수락/거절 버튼 */}
-        {canAct && <WorkerMatchActions matchId={match.id} />}
 
         <div>
           <Link

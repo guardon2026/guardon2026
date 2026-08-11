@@ -97,25 +97,49 @@ export default async function TaxReportPage({ params }: Props) {
     endTime: d.endTime ?? "-",
   }))
 
-  // CSV export용 근로자 데이터
-  const workDateList = scheduleDays.length > 0
-    ? scheduleDays.map((d) => d.date)
-    : sos.scheduledAt
-      ? [sos.scheduledAt.toISOString().slice(0, 10)]
-      : []
+  // 근로자별로 그룹핑 — 매치가 날짜당 1행이므로 한 근로자가 여러 날짜를 확정했으면
+  // confirmedMatches에 여러 행으로 들어온다. 근로자별 실제 확정 근무일수 기준으로 집계한다.
+  const workerGroups = Array.from(
+    confirmedMatches
+      .reduce((map, m) => {
+        const key = m.workerProfileId
+        const existing = map.get(key)
+        if (existing) {
+          existing.matches.push(m)
+        } else {
+          map.set(key, {
+            workerProfileId: key,
+            workerName: m.workContract?.workerRealName ?? m.workerProfile.user.name ?? "-",
+            matches: [m],
+          })
+        }
+        return map
+      }, new Map<string, { workerProfileId: string; workerName: string; matches: typeof confirmedMatches }>())
+      .values()
+  ).map((g) => {
+    const workDates = g.matches.map((m) => m.scheduleDate).sort()
+    const primary = g.matches[0]
+    const contract = primary.workContract
+    return {
+      ...g,
+      workDates,
+      workingDays: workDates.length,
+      contract,
+      allSigned: g.matches.every((m) => m.workContract?.employerSignedAt && m.workContract?.workerSignedAt),
+    }
+  })
 
-  const exportWorkers = confirmedMatches.map((m) => ({
-    name: m.workContract?.workerRealName ?? m.workerProfile.user.name ?? "-",
-    birthDate: formatBirth(m.workContract?.workerBirthDate ?? null),
-    phone: m.workContract?.workerPhone ?? m.workerProfile.user.phone ?? "-",
-    workDates: workDateList,
+  // CSV export용 근로자 데이터
+  const exportWorkers = workerGroups.map((g) => ({
+    name: g.workerName,
+    birthDate: formatBirth(g.contract?.workerBirthDate ?? null),
+    phone: g.contract?.workerPhone ?? g.matches[0].workerProfile.user.phone ?? "-",
+    workDates: g.workDates,
     dailyRate: effectiveDailyRate,
     incomeTax: taxInfo.incomeTax,
     localTax: taxInfo.localTax,
     netPay: taxInfo.netPay,
   }))
-
-  const workingDays = scheduleDays.length > 0 ? scheduleDays.length : 1
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 print:space-y-4">
@@ -200,53 +224,57 @@ export default async function TaxReportPage({ params }: Props) {
       {/* 근로자별 원천징수 내역 */}
       <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4 print:shadow-none print:border">
         <h2 className="text-sm font-bold text-gray-700 pb-2 border-b border-gray-100">
-          근로자별 원천징수 내역 ({confirmedMatches.length}명)
+          근로자별 원천징수 내역 ({workerGroups.length}명)
         </h2>
 
-        {confirmedMatches.length === 0 ? (
+        {workerGroups.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">확정된 근로자가 없습니다.</p>
         ) : (
           <div className="space-y-4">
-            {confirmedMatches.map((m) => {
-              const contract = m.workContract
-              const workerName = contract?.workerRealName ?? m.workerProfile.user.name ?? "-"
+            {workerGroups.map((g) => {
+              const contract = g.contract
               const birthDate  = formatBirth(contract?.workerBirthDate ?? null)
-              const phone      = contract?.workerPhone ?? m.workerProfile.user.phone ?? "-"
+              const phone      = contract?.workerPhone ?? g.matches[0].workerProfile.user.phone ?? "-"
               const address    = contract?.workerAddress ?? "-"
               const bankName   = contract?.workerBankName ?? "-"
               const accountNum = contract?.workerAccountNum ?? "-"
               const accountHolder = contract?.workerAccountHolder ?? "-"
-              const bothSigned = !!(contract?.employerSignedAt && contract?.workerSignedAt)
 
-              const totalGross = effectiveDailyRate * workingDays
-              const totalIncomeTax = taxInfo.incomeTax * workingDays
-              const totalLocalTax  = taxInfo.localTax  * workingDays
-              const totalNet       = taxInfo.netPay    * workingDays
+              const totalGross = effectiveDailyRate * g.workingDays
+              const totalIncomeTax = taxInfo.incomeTax * g.workingDays
+              const totalLocalTax  = taxInfo.localTax  * g.workingDays
+              const totalNet       = taxInfo.netPay    * g.workingDays
 
               return (
-                <div key={m.id} className="rounded-xl border border-gray-100 overflow-hidden">
+                <div key={g.workerProfileId} className="rounded-xl border border-gray-100 overflow-hidden">
                   {/* 근로자 헤더 */}
                   <div className="bg-gray-50 px-5 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-900">{workerName}</span>
-                      {bothSigned
+                      <span className="text-sm font-bold text-gray-900">{g.workerName}</span>
+                      <span className="text-xs text-gray-500">{g.workDates.join(", ")}</span>
+                      {g.allSigned
                         ? <span className="text-xs text-green-600 font-medium">✅ 계약서 서명 완료</span>
                         : <span className="text-xs text-amber-600 font-medium">⚠️ 계약서 미서명</span>
                       }
                     </div>
-                    <Link
-                      href={`/sos/${id}/contract/${m.id}`}
-                      className="text-xs text-brand underline hover:text-blue-700"
-                    >
-                      계약서 보기
-                    </Link>
+                    <div className="flex gap-2">
+                      {g.matches.map((m) => (
+                        <Link
+                          key={m.id}
+                          href={`/sos/${id}/contract/${m.id}`}
+                          className="text-xs text-brand underline hover:text-blue-700"
+                        >
+                          {m.scheduleDate} 계약서
+                        </Link>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                     {/* 근로자 기본 정보 */}
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">기본 정보</p>
-                      <InfoRow label="성명" value={workerName} />
+                      <InfoRow label="성명" value={g.workerName} />
                       <InfoRow label="생년월일" value={birthDate} />
                       <InfoRow label="주민번호" value="직접 확인 필요" muted />
                       <InfoRow label="연락처" value={phone} />
@@ -264,7 +292,7 @@ export default async function TaxReportPage({ params }: Props) {
                     {/* 원천징수 계산 */}
                     <div className="sm:col-span-2 mt-2 pt-3 border-t border-gray-100 space-y-2">
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                        원천징수 계산 (총 {workingDays}일 × {effectiveDailyRate.toLocaleString()}원)
+                        원천징수 계산 (확정 {g.workingDays}일 × {effectiveDailyRate.toLocaleString()}원)
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         <TaxBlock label="세전 총지급액" value={`${totalGross.toLocaleString()}원`} />
@@ -286,14 +314,14 @@ export default async function TaxReportPage({ params }: Props) {
       </section>
 
       {/* 전체 합계 */}
-      {confirmedMatches.length > 0 && (
+      {workerGroups.length > 0 && (
         <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 print:shadow-none print:border">
           <h2 className="text-sm font-bold text-gray-700 pb-2 border-b border-gray-100 mb-4">전체 지급 합계</h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <TaxBlock label="총 근로자 수" value={`${confirmedMatches.length}명`} />
-            <TaxBlock label="세전 총지급액" value={`${(effectiveDailyRate * workingDays * confirmedMatches.length).toLocaleString()}원`} />
-            <TaxBlock label="총 원천징수액" value={`${((taxInfo.incomeTax + taxInfo.localTax) * workingDays * confirmedMatches.length).toLocaleString()}원`} sub />
-            <TaxBlock label="총 차인지급액" value={`${(taxInfo.netPay * workingDays * confirmedMatches.length).toLocaleString()}원`} highlight />
+            <TaxBlock label="총 근로자 수" value={`${workerGroups.length}명`} />
+            <TaxBlock label="세전 총지급액" value={`${workerGroups.reduce((s, g) => s + effectiveDailyRate * g.workingDays, 0).toLocaleString()}원`} />
+            <TaxBlock label="총 원천징수액" value={`${workerGroups.reduce((s, g) => s + (taxInfo.incomeTax + taxInfo.localTax) * g.workingDays, 0).toLocaleString()}원`} sub />
+            <TaxBlock label="총 차인지급액" value={`${workerGroups.reduce((s, g) => s + taxInfo.netPay * g.workingDays, 0).toLocaleString()}원`} highlight />
           </div>
         </section>
       )}
@@ -317,17 +345,17 @@ export default async function TaxReportPage({ params }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {confirmedMatches.map((m) => {
-                const name = m.workContract?.workerRealName ?? m.workerProfile.user.name ?? "-"
-                const birth = formatBirth(m.workContract?.workerBirthDate ?? null)
-                const firstDate = workDateList[0] ?? "-"
-                const lastDate  = workDateList[workDateList.length - 1] ?? firstDate
-                const avgHours = dayDetails.length > 0
-                  ? (dayDetails.reduce((s, d) => s + d.hours, 0) / dayDetails.length).toFixed(1)
+              {workerGroups.map((g) => {
+                const birth = formatBirth(g.contract?.workerBirthDate ?? null)
+                const firstDate = g.workDates[0] ?? "-"
+                const lastDate  = g.workDates[g.workDates.length - 1] ?? firstDate
+                const workerDayDetails = dayDetails.filter((d) => g.workDates.includes(d.date))
+                const avgHours = workerDayDetails.length > 0
+                  ? (workerDayDetails.reduce((s, d) => s + d.hours, 0) / workerDayDetails.length).toFixed(1)
                   : "8.0"
                 return (
-                  <tr key={m.id} className="text-gray-700">
-                    <td className="py-2 pr-4 font-medium">{name}</td>
+                  <tr key={g.workerProfileId} className="text-gray-700">
+                    <td className="py-2 pr-4 font-medium">{g.workerName}</td>
                     <td className="py-2 pr-4">{birth}</td>
                     <td className="py-2 pr-4">{firstDate} ~ {lastDate}</td>
                     <td className="py-2">{avgHours}시간</td>

@@ -80,11 +80,20 @@ export async function POST(
       data: { status: SosMatchStatus.REJECTED, respondedAt: new Date() },
     })
 
-    // 워커 availability 복원
-    await tx.workerProfile.update({
-      where: { id: match.workerProfile.id },
-      data: { availability: "AVAILABLE" },
+    // 워커 availability 복원 — 같은 요청의 다른 날짜나 다른 요청에 여전히 활성 매치가 없을 때만
+    const otherActiveMatches = await tx.sosMatch.count({
+      where: {
+        workerProfileId: match.workerProfile.id,
+        id: { not: matchId },
+        status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
+      },
     })
+    if (otherActiveMatches === 0) {
+      await tx.workerProfile.update({
+        where: { id: match.workerProfile.id },
+        data: { availability: "AVAILABLE" },
+      })
+    }
 
     if (workerFee > 0 && workerAccount) {
       if (withinOneHour) {

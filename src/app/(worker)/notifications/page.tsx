@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
-import { Bell, MapPin, Zap, Users, Shirt, FileText, Phone, Clock, Calendar, MessageCircle, Lock } from "lucide-react"
+import { Bell, MapPin, Zap, Users, Shirt, FileText, Phone, MessageCircle, Lock } from "lucide-react"
 import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -15,6 +15,7 @@ import {
 import NotificationActions from "./NotificationActions"
 import SystemNotificationCard from "./SystemNotificationCard"
 import MarkNotificationsRead from "@/components/ui/mark-notifications-read"
+import { ScheduleDayList } from "@/components/sos/ScheduleDayList"
 
 // ─────────────────────────────────────────
 // 상대 시간 포맷
@@ -63,44 +64,6 @@ function InfoRow({
 }
 
 // ─────────────────────────────────────────
-// 일정 파싱
-// ─────────────────────────────────────────
-
-interface ScheduleDay {
-  date: string
-  endDate?: string
-  startTime: string
-  endTime: string
-  requiredCount?: number
-}
-
-function extractDays(days: unknown): ScheduleDay[] | null {
-  if (!Array.isArray(days) || days.length === 0) return null
-  const result: ScheduleDay[] = []
-  for (const d of days) {
-    if (d && typeof d === "object") {
-      const e = d as Record<string, unknown>
-      if (typeof e.date === "string" && typeof e.startTime === "string" && typeof e.endTime === "string") {
-        result.push({
-          date: e.date,
-          endDate: typeof e.endDate === "string" ? e.endDate : undefined,
-          startTime: e.startTime,
-          endTime: e.endTime,
-          requiredCount: typeof e.requiredCount === "number" ? e.requiredCount : undefined,
-        })
-      }
-    }
-  }
-  return result.length > 0 ? result : null
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("ko-KR", {
-    month: "long", day: "numeric", weekday: "short",
-  })
-}
-
-// ─────────────────────────────────────────
 // SOS 매치 알림 카드
 // ─────────────────────────────────────────
 
@@ -109,6 +72,7 @@ type MatchItem = {
   sortKey: Date
   id: string
   status: SosMatchStatus
+  scheduleDate: string
   notifiedAt: Date
   sosRequest: {
     id: string
@@ -136,7 +100,6 @@ function MatchCard({ item }: { item: MatchItem }) {
   const req = item.sosRequest
   const isNotified = item.status === SosMatchStatus.NOTIFIED
   const isRead = item.status !== SosMatchStatus.NOTIFIED
-  const scheduleDays = extractDays(req.scheduleDays)
 
   return (
     <div
@@ -197,51 +160,16 @@ function MatchCard({ item }: { item: MatchItem }) {
           </div>
         )}
 
-        {/* 배치 일정 */}
+        {/* 배치 일정 — 이 카드가 대응하는 날짜(내 매치)를 강조 표시 */}
         <div className="text-xs space-y-1.5">
           <p className="text-gray-400">배치 일정</p>
-          {scheduleDays ? (
-            <div className="space-y-1">
-              {scheduleDays.map((day, i) => (
-                <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-gray-50">
-                  <Clock className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {formatDate(day.date)}
-                      {day.endDate && day.endDate !== day.date && (
-                        <span className="text-gray-500"> → {formatDate(day.endDate)}</span>
-                      )}
-                    </p>
-                    <p className="text-gray-500">
-                      {day.startTime} ~ {day.endTime}
-                      {day.requiredCount !== undefined && (
-                        <span className="ml-1.5 text-blue-600 font-medium">{day.requiredCount}명</span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 p-2 rounded-lg bg-gray-50">
-              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-gray-800">
-                  {new Date(req.scheduledAt).toLocaleString("ko-KR", {
-                    year: "numeric", month: "long", day: "numeric",
-                    hour: "2-digit", minute: "2-digit",
-                  })}
-                </p>
-                {req.scheduledEndAt && (
-                  <p className="text-gray-500">
-                    ~ {new Date(req.scheduledEndAt).toLocaleString("ko-KR", {
-                      month: "long", day: "numeric", hour: "2-digit", minute: "2-digit",
-                    })}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
+          <ScheduleDayList
+            scheduleDays={req.scheduleDays}
+            scheduledAt={req.scheduledAt}
+            scheduledEndAt={req.scheduledEndAt}
+            highlightDate={item.scheduleDate}
+            compact
+          />
         </div>
 
         {/* 현장 담당자 연락처 */}
@@ -391,6 +319,7 @@ export default async function NotificationsPage() {
     sortKey: new Date(m.notifiedAt),
     id: m.id,
     status: m.status,
+    scheduleDate: m.scheduleDate,
     notifiedAt: new Date(m.notifiedAt),
     sosRequest: m.sosRequest,
   }))

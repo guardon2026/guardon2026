@@ -4,7 +4,14 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, XCircle } from "lucide-react"
 
-export default function WorkerMatchActions({ matchId }: { matchId: string }) {
+export default function WorkerMatchActions({
+  matchId,
+  compact = false,
+}: {
+  matchId: string
+  /** 날짜별 인라인 버튼용 컴팩트 스타일 (배치 일정 리스트 안에서 사용) */
+  compact?: boolean
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [actionType, setActionType] = useState<"accept" | "reject" | null>(null)
@@ -26,6 +33,34 @@ export default function WorkerMatchActions({ matchId }: { matchId: string }) {
       setError("네트워크 오류가 발생했습니다.")
       setActionType(null)
     }
+  }
+
+  if (compact) {
+    return (
+      <div className="space-y-1">
+        {error && <p className="text-xs text-red-600 max-w-[140px]">{error}</p>}
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => handleAction("accept")}
+            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            {actionType === "accept" && isPending ? "처리 중" : "수락"}
+          </button>
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => handleAction("reject")}
+            className="flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            <XCircle className="w-3.5 h-3.5" />
+            {actionType === "reject" && isPending ? "처리 중" : "거절"}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

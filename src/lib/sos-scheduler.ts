@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { matchWorkers } from "@/lib/sos-matcher"
+import { matchWorkers, scheduleDatesFor } from "@/lib/sos-matcher"
 import { createNotifications } from "@/lib/notify"
 import { SosMatchStatus, SosStatus } from "@prisma/client"
 
@@ -22,7 +22,14 @@ export function scheduleRadiusExpansion(sosRequestId: string): void {
     try {
       const sosRequest = await prisma.sosRequest.findUnique({
         where: { id: sosRequestId },
-        select: { id: true, status: true, radiusKm: true, requiredCount: true },
+        select: {
+          id: true,
+          status: true,
+          radiusKm: true,
+          requiredCount: true,
+          scheduledAt: true,
+          scheduleDays: true,
+        },
       })
 
       // 이미 확정/취소/완료된 요청은 처리 불필요
@@ -49,14 +56,18 @@ export function scheduleRadiusExpansion(sosRequestId: string): void {
       if (newMatches.length === 0) return
 
       const now = new Date()
+      const scheduleDates = scheduleDatesFor(sosRequest)
 
       await prisma.sosMatch.createMany({
-        data: newMatches.map((m) => ({
-          sosRequestId,
-          workerProfileId: m.workerProfileId,
-          status: SosMatchStatus.NOTIFIED,
-          notifiedAt: now,
-        })),
+        data: newMatches.flatMap((m) =>
+          scheduleDates.map((scheduleDate) => ({
+            sosRequestId,
+            workerProfileId: m.workerProfileId,
+            scheduleDate,
+            status: SosMatchStatus.NOTIFIED,
+            notifiedAt: now,
+          }))
+        ),
         skipDuplicates: true,
       })
 

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { requireApprovedCompany, CompanyNotApprovedError } from "@/lib/company-gate"
-import { matchWorkers } from "@/lib/sos-matcher"
+import { matchWorkers, scheduleDatesFor } from "@/lib/sos-matcher"
 import { scheduleRadiusExpansion, scheduleUnresolvedCheck } from "@/lib/sos-scheduler"
 import { createNotifications } from "@/lib/notify"
 import {
@@ -387,14 +387,18 @@ export async function POST(req: NextRequest) {
   // 9. SosMatch + Notification 생성
   if (matched.length > 0) {
     const now = new Date()
+    const scheduleDates = scheduleDatesFor(sosRequest)
 
     await prisma.sosMatch.createMany({
-      data: matched.map((m) => ({
-        sosRequestId: sosRequest.id,
-        workerProfileId: m.workerProfileId,
-        status: SosMatchStatus.NOTIFIED,
-        notifiedAt: now,
-      })),
+      data: matched.flatMap((m) =>
+        scheduleDates.map((scheduleDate) => ({
+          sosRequestId: sosRequest.id,
+          workerProfileId: m.workerProfileId,
+          scheduleDate,
+          status: SosMatchStatus.NOTIFIED,
+          notifiedAt: now,
+        }))
+      ),
       skipDuplicates: true,
     })
 

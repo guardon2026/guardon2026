@@ -1,15 +1,24 @@
 import { prisma } from "@/lib/prisma"
 import { AvailabilityStatus, CredentialStatus, SosMatchStatus, SosStatus } from "@prisma/client"
 
-interface ScheduleDay {
+export interface ScheduleDay {
   date: string      // "YYYY-MM-DD"
   endDate?: string  // "YYYY-MM-DD" (없으면 date와 동일)
   startTime: string // "HH:MM"
   endTime: string   // "HH:MM"
+  requiredCount?: number // 해당 날짜의 필요 인원 (없으면 SosRequest.requiredCount 사용)
+}
+
+/** Date → "YYYY-MM-DD" (로컬 타임존 기준) */
+export function toISODate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
 }
 
 /** scheduleDays JSON → ScheduleDay[] 변환 */
-function extractDays(days: unknown): ScheduleDay[] | null {
+export function extractDays(days: unknown): ScheduleDay[] | null {
   if (!Array.isArray(days) || days.length === 0) return null
   const result: ScheduleDay[] = []
   for (const d of days) {
@@ -20,12 +29,14 @@ function extractDays(days: unknown): ScheduleDay[] | null {
       typeof (d as Record<string, unknown>).startTime === "string" &&
       typeof (d as Record<string, unknown>).endTime === "string"
     ) {
-      const entry = d as Record<string, string>
+      const entry = d as Record<string, string | number>
       result.push({
-        date: entry.date,
-        endDate: entry.endDate ?? entry.date,
-        startTime: entry.startTime,
-        endTime: entry.endTime,
+        date: entry.date as string,
+        endDate: (entry.endDate as string | undefined) ?? (entry.date as string),
+        startTime: entry.startTime as string,
+        endTime: entry.endTime as string,
+        requiredCount:
+          typeof entry.requiredCount === "number" ? entry.requiredCount : undefined,
       })
     }
   }
@@ -35,6 +46,33 @@ function extractDays(days: unknown): ScheduleDay[] | null {
 /** "YYYY-MM-DD" + "HH:MM" → Date */
 function toDatetime(date: string, time: string): Date {
   return new Date(`${date}T${time}:00`)
+}
+
+/**
+ * SOS 요청의 근무 날짜 목록을 반환한다.
+ * scheduleDays가 있으면 각 날짜, 없으면 scheduledAt 하루짜리 배열.
+ * SosMatch.scheduleDate를 채울 때 사용하는 공용 헬퍼.
+ */
+export function scheduleDatesFor(sosRequest: {
+  scheduledAt: Date
+  scheduleDays: unknown
+}): string[] {
+  const days = extractDays(sosRequest.scheduleDays)
+  if (days) return days.map((d) => d.date)
+  return [toISODate(sosRequest.scheduledAt)]
+}
+
+/**
+ * scheduleDays 중 특정 날짜 하나만 담은 배열을 반환한다.
+ * SosMatch가 날짜별 1행이 된 이후, 충돌 검사에서 "그 매치가 커버하는 하루"만 비교하기
+ * 위한 헬퍼 — 요청 전체 날짜와 비교하면 다일 근무 중 하루만 확정된 근로자를 나머지
+ * 날짜에도 배치 불가로 오판하게 된다.
+ */
+function singleDayScheduleDays(scheduleDays: unknown, date: string): unknown {
+  const days = extractDays(scheduleDays)
+  if (!days) return null
+  const day = days.find((d) => d.date === date)
+  return day ? [day] : null
 }
 
 /**
@@ -189,6 +227,7 @@ export async function matchWorkers(
     select: {
       workerProfileId: true,
       status: true,
+      scheduleDate: true,
       sosRequest: {
         select: {
           scheduledAt: true,
@@ -212,7 +251,7 @@ export async function matchWorkers(
         sosRequest.scheduleDays,
         m.sosRequest.scheduledAt,
         m.sosRequest.scheduledEndAt ?? null,
-        m.sosRequest.scheduleDays,
+        singleDayScheduleDays(m.sosRequest.scheduleDays, m.scheduleDate) ?? m.sosRequest.scheduleDays,
       )
     ) {
       conflictingIds.add(m.workerProfileId)
@@ -345,6 +384,7 @@ export async function matchSosRequestsForWorker(
       sosRequest: { status: { notIn: [SosStatus.CANCELLED, SosStatus.COMPLETED] } },
     },
     select: {
+      scheduleDate: true,
       sosRequest: {
         select: { scheduledAt: true, scheduledEndAt: true, scheduleDays: true },
       },
@@ -353,7 +393,7 @@ export async function matchSosRequestsForWorker(
 
   const approvedCredTypes = new Set(worker.credentials.map((c) => c.type))
 
-  const matched: string[] = []
+  const matched: Array<{ id: string; scheduledAt: Date; scheduleDays: unknown }> = []
 
   for (const sos of activeSos) {
     // 자격증 조건
@@ -370,7 +410,7 @@ export async function matchSosRequestsForWorker(
         sos.scheduleDays,
         m.sosRequest.scheduledAt,
         m.sosRequest.scheduledEndAt ?? null,
-        m.sosRequest.scheduleDays,
+        singleDayScheduleDays(m.sosRequest.scheduleDays, m.scheduleDate) ?? m.sosRequest.scheduleDays,
       )
     )
     if (hasConflict) continue
@@ -405,28 +445,31 @@ export async function matchSosRequestsForWorker(
       if (!inRadius[0]?.ok) continue
     }
 
-    matched.push(sos.id)
+    matched.push({ id: sos.id, scheduledAt: sos.scheduledAt, scheduleDays: sos.scheduleDays })
   }
 
   if (matched.length === 0) return 0
 
-  // 5. SosMatch + 알림 생성
+  // 5. SosMatch(날짜별) + 알림(요청당 1건) 생성
   const now = new Date()
   await prisma.sosMatch.createMany({
-    data: matched.map((sosRequestId) => ({
-      sosRequestId,
-      workerProfileId,
-      status: SosMatchStatus.NOTIFIED,
-      notifiedAt: now,
-    })),
+    data: matched.flatMap((sos) =>
+      scheduleDatesFor(sos).map((scheduleDate) => ({
+        sosRequestId: sos.id,
+        workerProfileId,
+        scheduleDate,
+        status: SosMatchStatus.NOTIFIED,
+        notifiedAt: now,
+      }))
+    ),
     skipDuplicates: true,
   })
 
   const { createNotifications } = await import("./notify")
   await createNotifications(
-    matched.map((sosRequestId) => ({
+    matched.map((sos) => ({
       userId: workerUserId,
-      sosRequestId,
+      sosRequestId: sos.id,
       type: "SOS_REQUEST",
       title: "SOS 긴급 요청 알림",
       body: "배치 조건에 맞는 긴급 경비 인력 요청이 있습니다. 지금 확인해 주세요.",

@@ -55,42 +55,24 @@ export async function POST(
     )
   }
 
-  // 4-1. 월 8일/60시간 제한 검증 (동일 경비 업체 프로젝트 기준)
+  // 4-1. 월 8일/60시간 제한 검증 (동일 경비 업체, 매치는 이제 날짜당 1행이므로 단순 카운트)
   const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  const monthStartStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  const monthEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const monthEndStr = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, "0")}-${String(monthEndDate.getDate()).padStart(2, "0")}`
 
-  const existingMatches = await prisma.sosMatch.findMany({
+  const existingDays = await prisma.sosMatch.count({
     where: {
       workerProfileId: match.workerProfileId,
+      id: { not: matchId },
       status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
-      sosRequest: {
-        companyId: match.sosRequest.companyId,
-        scheduledAt: { gte: monthStart, lte: monthEnd },
-      },
-    },
-    select: {
-      sosRequest: {
-        select: { scheduleDays: true, scheduledAt: true, scheduledEndAt: true },
-      },
+      scheduleDate: { gte: monthStartStr, lte: monthEndStr },
+      sosRequest: { companyId: match.sosRequest.companyId },
     },
   })
 
-  // 기존 근무일 수 집계
-  let existingDays = 0
-  for (const em of existingMatches) {
-    const days = em.sosRequest.scheduleDays
-    if (Array.isArray(days) && days.length > 0) {
-      existingDays += days.length
-    } else {
-      existingDays += 1
-    }
-  }
-
-  // 이번 SOS의 일수
-  const thisDays = Array.isArray(match.sosRequest.scheduleDays) && (match.sosRequest.scheduleDays as unknown[]).length > 0
-    ? (match.sosRequest.scheduleDays as unknown[]).length
-    : 1
+  // 이번 매치는 날짜 1건
+  const thisDays = 1
 
   if (existingDays + thisDays >= 8) {
     return NextResponse.json(
@@ -151,7 +133,7 @@ export async function POST(
       sosRequestId: match.sosRequest.id,
       type: "MATCH_ACCEPTED",
       title: "SOS 수락 알림",
-      body: `${sosTitle} 요청에 ${workerName}이(가) 수락했습니다. 최종 확정을 진행해 주세요.`,
+      body: `${sosTitle} 요청의 ${match.scheduleDate}에 ${workerName}이(가) 수락했습니다. 최종 확정을 진행해 주세요.`,
     },
   ])
 

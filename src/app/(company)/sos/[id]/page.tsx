@@ -13,6 +13,7 @@ import ApplicationStatusButton from "./ApplicationStatusButton"
 import CancelButton from "./CancelButton"
 import ConfirmButton from "./ConfirmButton"
 import MissionConfirmButton from "./MissionConfirmButton"
+import { extractDays, toISODate } from "@/lib/sos-matcher"
 
 interface SosDetailPageProps {
   params: Promise<{ id: string }>
@@ -225,6 +226,32 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
       })
     : []
 
+  // 날짜별 그룹핑 — 다일 근무 SOS는 매치가 날짜당 1행이므로 날짜별로 묶어서 보여준다
+  const scheduleDaysList = extractDays(sosRequest.scheduleDays) ?? [
+    {
+      date: toISODate(sosRequest.scheduledAt),
+      startTime: "",
+      endTime: "",
+      requiredCount: sosRequest.requiredCount,
+    },
+  ]
+  function groupByDate<T extends { scheduleDate: string }>(items: T[]): Map<string, T[]> {
+    const map = new Map<string, T[]>()
+    for (const item of items) {
+      const arr = map.get(item.scheduleDate) ?? []
+      arr.push(item)
+      map.set(item.scheduleDate, arr)
+    }
+    return map
+  }
+  const acceptedByDate = groupByDate(acceptedMatches)
+  const confirmedByDate = groupByDate(confirmedMatches)
+  function formatDayLabel(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString("ko-KR", {
+      month: "long", day: "numeric", weekday: "short",
+    })
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <PageHeader
@@ -303,27 +330,36 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
             <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">SOS 수락 인력 ({acceptedMatches.length}명)</h2>
-                <p className="text-xs text-gray-500 mt-1">알림을 수락한 경비 인력입니다. 확정 버튼으로 최종 배치를 확정하세요.</p>
+                <p className="text-xs text-gray-500 mt-1">알림을 수락한 경비 인력입니다. 날짜별로 확정 버튼을 눌러 최종 배치를 확정하세요.</p>
               </div>
-              <div className="space-y-3">
-                {acceptedMatches.map((m) => (
-                  <div key={m.id} className="rounded-xl border border-green-100 bg-green-50 p-4 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {m.workerProfile.user.phone ?? "-"}
-                        {m.workerProfile.credentials.filter(c => c.status === "APPROVED").length > 0 && (
-                          <span className="ml-2 text-green-600">· 자격증 {m.workerProfile.credentials.filter(c => c.status === "APPROVED").length}개</span>
-                        )}
-                      </p>
+              <div className="space-y-5">
+                {scheduleDaysList
+                  .filter((day) => (acceptedByDate.get(day.date)?.length ?? 0) > 0)
+                  .map((day) => (
+                    <div key={day.date} className="space-y-2">
+                      <p className="text-xs font-semibold text-gray-500">{formatDayLabel(day.date)}</p>
+                      <div className="space-y-3">
+                        {(acceptedByDate.get(day.date) ?? []).map((m) => (
+                          <div key={m.id} className="rounded-xl border border-green-100 bg-green-50 p-4 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {m.workerProfile.user.phone ?? "-"}
+                                {m.workerProfile.credentials.filter(c => c.status === "APPROVED").length > 0 && (
+                                  <span className="ml-2 text-green-600">· 자격증 {m.workerProfile.credentials.filter(c => c.status === "APPROVED").length}개</span>
+                                )}
+                              </p>
+                            </div>
+                            <ConfirmButton
+                              sosRequestId={sosRequest.id}
+                              matchId={m.id}
+                              workerName={m.workerProfile.user.name ?? undefined}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <ConfirmButton
-                      sosRequestId={sosRequest.id}
-                      matchId={m.id}
-                      workerName={m.workerProfile.user.name ?? undefined}
-                    />
-                  </div>
-                ))}
+                  ))}
               </div>
             </section>
           )}
@@ -397,67 +433,85 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                   신고 정보
                 </Link>
               </div>
-              <div className="space-y-3">
-                {confirmedMatches.map((m) => {
-                  const empSigned = !!m.workContract?.employerSignedAt
-                  const wrkSigned = !!m.workContract?.workerSignedAt
-                  const both = empSigned && wrkSigned
-                  const approvedCreds = m.workerProfile.credentials.filter(c => c.status === "APPROVED")
-                  const hasMissionReport = !!m.missionReportedAt
-                  const alreadySettled = sosRequest.status === "COMPLETED"
-                  return (
-                    <div key={m.id} className={`rounded-xl border p-4 space-y-3 ${hasMissionReport && !alreadySettled ? "border-emerald-300 bg-emerald-50/30" : "border-gray-100"}`}>
-                      {hasMissionReport && !alreadySettled && (
-                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg">
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          경비 인력이 임무 완료를 보고했습니다. 확인 후 일급을 지급해 주세요.
+              <div className="space-y-5">
+                {scheduleDaysList
+                  .filter((day) => (confirmedByDate.get(day.date)?.length ?? 0) > 0)
+                  .map((day) => {
+                    const dayRequired = day.requiredCount ?? sosRequest.requiredCount
+                    const dayConfirmed = confirmedByDate.get(day.date)?.length ?? 0
+                    return (
+                      <div key={day.date} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-gray-500">{formatDayLabel(day.date)}</p>
+                          <span className={`text-xs font-medium ${dayConfirmed >= dayRequired ? "text-green-600" : "text-amber-600"}`}>
+                            {dayConfirmed}/{dayRequired}명 확정
+                          </span>
                         </div>
-                      )}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
-                          {m.workerProfile.user.phone && (
-                            <p className="text-xs text-gray-600 flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-gray-400" />
-                              {m.workerProfile.user.phone}
-                            </p>
-                          )}
-                          {m.workerProfile.user.email && (
-                            <p className="text-xs text-gray-500">{m.workerProfile.user.email}</p>
-                          )}
-                          {approvedCreds.length > 0 && (
-                            <p className="text-xs text-green-600 flex items-center gap-1">
-                              <ShieldCheck className="w-3 h-3" />
-                              인증 자격증 {approvedCreds.length}개
-                            </p>
-                          )}
-                          <p className={`text-xs font-medium ${both ? "text-green-600" : empSigned ? "text-blue-600" : wrkSigned ? "text-amber-600" : "text-gray-400"}`}>
-                            {both ? "✅ 양측 서명 완료" : empSigned ? "✍️ 사업주 서명 완료 · 근로자 대기" : wrkSigned ? "✍️ 근로자 서명 완료 · 사업주 대기" : "계약서 미작성"}
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-2 shrink-0">
-                          <Link
-                            href={`/workers/${m.workerProfile.user.id}?from=/sos/${id}`}
-                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <User className="w-3.5 h-3.5" />
-                            인력 정보
-                          </Link>
-                          <Link
-                            href={`/sos/${id}/contract/${m.id}`}
-                            className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
-                          >
-                            <FileText className="w-3.5 h-3.5" />
-                            {empSigned ? "계약서 보기" : "계약서 작성"}
-                          </Link>
-                          {hasMissionReport && (
-                            <MissionConfirmButton matchId={m.id} alreadySettled={alreadySettled} />
-                          )}
+                        <div className="space-y-3">
+                          {(confirmedByDate.get(day.date) ?? []).map((m) => {
+                            const empSigned = !!m.workContract?.employerSignedAt
+                            const wrkSigned = !!m.workContract?.workerSignedAt
+                            const both = empSigned && wrkSigned
+                            const approvedCreds = m.workerProfile.credentials.filter(c => c.status === "APPROVED")
+                            const hasMissionReport = !!m.missionReportedAt
+                            const alreadySettled = !!m.missionConfirmedAt
+                            return (
+                              <div key={m.id} className={`rounded-xl border p-4 space-y-3 ${hasMissionReport && !alreadySettled ? "border-emerald-300 bg-emerald-50/30" : "border-gray-100"}`}>
+                                {hasMissionReport && !alreadySettled && (
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg">
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                    경비 인력이 임무 완료를 보고했습니다. 확인 후 일급을 지급해 주세요.
+                                  </div>
+                                )}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="space-y-1">
+                                    <p className="text-sm font-semibold text-gray-900">{m.workerProfile.user.name ?? "경비 인력"}</p>
+                                    {m.workerProfile.user.phone && (
+                                      <p className="text-xs text-gray-600 flex items-center gap-1">
+                                        <Phone className="w-3 h-3 text-gray-400" />
+                                        {m.workerProfile.user.phone}
+                                      </p>
+                                    )}
+                                    {m.workerProfile.user.email && (
+                                      <p className="text-xs text-gray-500">{m.workerProfile.user.email}</p>
+                                    )}
+                                    {approvedCreds.length > 0 && (
+                                      <p className="text-xs text-green-600 flex items-center gap-1">
+                                        <ShieldCheck className="w-3 h-3" />
+                                        인증 자격증 {approvedCreds.length}개
+                                      </p>
+                                    )}
+                                    <p className={`text-xs font-medium ${both ? "text-green-600" : empSigned ? "text-blue-600" : wrkSigned ? "text-amber-600" : "text-gray-400"}`}>
+                                      {both ? "✅ 양측 서명 완료" : empSigned ? "✍️ 사업주 서명 완료 · 근로자 대기" : wrkSigned ? "✍️ 근로자 서명 완료 · 사업주 대기" : "계약서 미작성"}
+                                    </p>
+                                  </div>
+                                  <div className="flex flex-col gap-2 shrink-0">
+                                    <Link
+                                      href={`/workers/${m.workerProfile.user.id}?from=/sos/${id}`}
+                                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                      <User className="w-3.5 h-3.5" />
+                                      인력 정보
+                                    </Link>
+                                    <Link
+                                      href={`/sos/${id}/contract/${m.id}`}
+                                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-brand text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                                    >
+                                      <FileText className="w-3.5 h-3.5" />
+                                      {empSigned ? "계약서 보기" : "계약서 작성"}
+                                    </Link>
+                                    {hasMissionReport && (
+                                      <MissionConfirmButton matchId={m.id} alreadySettled={alreadySettled} />
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
               </div>
             </section>
           )}

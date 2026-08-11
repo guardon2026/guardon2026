@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus, SosStatus, AvailabilityStatus } from "@prisma/client"
 import { createNotifications } from "@/lib/notify"
+import { extractDays } from "@/lib/sos-matcher"
 
 // ─────────────────────────────────────────
 // POST /api/sos/matches/[matchId]/confirm
@@ -59,20 +60,13 @@ export async function POST(
   const sosRequestId = match.sosRequest.id
   const workerProfileId = match.workerProfile.id
 
-  // 5. 현재 확정된 인원 수 조회
-  const confirmedCount = await prisma.sosMatch.count({
-    where: {
-      sosRequestId,
-      status: SosMatchStatus.CONFIRMED,
-    },
-  })
+  // 요청의 예정 날짜 목록 (날짜별 requiredCount 포함, 없으면 요청 전체 requiredCount로 폴백)
+  const days = extractDays(match.sosRequest.scheduleDays) ?? [
+    { date: match.scheduleDate, startTime: "", endTime: "", requiredCount: match.sosRequest.requiredCount },
+  ]
 
-  // 6. 트랜잭션: 매치 확정 + 인력 상태 BUSY + SOS 요청 상태 업데이트
-  const newConfirmedCount = confirmedCount + 1
-  const meetsRequired = newConfirmedCount >= match.sosRequest.requiredCount
-
-  const [updatedMatch, , updatedSosRequest] = await prisma.$transaction([
-    // 매치 상태 → CONFIRMED
+  // 5. 트랜잭션: 매치 확정 + 인력 상태 BUSY
+  const [updatedMatch] = await prisma.$transaction([
     prisma.sosMatch.update({
       where: { id: matchId },
       data: {
@@ -80,19 +74,31 @@ export async function POST(
         confirmedAt: now,
       },
     }),
-    // 인력 가용 상태 → BUSY
     prisma.workerProfile.update({
       where: { id: workerProfileId },
       data: { availability: AvailabilityStatus.BUSY },
     }),
-    // 필요 인원 충족 시 SOS 요청 → CONFIRMED
-    prisma.sosRequest.update({
-      where: { id: sosRequestId },
-      data: meetsRequired
-        ? { status: SosStatus.CONFIRMED, confirmedAt: now }
-        : {},
-    }),
   ])
+
+  // 6. 모든 예정 날짜가 각자의 필요 인원을 충족했을 때만 요청 전체를 CONFIRMED로 전환
+  const countsByDate = await prisma.sosMatch.groupBy({
+    by: ["scheduleDate"],
+    where: { sosRequestId, status: SosMatchStatus.CONFIRMED },
+    _count: { _all: true },
+  })
+  const countMap = new Map(countsByDate.map((c) => [c.scheduleDate, c._count._all]))
+  const fullyStaffed = days.every(
+    (d) => (countMap.get(d.date) ?? 0) >= (d.requiredCount ?? match.sosRequest.requiredCount)
+  )
+
+  let updatedSosRequest = match.sosRequest
+  if (fullyStaffed && match.sosRequest.status !== SosStatus.CONFIRMED) {
+    const updated = await prisma.sosRequest.update({
+      where: { id: sosRequestId },
+      data: { status: SosStatus.CONFIRMED, confirmedAt: now },
+    })
+    updatedSosRequest = { ...match.sosRequest, status: updated.status, confirmedAt: updated.confirmedAt }
+  }
 
   // 7. 경비 인력에게 확정 알림 발송
   await createNotifications([{
@@ -100,7 +106,7 @@ export async function POST(
     sosRequestId,
     type: "MATCH_CONFIRMED",
     title: "SOS 확정 알림",
-    body: `'${match.sosRequest.title}' 요청에 최종 확정되었습니다. 배치 일정을 확인해 주세요.`,
+    body: `'${match.sosRequest.title}' 요청의 ${match.scheduleDate} 근무가 최종 확정되었습니다. 배치 일정을 확인해 주세요.`,
   }])
 
   return NextResponse.json({

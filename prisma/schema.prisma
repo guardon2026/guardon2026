@@ -395,11 +395,13 @@ model SosMatch {
   id              String         @id @default(cuid())
   sosRequestId    String
   workerProfileId String
+  scheduleDate    String                           // "YYYY-MM-DD" — 항상 채워짐 (단일 근무일 포함)
   status          SosMatchStatus @default(NOTIFIED)
   notifiedAt      DateTime       @default(now())  // FR18
   respondedAt     DateTime?                       // 수락/거절 시각 (FR20)
   confirmedAt        DateTime?                       // 업체 최종 확정 시각 (FR21)
   missionReportedAt  DateTime?                       // 경비 인력 임무 완료 보고 시각
+  missionConfirmedAt DateTime?                       // 업체 임무 완료 확인 시각 (요청 전체 COMPLETED 판정용)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -408,8 +410,9 @@ model SosMatch {
   rating        Rating?
   workContract  WorkContract?
 
-  @@unique([sosRequestId, workerProfileId])
+  @@unique([sosRequestId, workerProfileId, scheduleDate])
   @@index([sosRequestId])
+  @@index([sosRequestId, scheduleDate])
   @@index([workerProfileId])
   @@map("sos_matches")
 }
