@@ -342,6 +342,7 @@ export default function SosNewPage() {
         return updated
       })
     )
+    setErrors((prev) => ({ ...prev, workDays: "" }))
   }
 
   function openAddressSearch() {
@@ -634,7 +635,7 @@ export default function SosNewPage() {
                   <input
                     type="text"
                     value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    onChange={(e) => { setTitle(e.target.value); setErrors((prev) => ({ ...prev, title: "" })) }}
                     placeholder={SOS_FORM.FIELDS.TITLE_PLACEHOLDER}
                     className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand transition-colors
                       ${errors.title ? "border-red-300 bg-red-50" : "border-gray-200"}`}
@@ -859,7 +860,7 @@ export default function SosNewPage() {
                     options={workFieldOptions}
                     labels={WORK_FIELD_LABELS}
                     value={requiredFields}
-                    onChange={setRequiredFields}
+                    onChange={(v) => { setRequiredFields(v); setErrors((prev) => ({ ...prev, requiredFields: "" })) }}
                   />
                   {errors.requiredFields && <p className="text-xs text-sos">{errors.requiredFields}</p>}
                 </div>
@@ -887,7 +888,7 @@ export default function SosNewPage() {
                 <input
                   type="text"
                   value={dressCode}
-                  onChange={(e) => setDressCode(e.target.value)}
+                  onChange={(e) => { setDressCode(e.target.value); setErrors((prev) => ({ ...prev, dressCode: "" })) }}
                   placeholder="예) 정장, 전술복, 검정 면 바지에 흰색 셔츠 등"
                   className={`w-full border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
                     ${errors.dressCode ? "border-red-300 bg-red-50" : "border-gray-200"}`}
@@ -917,7 +918,7 @@ export default function SosNewPage() {
                         <input
                           type="text"
                           value={m.name}
-                          onChange={(e) => setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, name: e.target.value } : s))}
+                          onChange={(e) => { setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, name: e.target.value } : s)); setErrors((prev) => ({ ...prev, siteManagers: "" })) }}
                           placeholder="이름"
                           className="w-20 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand shrink-0"
                         />
@@ -930,6 +931,7 @@ export default function SosNewPage() {
                             const stripped = v.replace(/-/g, "")
                             const formatted = /^\d+$/.test(stripped) ? formatPhoneNumber(stripped) : v
                             setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, phone: formatted } : s))
+                            setErrors((prev) => ({ ...prev, siteManagers: "" }))
                           }}
                           placeholder="전화번호"
                           className="w-36 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand shrink-0"
@@ -937,7 +939,7 @@ export default function SosNewPage() {
                         <input
                           type="text"
                           value={m.comment}
-                          onChange={(e) => setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, comment: e.target.value } : s))}
+                          onChange={(e) => { setSiteManagers((prev) => prev.map((s) => s.id === m.id ? { ...s, comment: e.target.value } : s)); setErrors((prev) => ({ ...prev, siteManagers: "" })) }}
                           placeholder="예) 주간 담당자"
                           className="flex-1 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
                         />
@@ -973,7 +975,7 @@ export default function SosNewPage() {
                       type="text"
                       inputMode="numeric"
                       value={hourlyRate}
-                      onChange={(e) => setHourlyRate(formatComma(e.target.value))}
+                      onChange={(e) => { setHourlyRate(formatComma(e.target.value)); setErrors((prev) => ({ ...prev, hourlyRate: "" })) }}
                       placeholder={SOS_FORM.FIELDS.HOURLY_RATE_PLACEHOLDER}
                       className={`w-40 border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
                         ${errors.hourlyRate ? "border-red-300 bg-red-50" : "border-gray-200"}`}
@@ -1197,7 +1199,7 @@ export default function SosNewPage() {
                   </p>
                   <textarea
                     value={description}
-                    onChange={(e) => setDescription(e.target.value)}
+                    onChange={(e) => { setDescription(e.target.value); setErrors((prev) => ({ ...prev, description: "" })) }}
                     placeholder={SOS_FORM.FIELDS.DESCRIPTION_PLACEHOLDER}
                     rows={3}
                     className={`w-full border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand resize-none
