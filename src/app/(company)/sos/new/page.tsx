@@ -504,22 +504,14 @@ export default function SosNewPage() {
       const regularHours = Math.min(hours, 8)
       const overtimeHours = Math.max(0, hours - 8)
       const nightHours = calcNightHours(start, end)
-      // 최저시급 기준 참고값
-      const basePay = Math.ceil(regularHours * MIN_HOURLY)
-      const overtimeSupplement = Math.ceil(overtimeHours * MIN_HOURLY * 0.5)
-      const overtimeTotal = Math.ceil(overtimeHours * MIN_HOURLY * 1.5)
-      const nightSupplement = Math.ceil(nightHours * MIN_HOURLY * 0.5)
-      const minWage5up = Math.ceil(hours * MIN_HOURLY) + overtimeSupplement + nightSupplement
-      const minWage = Math.ceil(hours * MIN_HOURLY)
-      // 실제 적용 시급 기준 일급 계산 (연장 1.5배·야간 0.5배 가산 항상 적용)
+      // 적용시급 기준 일급 계산 (연장 1.5배·야간 0.5배 가산 항상 적용)
       const dailyPayBasePay = Math.ceil(regularHours * rateNum)
       const dailyPayOvertime = Math.ceil(overtimeHours * rateNum * 1.5)
       const dailyPayNight = Math.ceil(nightHours * rateNum * 0.5)
       const dailyPay = rateNum > 0 ? dailyPayBasePay + dailyPayOvertime + dailyPayNight : 0
       return {
         date: d.date, hours, regularHours, overtimeHours, nightHours,
-        basePay, overtimeSupplement, overtimeTotal, nightSupplement,
-        minWage, minWage5up, dailyPay, dailyPayBasePay, dailyPayOvertime, dailyPayNight,
+        dailyPay, dailyPayBasePay, dailyPayOvertime, dailyPayNight,
       }
     })
   // 주 단위 주휴수당 계산 (첫 근무일 기준 7일 윈도우)
@@ -996,58 +988,46 @@ export default function SosNewPage() {
                   {dayHours.length > 0 && (
                     <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 space-y-1.5">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-gray-500">📋 배치 일정 기준 법정 최저 일급</p>
-                        <p className="text-xs font-semibold text-brand">시급 설정에 참고하세요!!</p>
+                        <p className="text-xs font-semibold text-gray-500">📋 배치 일정별 일급 계산</p>
+                        <p className="text-xs font-semibold text-brand">적용시급 기준입니다</p>
                       </div>
                       <div className="space-y-2">
-                        {dayHours.map((d, i) => {
-                          const effectiveMin = d.minWage5up
-                          const isShort = rateNum > 0 && d.dailyPay < effectiveMin
-                          return (
-                            <div key={i} className="space-y-1">
-                              <div className="flex items-center justify-between text-xs text-gray-600">
-                                <span className="font-medium">{d.date}</span>
-                                <span>
-                                  <strong>{d.hours % 1 === 0 ? d.hours : d.hours.toFixed(1)}시간</strong>
-                                  {" "}→ 최저 일급{" "}
-                                  <strong className={isShort ? "text-red-600" : "text-gray-700"}>
-                                    {effectiveMin.toLocaleString()}원
-                                  </strong>
-                                  {isShort && <span className="ml-1 text-red-500">⚠️ 미달</span>}
-                                </span>
-                              </div>
-                              {rateNum >= 10_320 && (
-                                <div className="pl-2 space-y-0.5 text-[11px] text-gray-500">
-                                  <div className="flex justify-between font-medium text-gray-700">
-                                    <span>기본급 ({d.regularHours % 1 === 0 ? d.regularHours : d.regularHours.toFixed(1)}h × {rateNum.toLocaleString()}원)</span>
-                                    <span>{d.dailyPayBasePay.toLocaleString()}원</span>
-                                  </div>
-                                  {d.overtimeHours > 0 && (
-                                    <div className="flex justify-between text-orange-600">
-                                      <span>
-                                        연장수당 ({d.overtimeHours % 1 === 0 ? d.overtimeHours : d.overtimeHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 1.5)
-                                      </span>
-                                      <span>+{d.dailyPayOvertime.toLocaleString()}원</span>
-                                    </div>
-                                  )}
-                                  {d.nightHours > 0.01 && (
-                                    <div className="flex justify-between text-indigo-600">
-                                      <span>야간가산 ({d.nightHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 0.5)</span>
-                                      <span>+{d.dailyPayNight.toLocaleString()}원</span>
-                                    </div>
-                                  )}
-                                  <div className="flex justify-between font-semibold text-gray-800 border-t border-gray-200 pt-0.5 mt-0.5">
-                                    <span>합계 일급</span>
-                                    <span>{d.dailyPay.toLocaleString()}원</span>
-                                  </div>
-                                  <div className="text-[10px] text-gray-400">
-                                    최저시급 기준: {d.minWage5up.toLocaleString()}원 {d.dailyPay < d.minWage5up ? "⚠️ 미달" : "✅ 충족"}
-                                  </div>
-                                </div>
-                              )}
+                        {dayHours.map((d, i) => (
+                          <div key={i} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs text-gray-600">
+                              <span className="font-medium">{d.date}</span>
+                              <span>
+                                <strong>{d.hours % 1 === 0 ? d.hours : d.hours.toFixed(1)}시간</strong>
+                              </span>
                             </div>
-                          )
-                        })}
+                            {rateNum >= 10_320 && (
+                              <div className="pl-2 space-y-0.5 text-[11px] text-gray-500">
+                                <div className="flex justify-between font-medium text-gray-700">
+                                  <span>기본급 ({d.regularHours % 1 === 0 ? d.regularHours : d.regularHours.toFixed(1)}h × {rateNum.toLocaleString()}원)</span>
+                                  <span>{d.dailyPayBasePay.toLocaleString()}원</span>
+                                </div>
+                                {d.overtimeHours > 0 && (
+                                  <div className="flex justify-between text-orange-600">
+                                    <span>
+                                      연장수당 ({d.overtimeHours % 1 === 0 ? d.overtimeHours : d.overtimeHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 1.5)
+                                    </span>
+                                    <span>+{d.dailyPayOvertime.toLocaleString()}원</span>
+                                  </div>
+                                )}
+                                {d.nightHours > 0.01 && (
+                                  <div className="flex justify-between text-indigo-600">
+                                    <span>야간가산 ({d.nightHours.toFixed(1)}h × {rateNum.toLocaleString()}원 × 0.5)</span>
+                                    <span>+{d.dailyPayNight.toLocaleString()}원</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-semibold text-gray-800 border-t border-gray-200 pt-0.5 mt-0.5">
+                                  <span>합계 일급</span>
+                                  <span>{d.dailyPay.toLocaleString()}원</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                       {weeklyHolidayBreakdown.length > 0 && (
                         <div className="pt-1.5 border-t border-gray-200 space-y-0.5">
@@ -1072,7 +1052,7 @@ export default function SosNewPage() {
                         </div>
                       )}
                       <p className="text-[11px] text-gray-400 pt-0.5 border-t border-gray-200">
-                        최저시급 10,320원 기준 · 연장(×1.5)·야간(+0.5) 가산 포함
+                        적용시급 {rateNum.toLocaleString()}원 기준 · 연장(×1.5)·야간(+0.5) 가산 포함
                       </p>
                     </div>
                   )}
