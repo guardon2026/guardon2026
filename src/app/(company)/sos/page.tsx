@@ -281,7 +281,6 @@ export default async function SosPage({
                   <th className="px-4 py-3 text-left font-semibold">일정</th>
                   <th className="px-4 py-3 text-left font-semibold">인원</th>
                   <th className="px-4 py-3 text-left font-semibold">유형</th>
-                  <th className="px-4 py-3 text-right font-semibold">예산</th>
                   <th className="px-4 py-3 text-center font-semibold">신청</th>
                   <th className="px-4 py-3 text-left font-semibold">작성자</th>
                   <th className="px-4 py-3 text-left font-semibold">등록</th>
@@ -330,9 +329,6 @@ export default async function SosPage({
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                         {req.serviceType ?? req.requiredFields.map((f) => WORK_FIELD_LABELS[f] ?? f).join(", ")}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-gray-900">
-                        {(req.budgetTotal ?? req.hourlyRate * req.requiredCount).toLocaleString()}원
                       </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 justify-center">
