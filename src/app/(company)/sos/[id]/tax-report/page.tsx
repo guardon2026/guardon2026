@@ -107,7 +107,7 @@ export default async function TaxReportPage({ params }: Props) {
         localTax: t.localTax,
         pension: insured ? (t as ReturnType<typeof calcInsuredDailyTax>).pension : 0,
         health: insured ? (t as ReturnType<typeof calcInsuredDailyTax>).health : 0,
-        employmentInsurance: insured ? (t as ReturnType<typeof calcInsuredDailyTax>).employmentInsurance : 0,
+        employmentInsurance: t.employmentInsurance,
         netPay: t.netPay,
       }
     })
@@ -336,11 +336,11 @@ export default async function TaxReportPage({ params }: Props) {
                         <TaxBlock label="세전 총지급액" value={`${g.totalGross.toLocaleString()}원`} />
                         <TaxBlock label="소득세" value={`- ${g.totalIncomeTax.toLocaleString()}원`} sub />
                         <TaxBlock label="지방소득세" value={`- ${g.totalLocalTax.toLocaleString()}원`} sub />
+                        <TaxBlock label="고용보험" value={`- ${g.totalEmploymentInsurance.toLocaleString()}원`} sub />
                         {anyInsuredDay && (
                           <>
                             <TaxBlock label="국민연금" value={`- ${g.totalPension.toLocaleString()}원`} sub />
                             <TaxBlock label="건강보험" value={`- ${g.totalHealth.toLocaleString()}원`} sub />
-                            <TaxBlock label="고용보험" value={`- ${g.totalEmploymentInsurance.toLocaleString()}원`} sub />
                           </>
                         )}
                         <TaxBlock label="차인지급액(세후)" value={`${g.totalNet.toLocaleString()}원`} highlight />

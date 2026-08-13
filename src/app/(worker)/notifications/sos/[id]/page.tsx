@@ -171,6 +171,10 @@ export default async function WorkerSosDetailPage({ params }: Props) {
                   <span>지방소득세</span>
                   <span>- {taxInfo.localTax.toLocaleString()}원</span>
                 </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>고용보험 (근로자 0.9%)</span>
+                  <span>- {taxInfo.employmentInsurance.toLocaleString()}원</span>
+                </div>
                 {anyInsured && (
                   <>
                     <div className="flex justify-between text-gray-500">
@@ -180,10 +184,6 @@ export default async function WorkerSosDetailPage({ params }: Props) {
                     <div className="flex justify-between text-gray-500">
                       <span>건강보험 (근로자 약 3.545%)</span>
                       <span>- {(taxInfo as ReturnType<typeof calcInsuredDailyTax>).health.toLocaleString()}원</span>
-                    </div>
-                    <div className="flex justify-between text-gray-500">
-                      <span>고용보험 (근로자 0.9%)</span>
-                      <span>- {(taxInfo as ReturnType<typeof calcInsuredDailyTax>).employmentInsurance.toLocaleString()}원</span>
                     </div>
                   </>
                 )}
@@ -199,12 +199,16 @@ export default async function WorkerSosDetailPage({ params }: Props) {
               </>
             ) : (
               <>
+                <div className="flex justify-between text-gray-500">
+                  <span>고용보험 (근로자 0.9%)</span>
+                  <span>- {taxInfo.employmentInsurance.toLocaleString()}원</span>
+                </div>
                 <div className={`flex justify-between border-t pt-1.5 font-bold border-green-200 text-green-800`}>
                   <span>세후 실수령액</span>
-                  <span>{taxInfo.netPay.toLocaleString()}원 (세금 없음)</span>
+                  <span>{taxInfo.netPay.toLocaleString()}원 (소득세 없음)</span>
                 </div>
                 <p className="text-xs text-green-600 mt-1">
-                  일급 150,000원 이하는 일용근로소득세 비과세 구간입니다. 프로젝트 완료 후 14일 이내 계좌이체로 정산됩니다.
+                  일급 150,000원 이하는 일용근로소득세 비과세 구간입니다. 고용보험료는 별도로 공제됩니다. 프로젝트 완료 후 14일 이내 계좌이체로 정산됩니다.
                 </p>
               </>
             )}
