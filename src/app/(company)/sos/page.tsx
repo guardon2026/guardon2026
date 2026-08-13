@@ -9,6 +9,8 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { SOS_STATUS_LABELS, WORK_FIELD_LABELS } from "@/lib/constants"
 import type { StatusVariant } from "@/components/ui/status-badge"
+import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
+import { ProfileCompletenessBanner } from "@/components/worker/ProfileCompletenessBanner"
 
 const URGENCY_LABELS: Record<SosUrgency, string> = {
   CRITICAL: "즉시",
@@ -92,6 +94,7 @@ export default async function SosPage({
 
   let company: { id: string; status: string; isActive: boolean } | null = null
   let workerProfile: { id: string } | null = null
+  let missingProfileItems: string[] = []
 
   if (session.user.role === UserRole.COMPANY_OWNER) {
     company = await prisma.company.findUnique({
@@ -103,12 +106,14 @@ export default async function SosPage({
   } else {
     const profile = await prisma.workerProfile.findUnique({
       where: { userId: session.user.id },
-      select: { id: true, address: true, city: true, district: true, workFields: true },
+      select: { id: true, workFields: true, ...WORKER_COMPLETENESS_SELECT },
     })
+    // 주소·업무 분야가 없으면 게시판을 의미 있게 보여줄 수 없으므로 리다이렉트
     if (!profile || !profile.address || !profile.city || !profile.district || profile.workFields.length === 0) {
       redirect("/profile/edit")
     }
     workerProfile = { id: profile.id }
+    missingProfileItems = getWorkerCompleteness(profile).missing
   }
 
   const where: Prisma.SosRequestWhereInput = {
@@ -193,6 +198,8 @@ export default async function SosPage({
           ) : undefined
         }
       />
+
+      {missingProfileItems.length > 0 && <ProfileCompletenessBanner missing={missingProfileItems} />}
 
       <form className="bg-white border border-gray-100 rounded-xl shadow-sm p-4 grid grid-cols-1 md:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_0.7fr_auto] gap-3">
         <label className="relative">

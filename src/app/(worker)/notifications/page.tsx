@@ -16,6 +16,8 @@ import NotificationActions from "./NotificationActions"
 import SystemNotificationCard from "./SystemNotificationCard"
 import MarkNotificationsRead from "@/components/ui/mark-notifications-read"
 import { ScheduleDayList } from "@/components/sos/ScheduleDayList"
+import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
+import { ProfileCompletenessBanner } from "@/components/worker/ProfileCompletenessBanner"
 
 // ─────────────────────────────────────────
 // 상대 시간 포맷
@@ -262,9 +264,10 @@ export default async function NotificationsPage() {
 
   const workerProfile = await prisma.workerProfile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true },
+    select: { id: true, ...WORKER_COMPLETENESS_SELECT },
   })
   if (!workerProfile) redirect("/profile/edit")
+  const { missing: missingProfileItems } = getWorkerCompleteness(workerProfile)
 
   // SOS 매치 알림
   const matches = await prisma.sosMatch.findMany({
@@ -360,6 +363,8 @@ export default async function NotificationsPage() {
             : undefined
         }
       />
+
+      {missingProfileItems.length > 0 && <ProfileCompletenessBanner missing={missingProfileItems} />}
 
       {allItems.length === 0 ? (
         <EmptyState

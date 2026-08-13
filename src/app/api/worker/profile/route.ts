@@ -2,8 +2,10 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
-import { WorkField, CredentialType, AvailabilityStatus } from "@prisma/client"
+import { WorkField, CredentialType, AvailabilityStatus, Prisma } from "@prisma/client"
 import { matchSosRequestsForWorker } from "@/lib/sos-matcher"
+
+const PHONE_REGEX = /^01[016789]-\d{3,4}-\d{4}$/
 
 // ─────────────────────────────────────────
 // 공통 헬퍼
@@ -22,6 +24,7 @@ async function requireWorkerSession() {
 
 function parseBody(body: unknown): {
   name?: string
+  phone?: string
   workFields?: WorkField[]
   declaredCredentials?: CredentialType[]
   experienceYears?: number
@@ -54,6 +57,7 @@ function parseBody(body: unknown): {
 
   return {
     name: typeof b.name === "string" ? b.name : undefined,
+    phone: typeof b.phone === "string" ? b.phone : undefined,
     workFields: b.workFields as WorkField[] | undefined,
     declaredCredentials: b.declaredCredentials as CredentialType[] | undefined,
     experienceYears: b.experienceYears !== undefined ? Number(b.experienceYears) : undefined,
@@ -127,13 +131,14 @@ export async function GET() {
     }),
     prisma.user.findUnique({
       where: { id: auth_result.userId },
-      select: { name: true },
+      select: { name: true, phone: true },
     }),
   ])
 
   return NextResponse.json({
     profile: profile ?? null,
     name: user?.name ?? null,
+    phone: user?.phone ?? null,
     nameLocked: !!profile?.rrnVerifiedAt,
   })
 }
@@ -265,6 +270,9 @@ export async function PATCH(req: NextRequest) {
   if (data.name !== undefined && !data.name.trim()) {
     return NextResponse.json({ error: "이름을 입력해 주세요." }, { status: 400 })
   }
+  if (data.phone !== undefined && data.phone.trim() && !PHONE_REGEX.test(data.phone.trim())) {
+    return NextResponse.json({ error: "올바른 휴대폰 번호를 입력해 주세요." }, { status: 400 })
+  }
 
   // 실명 인증(rrn) 완료 후에는 이름을 변경할 수 없음 — 본인 인증 페이지에서만 실명 등록 가능
   if (data.name !== undefined && !existing.rrnVerifiedAt) {
@@ -272,6 +280,21 @@ export async function PATCH(req: NextRequest) {
       where: { id: auth_result.userId },
       data: { name: data.name.trim() },
     })
+  }
+
+  // 연락처는 실명 잠금과 무관하게 언제든 수정 가능
+  if (data.phone !== undefined) {
+    try {
+      await prisma.user.update({
+        where: { id: auth_result.userId },
+        data: { phone: data.phone.trim() || null },
+      })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        return NextResponse.json({ error: "이미 사용 중인 전화번호입니다." }, { status: 409 })
+      }
+      throw e
+    }
   }
 
   // undefined 필드는 업데이트에서 제외 (Prisma는 undefined를 무시)

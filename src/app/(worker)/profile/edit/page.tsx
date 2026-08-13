@@ -19,7 +19,7 @@ import {
   SOS_CREDENTIAL_OPTIONS,
   type WorkFieldKey,
 } from "@/lib/constants"
-import { cn } from "@/lib/utils"
+import { cn, formatPhoneNumber } from "@/lib/utils"
 
 type CredentialKey = (typeof SOS_CREDENTIAL_OPTIONS)[number]
 
@@ -43,6 +43,7 @@ declare global {
 
 interface FormState {
   name: string
+  phone: string
   workFields: WorkFieldKey[]
   declaredCredentials: CredentialKey[]
   experienceYears: string
@@ -57,6 +58,7 @@ interface FormState {
 
 interface FormErrors {
   name?: string
+  phone?: string
   workFields?: string
   address?: string
   city?: string
@@ -79,6 +81,7 @@ export default function ProfileEditPage() {
 
   const [form, setForm] = useState<FormState>({
     name: "",
+    phone: "",
     workFields: [],
     declaredCredentials: [],
     experienceYears: "0",
@@ -109,6 +112,7 @@ export default function ProfileEditPage() {
             setProfileImageUrl(p.profileImageUrl ?? null)
             setForm({
               name: data.name ?? "",
+              phone: data.phone ?? "",
               workFields: (p.workFields ?? []) as WorkFieldKey[],
               declaredCredentials: (p.declaredCredentials ?? []) as CredentialKey[],
               experienceYears: String(p.experienceYears ?? 0),
@@ -121,7 +125,7 @@ export default function ProfileEditPage() {
               bio: p.bio ?? "",
             })
           } else {
-            setForm((prev) => ({ ...prev, name: data.name ?? "" }))
+            setForm((prev) => ({ ...prev, name: data.name ?? "", phone: data.phone ?? "" }))
           }
         }
       } catch {
@@ -206,6 +210,9 @@ export default function ProfileEditPage() {
   function validate(): FormErrors {
     const errs: FormErrors = {}
     if (!form.name.trim()) errs.name = "이름을 입력해 주세요."
+    if (form.phone.trim() && !/^01[016789]-\d{3,4}-\d{4}$/.test(form.phone.trim())) {
+      errs.phone = "올바른 휴대폰 번호를 입력해 주세요."
+    }
     if (form.workFields.length === 0) errs.workFields = WORKER_PROFILE.ERROR.WORK_FIELDS_REQUIRED
     if (!form.address.trim()) errs.address = WORKER_PROFILE.ERROR.ADDRESS_REQUIRED
     if (!form.city.trim()) errs.city = WORKER_PROFILE.ERROR.CITY_REQUIRED
@@ -237,6 +244,7 @@ export default function ProfileEditPage() {
 
       const body: Record<string, unknown> = {
         name: form.name.trim(),
+        phone: form.phone.trim() || null,
         workFields: form.workFields,
         declaredCredentials: form.declaredCredentials,
         experienceYears: Number(form.experienceYears),
@@ -380,6 +388,20 @@ export default function ProfileEditPage() {
               </p>
             )}
             {errors.name && <p className="text-xs text-sos">{errors.name}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="phone">연락처</Label>
+            <Input
+              id="phone"
+              type="text"
+              inputMode="numeric"
+              value={form.phone}
+              onChange={(e) => setForm((p) => ({ ...p, phone: formatPhoneNumber(e.target.value) }))}
+              placeholder="010-0000-0000"
+              maxLength={13}
+            />
+            <p className="text-xs text-gray-400">SOS 신청·수락을 위해 연락처가 필요합니다.</p>
+            {errors.phone && <p className="text-xs text-sos">{errors.phone}</p>}
           </div>
         </div>
 

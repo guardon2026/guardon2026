@@ -4,6 +4,7 @@ import { Prisma, SosApplicationStatus, UserRole } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { createNotifications } from "@/lib/notify"
+import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
 
 const TERMINAL_SOS_STATUSES = ["CANCELLED", "COMPLETED", "UNRESOLVED"] as const
 
@@ -24,15 +25,6 @@ function readDate(value: unknown): Date | null {
   if (typeof value !== "string" || !value) return null
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
-}
-
-function isWorkerProfileComplete(profile: {
-  address: string | null
-  city: string | null
-  district: string | null
-  workFields: string[]
-}) {
-  return Boolean(profile.address?.trim() && profile.city?.trim() && profile.district?.trim() && profile.workFields.length > 0)
 }
 
 export async function GET(
@@ -212,15 +204,20 @@ export async function POST(
       where: { userId: session.user.id },
       select: {
         id: true,
-        address: true,
-        city: true,
-        district: true,
         workFields: true,
         desiredHourlyRate: true,
+        ...WORKER_COMPLETENESS_SELECT,
       },
     })
-    if (!workerProfile || !isWorkerProfileComplete(workerProfile)) {
+    if (!workerProfile) {
       return NextResponse.json({ error: "프로필을 먼저 완성해야 SOS에 신청할 수 있습니다." }, { status: 403 })
+    }
+    const { complete, missing } = getWorkerCompleteness(workerProfile)
+    if (!complete || workerProfile.workFields.length === 0) {
+      return NextResponse.json(
+        { error: "프로필을 먼저 완성해야 SOS에 신청할 수 있습니다.", missing },
+        { status: 403 },
+      )
     }
 
     try {

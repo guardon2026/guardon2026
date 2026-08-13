@@ -5,6 +5,7 @@ import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus, SosMatchInsuranceStatus } from "@prisma/client"
 import { createNotifications } from "@/lib/notify"
 import { getMonthlyWorkStats, calcDayHours, extractDays } from "@/lib/sos-matcher"
+import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
 
 // ─────────────────────────────────────────
 // POST /api/sos/matches/[matchId]/accept
@@ -30,7 +31,7 @@ export async function POST(
   const match = await prisma.sosMatch.findUnique({
     where: { id: matchId },
     include: {
-      workerProfile: { select: { userId: true } },
+      workerProfile: { select: { userId: true, ...WORKER_COMPLETENESS_SELECT } },
       sosRequest: {
         include: {
           company: { select: { ownerId: true } },
@@ -53,6 +54,15 @@ export async function POST(
     return NextResponse.json(
       { error: "이미 처리된 요청입니다. 수락 또는 거절이 완료된 매치는 변경할 수 없습니다." },
       { status: 409 }
+    )
+  }
+
+  // 4-0. 프로필 완성도 확인 — 미완성 프로필로는 SOS 수락 불가 (세금 신고 공백 방지)
+  const { complete, missing } = getWorkerCompleteness(match.workerProfile)
+  if (!complete) {
+    return NextResponse.json(
+      { error: "프로필을 먼저 완성해야 SOS를 수락할 수 있습니다.", missing },
+      { status: 403 }
     )
   }
 

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
 import { AvailabilityStatus, CredentialStatus, SosMatchStatus, SosStatus } from "@prisma/client"
+import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
 
 export interface ScheduleDay {
   date: string      // "YYYY-MM-DD"
@@ -232,17 +233,23 @@ export async function matchWorkers(
         where: { status: CredentialStatus.APPROVED },
         select: { type: true },
       },
+      ...WORKER_COMPLETENESS_SELECT,
     },
   })
 
   if (candidateProfiles.length === 0) return []
 
+  // 프로필 미완성 인력 제외 — 신청·수락이 어차피 막히므로 매칭 후보에서도 제외
+  const completeProfiles = candidateProfiles.filter((p) => getWorkerCompleteness(p).complete)
+
+  if (completeProfiles.length === 0) return []
+
   // 자격증 필터
   const requiredCreds = sosRequest.requiredCredentials
   let credFiltered =
     requiredCreds.length === 0
-      ? candidateProfiles
-      : candidateProfiles.filter((p) => {
+      ? completeProfiles
+      : completeProfiles.filter((p) => {
           const approvedTypes = new Set(p.credentials.map((c) => c.type))
           return requiredCreds.every((rc) => approvedTypes.has(rc))
         })
@@ -376,6 +383,7 @@ export async function matchSosRequestsForWorker(
         where: { status: CredentialStatus.APPROVED },
         select: { type: true },
       },
+      ...WORKER_COMPLETENESS_SELECT,
     },
   })
 
@@ -383,7 +391,8 @@ export async function matchSosRequestsForWorker(
     !worker ||
     worker.availability === AvailabilityStatus.UNAVAILABLE ||
     !worker.isProfilePublic ||
-    worker.workFields.length === 0
+    worker.workFields.length === 0 ||
+    !getWorkerCompleteness(worker).complete
   ) {
     return 0
   }

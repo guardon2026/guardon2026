@@ -16,6 +16,8 @@ import {
   type CredentialTypeKey,
   type AvailabilityStatusKey,
 } from "@/lib/constants"
+import { getWorkerCompleteness } from "@/lib/worker-completeness"
+import { ProfileCompletenessBanner } from "@/components/worker/ProfileCompletenessBanner"
 
 export default async function ProfilePage() {
   const session = await getServerSession()
@@ -35,7 +37,7 @@ export default async function ProfilePage() {
     prisma.workerProfile.findUnique({
       where: { userId: session.user.id },
       include: {
-        user: { select: { name: true, deletedAt: true } },
+        user: { select: { name: true, phone: true, deletedAt: true } },
         credentials: {
           select: { id: true, type: true, status: true, approvedAt: true, rejectionReason: true },
           orderBy: { createdAt: "asc" },
@@ -95,6 +97,7 @@ export default async function ProfilePage() {
     )
   }
 
+  const { missing: missingProfileItems } = getWorkerCompleteness(profile)
   const availabilityStatus = profile.availability as AvailabilityStatusKey
   const initials = (profile.user.name ?? "?").charAt(0).toUpperCase()
 
@@ -123,6 +126,8 @@ export default async function ProfilePage() {
           </Link>
         }
       />
+
+      {missingProfileItems.length > 0 && <ProfileCompletenessBanner missing={missingProfileItems} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ── 좌측: 프로필 카드 ── */}
