@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole } from "@prisma/client"
 import { calcDailyTax, calcInsuredDailyTax } from "@/lib/tax"
-import { extractDays, calcDayHours } from "@/lib/sos-matcher"
+import { extractDays, calcDayHours, getMonthlyWorkStats } from "@/lib/sos-matcher"
 import TaxReportExport from "./TaxReportExport"
 
 interface Props {
@@ -77,7 +77,7 @@ export default async function TaxReportPage({ params }: Props) {
   // 근로자별로 그룹핑 — 매치가 날짜당 1행이므로 한 근로자가 여러 날짜를 확정했으면
   // confirmedMatches에 여러 행으로 들어온다. 날짜별로 일용직/4대보험 대상이 다를 수 있으므로
   // 날짜(매치)별로 세금·보험료를 각각 계산한 뒤 근로자 단위로 합산한다.
-  const workerGroups = Array.from(
+  const workerGroups = await Promise.all(Array.from(
     confirmedMatches
       .reduce((map, m) => {
         const key = m.workerProfileId
@@ -94,9 +94,24 @@ export default async function TaxReportPage({ params }: Props) {
         return map
       }, new Map<string, { workerProfileId: string; workerName: string; matches: typeof confirmedMatches }>())
       .values()
-  ).map((g) => {
+  ).map(async (g) => {
     const sortedMatches = [...g.matches].sort((a, b) => a.scheduleDate.localeCompare(b.scheduleDate))
     const workDates = sortedMatches.map((m) => m.scheduleDate)
+
+    // 이 근로자가 이번 SOS 근무일이 속한 달(들)에 이 업체와 실제로 얼마나 누적 근무했는지
+    // (4대보험 가입 대상 판정 기준 = 월 8일 또는 60시간) — 분류가 맞는지 회사가 직접 확인할 수 있도록 표시
+    const monthsInvolved = Array.from(new Set(workDates.map((d) => d.slice(0, 7))))
+    const monthlyStats = await Promise.all(
+      monthsInvolved.map(async (ym) => {
+        const [y, mo] = ym.split("-").map(Number)
+        const monthStartStr = `${ym}-01`
+        const monthEndDate = new Date(y, mo, 0)
+        const monthEndStr = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, "0")}-${String(monthEndDate.getDate()).padStart(2, "0")}`
+        const stats = await getMonthlyWorkStats(g.workerProfileId, sos.companyId, monthStartStr, monthEndStr)
+        return { month: ym, ...stats, meetsThreshold: stats.days >= 8 || stats.hours >= 60 }
+      })
+    )
+
     const matchBreakdown = sortedMatches.map((m) => {
       const insured = m.insuranceStatus === "INSURED"
       const t = insured ? calcInsuredDailyTax(effectiveDailyRate) : calcDailyTax(effectiveDailyRate)
@@ -121,6 +136,7 @@ export default async function TaxReportPage({ params }: Props) {
       contract,
       matchBreakdown,
       insuredDates,
+      monthlyStats,
       allSigned: g.matches.every((m) => m.workContract?.employerSignedAt && m.workContract?.workerSignedAt),
       totalGross: effectiveDailyRate * workDates.length,
       totalIncomeTax: matchBreakdown.reduce((s, d) => s + d.incomeTax, 0),
@@ -130,7 +146,7 @@ export default async function TaxReportPage({ params }: Props) {
       totalEmploymentInsurance: matchBreakdown.reduce((s, d) => s + d.employmentInsurance, 0),
       totalNet: matchBreakdown.reduce((s, d) => s + d.netPay, 0),
     }
-  })
+  }))
 
   // CSV export용 근로자 데이터
   const exportWorkers = workerGroups.map((g) => ({
@@ -301,6 +317,18 @@ export default async function TaxReportPage({ params }: Props) {
                     {/* 날짜별 소계 — 어느 날짜가 일용직/4대보험 대상인지 */}
                     <div className="sm:col-span-2 mt-2 pt-3 border-t border-gray-100 space-y-2">
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">날짜별 구분</p>
+                      <div className="space-y-1">
+                        {g.monthlyStats.map((s) => (
+                          <p key={s.month} className="text-xs text-gray-500">
+                            {s.month} 이 업체 누적 근무: <span className="font-medium text-gray-700">{s.days}일 · {s.hours.toFixed(1)}시간</span>
+                            {" "}(4대보험 가입 기준: 8일 또는 60시간 이상 — {" "}
+                            {s.meetsThreshold
+                              ? <span className="text-amber-700 font-medium">기준 충족</span>
+                              : <span className="text-gray-500">미달</span>}
+                            )
+                          </p>
+                        ))}
+                      </div>
                       <div className="overflow-x-auto">
                         <table className="w-full text-xs text-left">
                           <thead>
