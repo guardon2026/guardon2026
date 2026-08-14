@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/ui/page-header"
 import { DataTable } from "@/components/ui/data-table"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ADMIN_LABELS } from "@/lib/constants"
+import { UserRole } from "@prisma/client"
+import DangerZone from "./DangerZone"
 
 export default async function AdminMembersPage() {
   const session = await getServerSession()
@@ -21,6 +23,8 @@ export default async function AdminMembersPage() {
 
   // soft-delete된 owner의 업체 제외
   const filtered = companies.filter((c) => c.owner.deletedAt === null)
+
+  const memberCount = await prisma.user.count({ where: { role: { not: UserRole.ADMIN } } })
 
   type CompanyRow = {
     id: string
@@ -80,6 +84,8 @@ export default async function AdminMembersPage() {
           />
         )}
       </div>
+
+      <DangerZone memberCount={memberCount} />
     </div>
   )
 }
