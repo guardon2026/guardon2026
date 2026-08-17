@@ -564,7 +564,7 @@ export default function SosNewPage() {
   const pensionHealthByDays = maxMonthlyWorkDays >= 8
   const pensionHealthByHours = maxMonthlyWorkHours >= 60
   const pensionHealthApplies = pensionHealthByDays || pensionHealthByHours
-  const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.05) : 0
+  const serviceFee = rateNum > 0 ? Math.ceil(laborCost * 0.03) : 0
   const vat = rateNum > 0 ? Math.ceil(serviceFee * 0.1) : 0
   const totalCharge = serviceFee + vat
 
@@ -1215,7 +1215,7 @@ export default function SosNewPage() {
                     ※ 인건비는 임무 완료 후 경비 인력에게 직접 지급해 주세요.
                   </p>
                   <div className="flex justify-between text-gray-600">
-                    <span>가드온 매칭 수수료 (인건비의 5%)</span>
+                    <span>가드온 매칭 수수료 (인건비의 3%)</span>
                     <span>{serviceFee.toLocaleString()}P</span>
                   </div>
                   <div className="flex justify-between text-gray-600">
