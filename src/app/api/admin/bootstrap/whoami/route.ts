@@ -21,7 +21,15 @@ export async function POST(req: Request) {
 
   const admins = await prisma.user.findMany({
     where: { role: UserRole.ADMIN },
-    select: { email: true, name: true, createdAt: true, phone: true, kakaoId: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      createdAt: true,
+      phone: true,
+      kakaoId: true,
+      accounts: { select: { provider: true, providerAccountId: true } },
+    },
     orderBy: { createdAt: "asc" },
   })
 
