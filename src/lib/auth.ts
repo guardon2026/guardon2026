@@ -14,6 +14,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     Kakao({
       clientId: process.env.KAKAO_CLIENT_ID!,
       clientSecret: process.env.KAKAO_CLIENT_SECRET ?? "",
+      // 카카오 계정 이메일이 기존 계정(관리자 포함)과 같다는 이유만으로 자동 연동되는 것을 방지.
+      // 기본값(true)일 경우 이메일이 일치하는 기존 계정에 임의로 로그인이 연동될 수 있어 계정 탈취 위험이 있음.
+      allowDangerousEmailAccountLinking: false,
     }),
     // 관리자 전용 이메일+비밀번호 로그인 — 카카오 계정과 무관하게 role=ADMIN 계정만 허용
     Credentials({
