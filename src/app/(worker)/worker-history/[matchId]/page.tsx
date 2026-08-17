@@ -88,21 +88,6 @@ export default async function WorkerSosDetailPage({
 
   const req = match.sosRequest
 
-  // 선결제(WORKER_DEDUCT 거래) 조회
-  const workerProfile2 = await prisma.workerProfile.findUnique({
-    where: { id: workerProfile.id },
-    select: { userId: true },
-  })
-  const workerAccount = workerProfile2
-    ? await prisma.pointAccount.findUnique({ where: { userId: workerProfile2.userId } })
-    : null
-  const workerDeductTx = workerAccount
-    ? await prisma.pointTransaction.findFirst({
-        where: { sosRequestId: req.id, type: "WORKER_DEDUCT", accountId: workerAccount.id },
-      })
-    : null
-  const workerFee = workerDeductTx ? Math.abs(workerDeductTx.amount) : 0
-
   return (
     <div className="space-y-5 pb-10">
       {/* 뒤로 가기 */}
@@ -235,10 +220,7 @@ export default async function WorkerSosDetailPage({
 
       {/* 수락 취소 버튼 — ACCEPTED 상태일 때만 표시 */}
       {match.status === SosMatchStatus.ACCEPTED && (
-        <WorkerCancelButton
-          matchId={match.id}
-          workerFee={workerFee}
-        />
+        <WorkerCancelButton matchId={match.id} />
       )}
 
       {/* 임무 완료 보고 버튼 — CONFIRMED 매치이고 SOS가 진행 중일 때만 표시 */}

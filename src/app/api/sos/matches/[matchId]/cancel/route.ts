@@ -6,9 +6,7 @@ import { UserRole, SosMatchStatus } from "@prisma/client"
 import { createNotifications } from "@/lib/notify"
 
 // POST /api/sos/matches/[matchId]/cancel
-// 경비 인력이 수락한 SOS 매치를 취소합니다.
-// - 수락 시 낸 선결제(1,000원/일)는 취소 시점과 무관하게 전액 환불됩니다.
-//   (임무가 정상 완료되는 경우에만 플랫폼 수수료로 전환 — 취소 시에는 항상 전액 환불)
+// 경비 인력이 수락한 SOS 매치를 취소합니다. 수락에 별도 비용이 없으므로 포인트 처리는 없다.
 
 export async function POST(
   _req: NextRequest,
@@ -54,15 +52,6 @@ export async function POST(
   const sosTitle = match.sosRequest.title
   const companyOwnerId = match.sosRequest.company.ownerId
 
-  // 경비 인력이 낸 선결제 거래 조회
-  const workerAccount = await prisma.pointAccount.findUnique({
-    where: { userId: session.user.id },
-  })
-  const workerDeductTx = await prisma.pointTransaction.findFirst({
-    where: { sosRequestId, type: "WORKER_DEDUCT", accountId: workerAccount?.id },
-  })
-  const workerFee = workerDeductTx ? Math.abs(workerDeductTx.amount) : 0
-
   await prisma.$transaction(async (tx) => {
     // 매치 상태 → REJECTED (취소)
     await tx.sosMatch.update({
@@ -84,23 +73,6 @@ export async function POST(
         data: { availability: "AVAILABLE" },
       })
     }
-
-    // 선결제 전액 환불 (취소 시점과 무관)
-    if (workerFee > 0 && workerAccount) {
-      await tx.pointAccount.update({
-        where: { id: workerAccount.id },
-        data: { balance: { increment: workerFee } },
-      })
-      await tx.pointTransaction.create({
-        data: {
-          accountId: workerAccount.id,
-          amount: workerFee,
-          type: "REFUND",
-          description: `SOS 수락 취소 선결제 환불: ${sosTitle}`,
-          sosRequestId,
-        },
-      })
-    }
   })
 
   // 알림 발송
@@ -110,9 +82,7 @@ export async function POST(
       sosRequestId,
       type: "SYSTEM_NOTICE",
       title: "SOS 수락 취소 완료",
-      body: workerFee > 0
-        ? `'${sosTitle}' 수락을 취소했습니다. 선결제 ${workerFee.toLocaleString()}P가 전액 환불되었습니다.`
-        : `'${sosTitle}' 수락을 취소했습니다.`,
+      body: `'${sosTitle}' 수락을 취소했습니다.`,
     },
     {
       userId: companyOwnerId,
@@ -123,5 +93,5 @@ export async function POST(
     },
   ])
 
-  return NextResponse.json({ cancelled: true, refunded: workerFee })
+  return NextResponse.json({ cancelled: true })
 }

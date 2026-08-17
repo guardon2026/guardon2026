@@ -4,23 +4,13 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { XCircle } from "lucide-react"
 
-export default function WorkerCancelButton({
-  matchId,
-  workerFee,
-}: {
-  matchId: string
-  workerFee: number
-}) {
+export default function WorkerCancelButton({ matchId }: { matchId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
   async function handleCancel() {
-    const feeMsg = workerFee > 0
-      ? `선결제 ${workerFee.toLocaleString()}P가 전액 환불됩니다.`
-      : ""
-    const confirmMsg = `SOS 수락을 취소하시겠습니까?\n\n${feeMsg}\n\n취소 후에는 되돌릴 수 없습니다.`
-    if (!confirm(confirmMsg)) return
+    if (!confirm("SOS 수락을 취소하시겠습니까?\n\n취소 후에는 되돌릴 수 없습니다.")) return
 
     setLoading(true)
     setError("")

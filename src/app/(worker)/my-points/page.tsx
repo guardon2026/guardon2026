@@ -65,9 +65,6 @@ export default async function WorkerPointsPage() {
         <p className="text-4xl font-extrabold tracking-tight">
           {balance.toLocaleString()}<span className="text-2xl ml-1 font-semibold opacity-80">P</span>
         </p>
-        <p className="mt-3 text-xs opacity-70">
-          SOS 수락 시 내 전체 인건비의 10%가 보증금으로 필요합니다.
-        </p>
       </div>
 
       {/* 통계 */}

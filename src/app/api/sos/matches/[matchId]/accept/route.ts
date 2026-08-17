@@ -87,43 +87,11 @@ export async function POST(
   const crosses = existingDays + 1 >= 8 || existingHours + thisHours >= 60
   const insuranceStatus = crosses ? SosMatchInsuranceStatus.INSURED : SosMatchInsuranceStatus.DAILY_WORKER
 
-  // 4-2. 포인트 잔액 확인 (SOS 수락 선결제 — 매치 1건(=1일)당 1,000원 고정.
-  //      취소 시 전액 환불되며, 임무가 정상 완료되면 플랫폼 수수료로 전환된다.)
-  const workerFee = 1000
-  const workerAccount = await prisma.pointAccount.findUnique({
-    where: { userId: session.user.id },
+  // 5. 상태 업데이트: ACCEPTED (경비 인력에게 수락 시 별도 비용 없음)
+  const updated = await prisma.sosMatch.update({
+    where: { id: matchId },
+    data: { status: SosMatchStatus.ACCEPTED, respondedAt: new Date(), insuranceStatus },
   })
-  if (!workerAccount || workerAccount.balance < workerFee) {
-    return NextResponse.json(
-      {
-        error: `포인트가 부족합니다. 수락 선결제: ${workerFee.toLocaleString()}P, 보유: ${(workerAccount?.balance ?? 0).toLocaleString()}P`,
-        requiredPoints: workerFee,
-        currentBalance: workerAccount?.balance ?? 0,
-      },
-      { status: 402 }
-    )
-  }
-
-  // 5. 상태 업데이트: ACCEPTED + 포인트 차감
-  const [updated] = await prisma.$transaction([
-    prisma.sosMatch.update({
-      where: { id: matchId },
-      data: { status: SosMatchStatus.ACCEPTED, respondedAt: new Date(), insuranceStatus },
-    }),
-    prisma.pointAccount.update({
-      where: { id: workerAccount.id },
-      data: { balance: { decrement: workerFee } },
-    }),
-    prisma.pointTransaction.create({
-      data: {
-        accountId: workerAccount.id,
-        amount: -workerFee,
-        type: "WORKER_DEDUCT",
-        description: `SOS 수락 선결제: ${match.sosRequest.title}`,
-        sosRequestId: match.sosRequest.id,
-      },
-    }),
-  ])
 
   // 6. 경비 업체에게 수락 알림 + 경비 인력에게 안내 알림 발송
   const workerName = session.user.name ?? "경비 인력"
