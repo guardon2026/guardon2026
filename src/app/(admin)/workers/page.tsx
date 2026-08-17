@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { EmptyState } from "@/components/ui/empty-state"
 import { WORK_FIELD_LABELS, AVAILABILITY_LABELS, type WorkFieldKey, type AvailabilityStatusKey } from "@/lib/constants"
 import type { StatusVariant } from "@/components/ui/status-badge"
+import UnsuspendButton from "./UnsuspendButton"
 
 const AVAILABILITY_VARIANT: Record<string, StatusVariant> = {
   AVAILABLE: "approved",
@@ -26,6 +27,7 @@ export default async function AdminWorkersPage() {
     },
     orderBy: { createdAt: "desc" },
   })
+  // noShowCount/suspendedAt은 위 include로 이미 전체 스칼라 필드가 포함되어 별도 select 불필요
 
   const filtered = workers.filter((w) => w.user.deletedAt === null)
 
@@ -38,6 +40,8 @@ export default async function AdminWorkersPage() {
     experienceYears: string
     credentialCount: number
     availability: React.ReactNode
+    noShowCount: React.ReactNode
+    status: React.ReactNode
     createdAt: string
   }
 
@@ -54,6 +58,19 @@ export default async function AdminWorkersPage() {
         variant={AVAILABILITY_VARIANT[w.availability] ?? "inactive"}
         label={AVAILABILITY_LABELS[w.availability as AvailabilityStatusKey] ?? w.availability}
       />
+    ),
+    noShowCount: (
+      <span className={w.noShowCount >= 3 ? "text-red-600 font-semibold" : "text-gray-600"}>
+        {w.noShowCount}회
+      </span>
+    ),
+    status: w.suspendedAt ? (
+      <div className="flex items-center gap-2">
+        <StatusBadge variant="rejected" label="이용 정지" />
+        <UnsuspendButton workerId={w.id} />
+      </div>
+    ) : (
+      <StatusBadge variant="approved" label="정상" />
     ),
     createdAt: w.createdAt.toLocaleDateString("ko-KR"),
   }))
@@ -79,6 +96,8 @@ export default async function AdminWorkersPage() {
               { key: "experienceYears", label: "경력" },
               { key: "credentialCount", label: "인증 자격증" },
               { key: "availability", label: "가용 상태", render: (row) => row.availability },
+              { key: "noShowCount", label: "노쇼", render: (row) => row.noShowCount },
+              { key: "status", label: "상태", render: (row) => row.status },
               { key: "createdAt", label: "가입일" },
             ]}
             data={rows}

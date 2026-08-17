@@ -64,7 +64,10 @@ export async function POST(
       where: {
         workerProfileId: match.workerProfile.id,
         id: { not: matchId },
-        status: { in: [SosMatchStatus.ACCEPTED, SosMatchStatus.CONFIRMED] },
+        OR: [
+          { status: SosMatchStatus.ACCEPTED },
+          { status: SosMatchStatus.CONFIRMED, noShowAt: null },
+        ],
       },
     })
     if (otherActiveMatches === 0) {

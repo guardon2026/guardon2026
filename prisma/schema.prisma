@@ -272,6 +272,8 @@ model WorkerProfile {
   availability     AvailabilityStatus @default(UNAVAILABLE)  // FR6
   averageRating    Float              @default(0)
   totalMatches     Int                @default(0)
+  noShowCount      Int                @default(0)   // 노쇼(무단 불참) 누적 횟수 — 3회 시 자동 정지
+  suspendedAt      DateTime?                         // 서비스 이용 정지 시각 (null = 정상)
   isProfilePublic  Boolean            @default(true)
   // 본인 인증
   rrn              String?            // 주민등록번호 (마스킹 저장: 900101-*******)
@@ -409,6 +411,7 @@ model SosMatch {
   missionReportedAt  DateTime?                       // 경비 인력 임무 완료 보고 시각
   missionConfirmedAt DateTime?                       // 업체 임무 완료 확인 시각 (요청 전체 COMPLETED 판정용)
   paidAt             DateTime?                       // 업체가 실지급 완료로 표시한 시각 (오프라인 계좌이체, null = 미지급)
+  noShowAt           DateTime?                       // 업체가 노쇼(무단 불참)로 처리한 시각
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 

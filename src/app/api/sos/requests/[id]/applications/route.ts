@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { createNotifications } from "@/lib/notify"
 import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
+import { WorkerSuspendedError } from "@/lib/worker-gate"
 
 const TERMINAL_SOS_STATUSES = ["CANCELLED", "COMPLETED", "UNRESOLVED"] as const
 
@@ -206,11 +207,17 @@ export async function POST(
         id: true,
         workFields: true,
         desiredHourlyRate: true,
+        suspendedAt: true,
+        noShowCount: true,
         ...WORKER_COMPLETENESS_SELECT,
       },
     })
     if (!workerProfile) {
       return NextResponse.json({ error: "프로필을 먼저 완성해야 SOS에 신청할 수 있습니다." }, { status: 403 })
+    }
+    if (workerProfile.suspendedAt) {
+      const err = new WorkerSuspendedError(workerProfile.noShowCount)
+      return NextResponse.json({ error: err.message }, { status: 403 })
     }
     const { complete, missing } = getWorkerCompleteness(workerProfile)
     if (!complete || workerProfile.workFields.length === 0) {

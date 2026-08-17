@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
       experienceYears: number
       desiredHourlyRate: number | null
       averageRating: number
+      noShowCount: number
       availability: string
       city: string
       district: string
@@ -93,6 +94,7 @@ export async function GET(req: NextRequest) {
         wp."experienceYears",
         wp."desiredHourlyRate",
         wp."averageRating",
+        wp."noShowCount",
         wp.availability,
         wp.city,
         wp.district,
@@ -121,6 +123,7 @@ export async function GET(req: NextRequest) {
         AND wp.availability = ${availability}::text::"AvailabilityStatus"
         AND wp."isProfilePublic" = true
         AND wp."experienceYears" >= ${minExperience}
+        AND wp."suspendedAt" IS NULL
       ORDER BY distance_m ASC
       LIMIT 50
     `
@@ -184,6 +187,7 @@ export async function GET(req: NextRequest) {
       experienceYears: w.experienceYears,
       desiredHourlyRate: w.desiredHourlyRate,
       averageRating: w.averageRating,
+      noShowCount: w.noShowCount,
       availability: w.availability,
       city: w.city,
       district: w.district,

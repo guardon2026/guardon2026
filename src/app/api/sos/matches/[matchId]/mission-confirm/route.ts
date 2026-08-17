@@ -69,7 +69,7 @@ export async function POST(
 
   // 이 요청의 CONFIRMED 매치가 전부 임무완료 확인됐을 때만 요청 전체 COMPLETED로 전환
   const remaining = await prisma.sosMatch.count({
-    where: { sosRequestId, status: SosMatchStatus.CONFIRMED, missionConfirmedAt: null },
+    where: { sosRequestId, status: SosMatchStatus.CONFIRMED, missionConfirmedAt: null, noShowAt: null },
   })
   if (remaining === 0) {
     await prisma.sosRequest.update({
@@ -85,7 +85,7 @@ export async function POST(
       id: { not: matchId },
       OR: [
         { status: SosMatchStatus.ACCEPTED },
-        { status: SosMatchStatus.CONFIRMED, missionConfirmedAt: null },
+        { status: SosMatchStatus.CONFIRMED, missionConfirmedAt: null, noShowAt: null },
       ],
     },
   })

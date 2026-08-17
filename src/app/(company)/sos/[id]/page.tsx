@@ -13,6 +13,8 @@ import ApplicationStatusButton from "./ApplicationStatusButton"
 import CancelButton from "./CancelButton"
 import ConfirmButton from "./ConfirmButton"
 import MissionConfirmButton from "./MissionConfirmButton"
+import NoShowButton from "./NoShowButton"
+import RateMatchButton from "./RateMatchButton"
 import { extractDays, toISODate } from "@/lib/sos-matcher"
 
 interface SosDetailPageProps {
@@ -212,6 +214,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
               },
             },
             workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
+            rating: { select: { id: true, score: true } },
           },
         })
       : Promise.resolve([]),
@@ -252,6 +255,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
   }
   const acceptedByDate = groupByDate(acceptedMatches)
   const confirmedByDate = groupByDate(confirmedMatches)
+  const todayStr = toISODate(new Date())
   function formatDayLabel(dateStr: string) {
     return new Date(dateStr).toLocaleDateString("ko-KR", {
       month: "long", day: "numeric", weekday: "short",
@@ -464,9 +468,17 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                             const approvedCreds = m.workerProfile.credentials.filter(c => c.status === "APPROVED")
                             const hasMissionReport = !!m.missionReportedAt
                             const alreadySettled = !!m.missionConfirmedAt
+                            const hasNoShow = !!m.noShowAt
+                            const canMarkNoShow = !hasNoShow && !hasMissionReport && todayStr >= day.date
                             return (
-                              <div key={m.id} className={`rounded-xl border p-4 space-y-3 ${hasMissionReport && !alreadySettled ? "border-emerald-300 bg-emerald-50/30" : "border-gray-100"}`}>
-                                {hasMissionReport && !alreadySettled && (
+                              <div key={m.id} className={`rounded-xl border p-4 space-y-3 ${hasNoShow ? "border-red-300 bg-red-50/30" : hasMissionReport && !alreadySettled ? "border-emerald-300 bg-emerald-50/30" : "border-gray-100"}`}>
+                                {hasNoShow && (
+                                  <div className="flex items-center gap-2 text-xs font-semibold text-red-700 bg-red-100 px-3 py-1.5 rounded-lg">
+                                    <ShieldCheck className="w-3.5 h-3.5" />
+                                    ⚠️ 노쇼(무단 불참)로 처리된 매칭입니다.
+                                  </div>
+                                )}
+                                {!hasNoShow && hasMissionReport && !alreadySettled && (
                                   <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg">
                                     <ShieldCheck className="w-3.5 h-3.5" />
                                     경비 인력이 임무 완료를 보고했습니다. 확인 후 일급을 지급해 주세요.
@@ -512,8 +524,14 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                                       <FileText className="w-3.5 h-3.5" />
                                       {empSigned ? "계약서 보기" : "계약서 작성"}
                                     </Link>
-                                    {hasMissionReport && (
+                                    {hasMissionReport && !hasNoShow && (
                                       <MissionConfirmButton matchId={m.id} alreadySettled={alreadySettled} />
+                                    )}
+                                    {canMarkNoShow && (
+                                      <NoShowButton matchId={m.id} />
+                                    )}
+                                    {alreadySettled && !hasNoShow && (
+                                      <RateMatchButton matchId={m.id} existingScore={m.rating?.score ?? null} />
                                     )}
                                   </div>
                                 </div>

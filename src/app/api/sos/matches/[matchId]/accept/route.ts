@@ -6,6 +6,7 @@ import { UserRole, SosMatchStatus, SosMatchInsuranceStatus } from "@prisma/clien
 import { createNotifications } from "@/lib/notify"
 import { getMonthlyWorkStats, calcDayHours, extractDays } from "@/lib/sos-matcher"
 import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
+import { requireActiveWorker, WorkerSuspendedError } from "@/lib/worker-gate"
 
 // ─────────────────────────────────────────
 // POST /api/sos/matches/[matchId]/accept
@@ -25,6 +26,14 @@ export async function POST(
   }
   if (session.user.role !== UserRole.WORKER) {
     return NextResponse.json({ error: "경비 인력 계정만 수락할 수 있습니다." }, { status: 403 })
+  }
+  try {
+    await requireActiveWorker(session.user.id)
+  } catch (e) {
+    if (e instanceof WorkerSuspendedError) {
+      return NextResponse.json({ error: e.message }, { status: 403 })
+    }
+    throw e
   }
 
   // 2. 매치 조회

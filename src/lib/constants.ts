@@ -266,6 +266,11 @@ export const COMPANY_STATUS_LABELS: Record<string, string> = {
   REJECTED: "반려",
 }
 
+export const WORKER_SUSPENDED = {
+  HEADING: "서비스 이용이 정지되었습니다",
+  BODY: "노쇼(무단 불참) 누적으로 서비스 이용이 정지되었습니다. 문의사항은 관리자에게 연락해 주세요.",
+} as const
+
 // ─────────────────────────────────────────
 // 자격증 관리 페이지 상수
 // ─────────────────────────────────────────

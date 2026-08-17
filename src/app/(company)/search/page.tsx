@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { Search, MapPin, Star, Briefcase, SlidersHorizontal, Users, X } from "lucide-react"
+import { Search, MapPin, Star, Briefcase, SlidersHorizontal, Users, X, AlertTriangle } from "lucide-react"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PageHeader } from "@/components/ui/page-header"
 import {
@@ -35,6 +35,7 @@ type WorkerResult = {
   experienceYears: number
   desiredHourlyRate: number | null
   averageRating: number
+  noShowCount: number
   availability: string
   city: string
   district: string
@@ -105,6 +106,13 @@ function WorkerCard({ worker }: { worker: WorkerResult }) {
         <span className="text-gray-200">|</span>
         <span>{worker.city} {worker.district}</span>
       </div>
+
+      {worker.noShowCount > 0 && (
+        <div className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 w-fit">
+          <AlertTriangle className="w-3 h-3" />
+          노쇼 {worker.noShowCount}회
+        </div>
+      )}
 
       {worker.credentials.length > 0 && (
         <div className="flex flex-wrap gap-1.5">

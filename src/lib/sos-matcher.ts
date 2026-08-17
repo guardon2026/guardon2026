@@ -213,6 +213,7 @@ export async function matchWorkers(
     where: {
       availability: { in: [AvailabilityStatus.AVAILABLE, AvailabilityStatus.BUSY] },
       isProfilePublic: true,
+      suspendedAt: null,
       workFields: {
         hasSome: sosRequest.requiredFields,
       },
@@ -376,6 +377,7 @@ export async function matchSosRequestsForWorker(
       id: true,
       availability: true,
       isProfilePublic: true,
+      suspendedAt: true,
       workFields: true,
       latitude: true,
       longitude: true,
@@ -391,6 +393,7 @@ export async function matchSosRequestsForWorker(
     !worker ||
     worker.availability === AvailabilityStatus.UNAVAILABLE ||
     !worker.isProfilePublic ||
+    worker.suspendedAt ||
     worker.workFields.length === 0 ||
     !getWorkerCompleteness(worker).complete
   ) {

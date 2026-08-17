@@ -9,7 +9,7 @@ import {
   CREDENTIAL_LABELS,
   AVAILABILITY_LABELS,
 } from "@/lib/constants"
-import { Star, Briefcase, MapPin, ArrowLeft, ShieldCheck, User, Phone, Mail } from "lucide-react"
+import { Star, Briefcase, MapPin, ArrowLeft, ShieldCheck, User, Phone, Mail, AlertTriangle } from "lucide-react"
 
 export default async function WorkerProfilePage({
   params,
@@ -107,6 +107,11 @@ export default async function WorkerProfilePage({
                 <span className="font-semibold text-gray-800">{p.averageRating.toFixed(1)}</span>
               </div>
               <p className="text-xs text-gray-400 mt-0.5">매칭 {p.totalMatches}건</p>
+              {p.noShowCount > 0 && (
+                <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1 justify-end">
+                  <AlertTriangle className="w-3 h-3" /> 노쇼 {p.noShowCount}회
+                </p>
+              )}
             </div>
           </div>
 
