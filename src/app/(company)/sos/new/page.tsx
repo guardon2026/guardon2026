@@ -1140,8 +1140,8 @@ export default function SosNewPage() {
                                 <span>약 {accInsurance.toLocaleString()}원</span>
                               </div>
                               <div className={`flex justify-between ${pensionHealthApplies ? "text-red-600 font-semibold" : "text-orange-400"}`}>
-                                <span>국민연금 · 건강보험</span>
-                                <span>{pensionHealthApplies ? "가입 대상 전환" : "1개월 미만 일용직 미적용"}</span>
+                                <span>국민연금 · 건강보험(미정)(인력 확정 후 산출)</span>
+                                <span>{pensionHealthApplies ? "가입 대상 전환" : ""}</span>
                               </div>
                               <div className="flex justify-between font-semibold border-t border-orange-200 pt-1 mt-0.5">
                                 <span>사업주 추가 부담 합계</span>
