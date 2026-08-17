@@ -76,8 +76,12 @@ export function Header({ role, unreadNotifications = 0, pointBalance }: HeaderPr
   const [myInfoOpen, setMyInfoOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // 다른 네비 항목이 현재 경로를 정확히 소유하고 있으면(예: /sos/new는 "SOS 긴급 요청" 항목 소유)
+  // "/sos" 같은 상위 경로 접두사 매칭이 함께 활성화되지 않도록 함
+  const allNavHrefs = [...links.map((l) => l.href), ...MY_INFO_LINKS.map((l) => l.href)]
   const isActive = (href: string) =>
-    pathname === href || (href !== "/" && pathname?.startsWith(href + "/"))
+    pathname === href ||
+    (href !== "/" && pathname?.startsWith(href + "/") && !allNavHrefs.includes(pathname ?? ""))
 
   const myInfoActive = MY_INFO_LINKS.some((l) => isActive(l.href))
 
