@@ -66,7 +66,7 @@ export default async function AdminSosDetailPage({
 
   const receiptInfo = sos.receiptInfo as ReceiptInfo | null
   const laborCost = sos.hourlyRate * sos.requiredCount
-  const serviceFee = Math.ceil(laborCost * 0.03)
+  const serviceFee = Math.ceil(laborCost * 0.025)
   const vat = Math.ceil((laborCost + serviceFee) * 0.1)
 
   return (
@@ -121,7 +121,7 @@ export default async function AdminSosDetailPage({
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">결제 내역</p>
         <InfoRow label="인건비" value={`${laborCost.toLocaleString()}P`} />
-        <InfoRow label="SOS 긴급 요청 서비스 비용 (3%)" value={`${serviceFee.toLocaleString()}P`} />
+        <InfoRow label="SOS 긴급 요청 서비스 비용 (2.5%)" value={`${serviceFee.toLocaleString()}P`} />
         <InfoRow label="부가세 (인건비 + 서비스 비용의 10%)" value={`${vat.toLocaleString()}P`} />
         <InfoRow label="총 결제" value={<span className="text-brand font-bold">{(laborCost + vat + serviceFee).toLocaleString()}P</span>} />
       </div>

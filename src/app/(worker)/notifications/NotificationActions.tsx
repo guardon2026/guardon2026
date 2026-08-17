@@ -6,7 +6,7 @@ import { Coins, Zap, AlertTriangle } from "lucide-react"
 import { SOS_NOTIFICATION_LABELS } from "@/lib/constants"
 
 const ACCEPT_NOTICE =
-  "알고 계신가요? 특수한 상황이 발생해 SOS 긴급 요청 수락 후 1시간 이내에 취소하지 않으면, 보증 포인트는 경비 업체에게 취소 수수료로 자동 지급됩니다."
+  "SOS 긴급 요청을 수락하면 선결제 1,000P가 차감됩니다. 수락을 취소하면 시점과 관계없이 전액 환불되며, 임무가 정상적으로 완료되면 플랫폼 이용료로 전환됩니다."
 
 export default function NotificationActions({ matchId }: { matchId: string }) {
   const router = useRouter()

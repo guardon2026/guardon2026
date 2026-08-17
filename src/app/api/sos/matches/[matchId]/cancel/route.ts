@@ -7,8 +7,8 @@ import { createNotifications } from "@/lib/notify"
 
 // POST /api/sos/matches/[matchId]/cancel
 // 경비 인력이 수락한 SOS 매치를 취소합니다.
-// - 수락 후 1시간 이내: 보증 포인트 전액 환불
-// - 1시간 초과: 보증 포인트 경비 업체에게 취소 수수료로 지급
+// - 수락 시 낸 선결제(1,000원/일)는 취소 시점과 무관하게 전액 환불됩니다.
+//   (임무가 정상 완료되는 경우에만 플랫폼 수수료로 전환 — 취소 시에는 항상 전액 환불)
 
 export async function POST(
   _req: NextRequest,
@@ -54,12 +54,7 @@ export async function POST(
   const sosTitle = match.sosRequest.title
   const companyOwnerId = match.sosRequest.company.ownerId
 
-  // 1시간 이내 취소 여부 확인 (respondedAt = 수락 시각)
-  const acceptedAt = match.respondedAt ?? match.notifiedAt
-  const elapsedMs = Date.now() - new Date(acceptedAt).getTime()
-  const withinOneHour = elapsedMs <= 60 * 60 * 1000
-
-  // 경비 인력이 납부한 보증 포인트 거래 조회
+  // 경비 인력이 낸 선결제 거래 조회
   const workerAccount = await prisma.pointAccount.findUnique({
     where: { userId: session.user.id },
   })
@@ -67,11 +62,6 @@ export async function POST(
     where: { sosRequestId, type: "WORKER_DEDUCT", accountId: workerAccount?.id },
   })
   const workerFee = workerDeductTx ? Math.abs(workerDeductTx.amount) : 0
-
-  // 경비 업체 포인트 계정
-  const companyAccount = await prisma.pointAccount.findUnique({
-    where: { userId: companyOwnerId },
-  })
 
   await prisma.$transaction(async (tx) => {
     // 매치 상태 → REJECTED (취소)
@@ -95,89 +85,43 @@ export async function POST(
       })
     }
 
+    // 선결제 전액 환불 (취소 시점과 무관)
     if (workerFee > 0 && workerAccount) {
-      if (withinOneHour) {
-        // 1시간 이내: 경비 인력에게 보증 포인트 전액 환불
-        await tx.pointAccount.update({
-          where: { id: workerAccount.id },
-          data: { balance: { increment: workerFee } },
-        })
-        await tx.pointTransaction.create({
-          data: {
-            accountId: workerAccount.id,
-            amount: workerFee,
-            type: "REFUND",
-            description: `SOS 수락 취소 환불 (1시간 이내): ${sosTitle}`,
-            sosRequestId,
-          },
-        })
-      } else {
-        // 1시간 초과: 보증 포인트 → 경비 업체에게 취소 수수료로 지급
-        if (companyAccount) {
-          await tx.pointAccount.update({
-            where: { id: companyAccount.id },
-            data: { balance: { increment: workerFee } },
-          })
-          await tx.pointTransaction.create({
-            data: {
-              accountId: companyAccount.id,
-              amount: workerFee,
-              type: "CANCEL_COMPENSATION",
-              description: `경비 인력 취소 수수료 수취 (1시간 초과): ${sosTitle}`,
-              sosRequestId,
-            },
-          })
-        }
-      }
+      await tx.pointAccount.update({
+        where: { id: workerAccount.id },
+        data: { balance: { increment: workerFee } },
+      })
+      await tx.pointTransaction.create({
+        data: {
+          accountId: workerAccount.id,
+          amount: workerFee,
+          type: "REFUND",
+          description: `SOS 수락 취소 선결제 환불: ${sosTitle}`,
+          sosRequestId,
+        },
+      })
     }
   })
 
   // 알림 발송
-  const notifs = []
-
-  if (withinOneHour) {
-    // 경비 인력 본인: 취소 완료 + 환불 안내
-    notifs.push({
+  await createNotifications([
+    {
       userId: session.user.id,
       sosRequestId,
       type: "SYSTEM_NOTICE",
       title: "SOS 수락 취소 완료",
       body: workerFee > 0
-        ? `'${sosTitle}' 수락을 취소했습니다. 보증 포인트 ${workerFee.toLocaleString()}P가 환불되었습니다.`
+        ? `'${sosTitle}' 수락을 취소했습니다. 선결제 ${workerFee.toLocaleString()}P가 전액 환불되었습니다.`
         : `'${sosTitle}' 수락을 취소했습니다.`,
-    })
-    // 경비 업체: 취소 통보
-    notifs.push({
+    },
+    {
       userId: companyOwnerId,
       sosRequestId,
       type: "MATCH_CANCELLED",
       title: "SOS 수락 취소 알림",
-      body: `'${sosTitle}' 요청의 경비 인력이 수락을 취소했습니다. (1시간 이내 취소)`,
-    })
-  } else {
-    // 경비 인력 본인: 취소 완료 + 수수료 안내
-    notifs.push({
-      userId: session.user.id,
-      sosRequestId,
-      type: "SYSTEM_NOTICE",
-      title: "SOS 수락 취소 완료",
-      body: workerFee > 0
-        ? `'${sosTitle}' 수락을 취소했습니다. 1시간 초과로 보증 포인트 ${workerFee.toLocaleString()}P가 업체에 취소 수수료로 지급되었습니다.`
-        : `'${sosTitle}' 수락을 취소했습니다.`,
-    })
-    // 경비 업체: 취소 통보 + 수수료 수취 안내
-    notifs.push({
-      userId: companyOwnerId,
-      sosRequestId,
-      type: "MATCH_CANCELLED",
-      title: "SOS 수락 취소 알림",
-      body: workerFee > 0
-        ? `'${sosTitle}' 요청의 경비 인력이 수락을 취소했습니다. 취소 수수료 ${workerFee.toLocaleString()}P가 지급되었습니다.`
-        : `'${sosTitle}' 요청의 경비 인력이 수락을 취소했습니다.`,
-    })
-  }
+      body: `'${sosTitle}' 요청의 경비 인력이 수락을 취소했습니다.`,
+    },
+  ])
 
-  await createNotifications(notifs)
-
-  return NextResponse.json({ cancelled: true, withinOneHour, refunded: withinOneHour ? workerFee : 0 })
+  return NextResponse.json({ cancelled: true, refunded: workerFee })
 }

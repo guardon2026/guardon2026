@@ -195,7 +195,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
     : sosRequest.requiredCount
   const effectiveDailyRate = sosRequest.hourlyRate + urgencyBonus
   const laborCost = effectiveDailyRate * totalCount
-  const serviceFee = Math.ceil(laborCost * 0.03)
+  const serviceFee = Math.ceil(laborCost * 0.025)
   const vat = Math.ceil(serviceFee * 0.1)
   const totalBudget = laborCost + serviceFee + vat
 

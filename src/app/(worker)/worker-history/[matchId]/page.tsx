@@ -88,12 +88,7 @@ export default async function WorkerSosDetailPage({
 
   const req = match.sosRequest
 
-  // 수락 취소 가능 여부 계산 (ACCEPTED 상태만)
-  const acceptedAt = match.respondedAt ?? match.notifiedAt
-  const elapsedMs = Date.now() - new Date(acceptedAt).getTime()
-  const withinOneHour = elapsedMs <= 60 * 60 * 1000
-
-  // 보증 포인트 조회 (WORKER_DEDUCT 거래)
+  // 선결제(WORKER_DEDUCT 거래) 조회
   const workerProfile2 = await prisma.workerProfile.findUnique({
     where: { id: workerProfile.id },
     select: { userId: true },
@@ -242,7 +237,6 @@ export default async function WorkerSosDetailPage({
       {match.status === SosMatchStatus.ACCEPTED && (
         <WorkerCancelButton
           matchId={match.id}
-          withinOneHour={withinOneHour}
           workerFee={workerFee}
         />
       )}

@@ -6,11 +6,9 @@ import { XCircle } from "lucide-react"
 
 export default function WorkerCancelButton({
   matchId,
-  withinOneHour,
   workerFee,
 }: {
   matchId: string
-  withinOneHour: boolean
   workerFee: number
 }) {
   const router = useRouter()
@@ -19,9 +17,7 @@ export default function WorkerCancelButton({
 
   async function handleCancel() {
     const feeMsg = workerFee > 0
-      ? withinOneHour
-        ? `보증 포인트 ${workerFee.toLocaleString()}P가 전액 환불됩니다.`
-        : `1시간이 초과되어 보증 포인트 ${workerFee.toLocaleString()}P가 업체에 취소 수수료로 지급됩니다.`
+      ? `선결제 ${workerFee.toLocaleString()}P가 전액 환불됩니다.`
       : ""
     const confirmMsg = `SOS 수락을 취소하시겠습니까?\n\n${feeMsg}\n\n취소 후에는 되돌릴 수 없습니다.`
     if (!confirm(confirmMsg)) return
@@ -46,11 +42,6 @@ export default function WorkerCancelButton({
 
   return (
     <div className="space-y-2">
-      {!withinOneHour && workerFee > 0 && (
-        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
-          ⚠️ 수락 후 1시간이 초과되었습니다. 취소 시 보증 포인트 {workerFee.toLocaleString()}P가 업체에 취소 수수료로 지급됩니다.
-        </p>
-      )}
       <button
         type="button"
         onClick={handleCancel}

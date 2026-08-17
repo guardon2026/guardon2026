@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
   // 긴급도 추가 비용은 경비 인력 일급에 포함되어 직접 이체 — 수수료 기준에만 반영
   const effectiveDailyRate = data.hourlyRate + urgencyFee
   const laborCost = effectiveDailyRate * totalCount // 수수료 산정 기준용 (결제 항목 아님)
-  const serviceFee = Math.ceil(laborCost * 0.03)
+  const serviceFee = Math.ceil(laborCost * 0.025)
   const vat = Math.ceil(serviceFee * 0.1)
   const requiredPoints = serviceFee + vat
   const pointAccount = await prisma.pointAccount.findUnique({
