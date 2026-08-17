@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { COMPANY_ONBOARDING, ERROR_MESSAGES } from "@/lib/constants"
+import { formatPhoneNumber, formatBusinessRegistrationNumber } from "@/lib/utils"
 
 interface FormData {
   name: string
@@ -88,6 +89,24 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }))
+    }
+    setGlobalError(null)
+  }
+
+  function handleBusinessRegistrationNumberChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const formatted = formatBusinessRegistrationNumber(e.target.value)
+    setFormData((prev) => ({ ...prev, businessRegistrationNumber: formatted }))
+    if (errors.businessRegistrationNumber) {
+      setErrors((prev) => ({ ...prev, businessRegistrationNumber: undefined }))
+    }
+    setGlobalError(null)
+  }
+
+  function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const formatted = formatPhoneNumber(e.target.value)
+    setFormData((prev) => ({ ...prev, phone: formatted }))
+    if (errors.phone) {
+      setErrors((prev) => ({ ...prev, phone: undefined }))
     }
     setGlobalError(null)
   }
@@ -294,7 +313,8 @@ export default function RegisterPage() {
                   id="businessRegistrationNumber"
                   name="businessRegistrationNumber"
                   value={formData.businessRegistrationNumber}
-                  onChange={handleChange}
+                  onChange={handleBusinessRegistrationNumberChange}
+                  inputMode="numeric"
                   placeholder={COMPANY_ONBOARDING.FIELDS.BUSINESS_NUMBER_PLACEHOLDER}
                   className={errors.businessRegistrationNumber ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}
                 />
@@ -438,7 +458,8 @@ export default function RegisterPage() {
                     id="phone"
                     name="phone"
                     value={formData.phone}
-                    onChange={handleChange}
+                    onChange={handlePhoneChange}
+                    inputMode="numeric"
                     placeholder={COMPANY_ONBOARDING.FIELDS.PHONE_PLACEHOLDER}
                     className={`pl-9 ${errors.phone ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}`}
                   />
