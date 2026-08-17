@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import { AlertTriangle, Calendar, Plus, Search, Users, Zap } from "lucide-react"
+import { AlertTriangle, Calendar, Search, Users, Zap } from "lucide-react"
 import { Prisma, SosUrgency, UserRole } from "@prisma/client"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
@@ -185,17 +185,6 @@ export default async function SosPage({
           session.user.role === UserRole.COMPANY_OWNER
             ? "우리 업체가 등록한 긴급 요청을 확인합니다."
             : "검증된 경호 업체가 등록한 긴급 요청을 확인하고 신청합니다."
-        }
-        action={
-          canCreate ? (
-            <Link
-              href="/sos/new"
-              className="inline-flex items-center gap-1.5 h-9 px-4 bg-sos text-white text-sm font-semibold rounded-xl hover:bg-red-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              새 SOS 등록
-            </Link>
-          ) : undefined
         }
       />
 
