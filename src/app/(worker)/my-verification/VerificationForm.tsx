@@ -1,13 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { useSession } from "next-auth/react"
-import { CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react"
+import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Props {
-  rrnVerifiedAt: Date | null
-  verifiedName: string | null
   bankVerifiedAt: Date | null
   bankName: string | null
   bankAccount: string | null
@@ -21,55 +18,13 @@ const BANKS = [
   "전북은행", "제주은행", "우체국", "새마을금고", "신협",
 ]
 
-export default function VerificationForm({ rrnVerifiedAt, verifiedName, bankVerifiedAt, bankName, bankAccount, bankHolder }: Props) {
-  const { update } = useSession()
-  const [rrnInput, setRrnInput] = useState("")
-  const [showRrn, setShowRrn] = useState(false)
-  const [realNameInput, setRealNameInput] = useState("")
-  const [rrnDone, setRrnDone] = useState(!!rrnVerifiedAt)
-  const [savedName, setSavedName] = useState(verifiedName ?? "")
-  const [rrnLoading, setRrnLoading] = useState(false)
-  const [rrnError, setRrnError] = useState("")
-
+export default function VerificationForm({ bankVerifiedAt, bankName, bankAccount, bankHolder }: Props) {
   const [selBank, setSelBank] = useState(bankName ?? "")
   const [accountNum, setAccountNum] = useState(bankAccount ?? "")
   const [holder, setHolder] = useState(bankHolder ?? "")
   const [bankDone, setBankDone] = useState(!!bankVerifiedAt)
   const [bankLoading, setBankLoading] = useState(false)
   const [bankError, setBankError] = useState("")
-
-  function formatRrn(val: string) {
-    const digits = val.replace(/\D/g, "").slice(0, 13)
-    if (digits.length <= 6) return digits
-    return `${digits.slice(0, 6)}-${digits.slice(6)}`
-  }
-
-  async function submitRrn() {
-    setRrnError("")
-    if (!realNameInput.trim()) {
-      setRrnError("실명을 입력해 주세요.")
-      return
-    }
-    setRrnLoading(true)
-    try {
-      const res = await fetch("/api/worker/verification", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "rrn", rrn: rrnInput, realName: realNameInput.trim() }),
-      })
-      const data = await res.json()
-      if (!res.ok) { setRrnError(data.error); return }
-      setSavedName(realNameInput.trim())
-      await update()
-      setRrnDone(true)
-      setRrnInput("")
-      setRealNameInput("")
-    } catch {
-      setRrnError("오류가 발생했습니다. 다시 시도해 주세요.")
-    } finally {
-      setRrnLoading(false)
-    }
-  }
 
   async function submitBank() {
     setBankError("")
@@ -92,73 +47,6 @@ export default function VerificationForm({ rrnVerifiedAt, verifiedName, bankVeri
 
   return (
     <div className="space-y-6">
-
-      {/* 주민등록번호 인증 */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-gray-900">주민등록번호 인증</h2>
-            <p className="text-xs text-gray-500 mt-0.5">근로계약서 및 원천징수 신고에 사용됩니다.</p>
-          </div>
-          {rrnDone
-            ? <span className="flex items-center gap-1.5 text-xs font-semibold text-green-600 bg-green-50 px-3 py-1.5 rounded-full"><CheckCircle2 className="w-3.5 h-3.5" />형식 확인 완료</span>
-            : <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-full"><AlertCircle className="w-3.5 h-3.5" />미등록</span>
-          }
-        </div>
-
-        {rrnDone ? (
-          <div className="bg-green-50 rounded-xl px-4 py-3 text-sm text-green-700 font-medium">
-            <p>실명: {savedName}</p>
-            <p className="mt-1">주민등록번호가 등록되었습니다. 뒷자리는 안전하게 마스킹 처리됩니다.</p>
-            <p className="text-xs font-normal text-green-600 mt-1">※ 실명은 등록 후 변경할 수 없습니다. 형식만 확인되며, 실제 본인 여부는 검증되지 않습니다.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">실명</label>
-              <input
-                type="text"
-                value={realNameInput}
-                onChange={(e) => setRealNameInput(e.target.value)}
-                placeholder="주민등록증상 실명"
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-              />
-              <p className="text-xs text-gray-400 mt-1">등록 후에는 변경할 수 없으니 정확히 입력해 주세요.</p>
-            </div>
-            <div className="relative">
-              <input
-                type={showRrn ? "text" : "password"}
-                value={rrnInput}
-                onChange={(e) => setRrnInput(formatRrn(e.target.value))}
-                placeholder="000000-0000000"
-                maxLength={14}
-                className="w-full px-4 py-2.5 pr-10 rounded-xl border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-              />
-              <button
-                type="button"
-                onClick={() => setShowRrn((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showRrn ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {rrnError && <p className="text-xs text-red-500">{rrnError}</p>}
-            <p className="text-xs text-gray-400">뒷자리 첫 숫자만 저장되며 나머지는 즉시 마스킹 처리됩니다.</p>
-            <button
-              onClick={submitRrn}
-              disabled={rrnLoading || rrnInput.length < 14 || !realNameInput.trim()}
-              className={cn(
-                "w-full py-2.5 rounded-xl text-sm font-semibold transition-colors",
-                rrnInput.length >= 14 && realNameInput.trim() && !rrnLoading
-                  ? "bg-brand text-white hover:opacity-90"
-                  : "bg-gray-100 text-gray-400 cursor-not-allowed",
-              )}
-            >
-              {rrnLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "인증 등록"}
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* 계좌 인증 */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-4">

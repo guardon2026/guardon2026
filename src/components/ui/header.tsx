@@ -25,7 +25,7 @@ const NAV_LINKS: Record<Role, NavLink[]> = {
     { label: "알림",    href: "/notifications" },
     { label: "이력",    href: "/worker-history" },
     { label: "내 정보",  href: "/profile" },
-    { label: "본인 인증", href: "/my-verification" },
+    { label: "계좌 정보", href: "/my-verification" },
   ],
   ADMIN: [
     { label: "대시보드",   href: "/" },

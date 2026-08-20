@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { AlertTriangle } from "lucide-react"
 
-const VERIFICATION_ITEMS = new Set(["본인인증", "계좌 정보"])
+const VERIFICATION_ITEMS = new Set(["계좌 정보"])
 
 /** 경비 인력의 SOS 신청·수락에 필요한 필수 정보 중 빠진 항목을 안내하는 배너 */
 export function ProfileCompletenessBanner({ missing }: { missing: string[] }) {
@@ -37,7 +37,7 @@ export function ProfileCompletenessBanner({ missing }: { missing: string[] }) {
             href="/my-verification"
             className="text-xs font-medium text-brand hover:underline"
           >
-            본인·계좌 인증하기 →
+            계좌 정보 등록하기 →
           </Link>
         )}
       </div>

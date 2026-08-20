@@ -139,7 +139,6 @@ export async function GET() {
     profile: profile ?? null,
     name: user?.name ?? null,
     phone: user?.phone ?? null,
-    nameLocked: !!profile?.rrnVerifiedAt,
   })
 }
 
@@ -245,7 +244,7 @@ export async function PATCH(req: NextRequest) {
 
   const existing = await prisma.workerProfile.findUnique({
     where: { userId: auth_result.userId },
-    select: { id: true, rrnVerifiedAt: true },
+    select: { id: true },
   })
   if (!existing) {
     return NextResponse.json({ error: "프로필을 찾을 수 없습니다." }, { status: 404 })
@@ -274,15 +273,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "올바른 휴대폰 번호를 입력해 주세요." }, { status: 400 })
   }
 
-  // 실명 인증(rrn) 완료 후에는 이름을 변경할 수 없음 — 본인 인증 페이지에서만 실명 등록 가능
-  if (data.name !== undefined && !existing.rrnVerifiedAt) {
+  if (data.name !== undefined) {
     await prisma.user.update({
       where: { id: auth_result.userId },
       data: { name: data.name.trim() },
     })
   }
 
-  // 연락처는 실명 잠금과 무관하게 언제든 수정 가능
   if (data.phone !== undefined) {
     try {
       await prisma.user.update({

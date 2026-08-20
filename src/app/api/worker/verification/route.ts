@@ -4,20 +4,6 @@ import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { UserRole } from "@prisma/client"
 
-// 주민등록번호 형식 검증 (YYMMDD-NNNNNNN)
-function validateRrn(rrn: string): boolean {
-  const cleaned = rrn.replace(/-/g, "")
-  if (!/^\d{13}$/.test(cleaned)) return false
-  const genderDigit = parseInt(cleaned[6])
-  return [1, 2, 3, 4].includes(genderDigit)
-}
-
-// 뒷자리 마스킹: 900101-1****** 형태로 저장
-function maskRrn(rrn: string): string {
-  const cleaned = rrn.replace(/-/g, "")
-  return `${cleaned.slice(0, 6)}-${cleaned[6]}******`
-}
-
 export async function PATCH(req: Request) {
   const session = await getServerSession()
   if (!session?.user?.id || session.user.role !== UserRole.WORKER) {
@@ -25,39 +11,13 @@ export async function PATCH(req: Request) {
   }
 
   const body = await req.json()
-  const { type, rrn, realName, bankName, bankAccount, bankHolder } = body
+  const { type, bankName, bankAccount, bankHolder } = body
 
   const profile = await prisma.workerProfile.findUnique({
     where: { userId: session.user.id },
-    select: { id: true, rrnVerifiedAt: true },
+    select: { id: true },
   })
   if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 })
-
-  if (type === "rrn") {
-    if (profile.rrnVerifiedAt) {
-      return NextResponse.json({ error: "이미 실명 인증이 완료되었습니다." }, { status: 409 })
-    }
-    if (!rrn || !validateRrn(rrn)) {
-      return NextResponse.json({ error: "주민등록번호 형식이 올바르지 않습니다." }, { status: 400 })
-    }
-    if (typeof realName !== "string" || !realName.trim()) {
-      return NextResponse.json({ error: "실명을 입력해 주세요." }, { status: 400 })
-    }
-    const trimmedName = realName.trim()
-
-    const [updated] = await prisma.$transaction([
-      prisma.workerProfile.update({
-        where: { id: profile.id },
-        data: { rrn: maskRrn(rrn), rrnVerifiedAt: new Date() },
-        select: { rrn: true, rrnVerifiedAt: true },
-      }),
-      prisma.user.update({
-        where: { id: session.user.id },
-        data: { name: trimmedName },
-      }),
-    ])
-    return NextResponse.json(updated)
-  }
 
   if (type === "bank") {
     if (!bankName || !bankAccount || !bankHolder) {

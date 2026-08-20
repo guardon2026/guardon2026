@@ -368,41 +368,27 @@ export default async function ProfilePage() {
             </div>
           )}
 
-          {/* 본인 인증 */}
+          {/* 계좌 정보 */}
           <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-brand" />
-                본인 인증
+                계좌 정보
               </h3>
               <Link href="/my-verification" className="text-xs text-brand font-medium hover:underline flex items-center gap-0.5">
                 관리 <ChevronRight className="w-3 h-3" />
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className={`rounded-xl px-4 py-3 flex items-center gap-2 ${profile.rrnVerifiedAt ? "bg-green-50" : "bg-amber-50"}`}>
-                {profile.rrnVerifiedAt
-                  ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                  : <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
-                }
-                <div>
-                  <p className="text-xs font-semibold text-gray-700">주민등록번호</p>
-                  <p className={`text-xs ${profile.rrnVerifiedAt ? "text-green-600" : "text-amber-600"}`}>
-                    {profile.rrnVerifiedAt ? "인증 완료" : "미인증"}
-                  </p>
-                </div>
-              </div>
-              <div className={`rounded-xl px-4 py-3 flex items-center gap-2 ${profile.bankVerifiedAt ? "bg-green-50" : "bg-amber-50"}`}>
-                {profile.bankVerifiedAt
-                  ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                  : <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
-                }
-                <div>
-                  <p className="text-xs font-semibold text-gray-700">계좌 정보</p>
-                  <p className={`text-xs ${profile.bankVerifiedAt ? "text-green-600" : "text-amber-600"}`}>
-                    {profile.bankVerifiedAt ? (profile.bankName ?? "등록 완료") : "미등록"}
-                  </p>
-                </div>
+            <div className={`rounded-xl px-4 py-3 flex items-center gap-2 ${profile.bankVerifiedAt ? "bg-green-50" : "bg-amber-50"}`}>
+              {profile.bankVerifiedAt
+                ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                : <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
+              }
+              <div>
+                <p className="text-xs font-semibold text-gray-700">계좌 정보</p>
+                <p className={`text-xs ${profile.bankVerifiedAt ? "text-green-600" : "text-amber-600"}`}>
+                  {profile.bankVerifiedAt ? (profile.bankName ?? "등록 완료") : "미등록"}
+                </p>
               </div>
             </div>
           </div>
