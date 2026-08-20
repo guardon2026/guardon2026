@@ -34,6 +34,20 @@ const CONSENT_ITEMS: { key: keyof ConsentState; label: string; required: boolean
 
 const STEPS = ["역할 선택", "약관 동의", "완료"]
 
+async function waitForSessionRole(expectedRole: string | null, maxAttempts = 10, delayMs = 150) {
+  if (!expectedRole) return
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const res = await fetch("/api/auth/session", { cache: "no-store" })
+      const session = await res.json().catch(() => null)
+      if (session?.user?.role === expectedRole) return
+    } catch {
+      // 네트워크 오류는 무시하고 재시도
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs))
+  }
+}
+
 export default function ConsentPage() {
   const router = useRouter()
   const { update } = useSession()
@@ -77,7 +91,11 @@ export default function ConsentPage() {
       if (!res.ok) throw new Error("등록 실패")
       sessionStorage.removeItem("pending_role")
       await update()
-      // update() 후 미들웨어가 최신 JWT를 읽도록 hard redirect
+      // update() 호출이 반환되어도 브라우저에 새 세션 쿠키가 실제로 반영되기까지
+      // 미세한 지연이 있을 수 있다 — 그 사이 hard redirect하면 미들웨어가 아직
+      // role이 없는 예전 JWT를 읽어 /unauthorized로 튕겨내는 경합이 발생한다.
+      // 세션에 새 role이 실제로 반영됐는지 짧게 폴링해서 확인한 뒤 이동한다.
+      await waitForSessionRole(pendingRole)
       window.location.href = pendingRole === "COMPANY_OWNER" ? "/register" : "/profile/edit"
     } catch {
       alert("오류가 발생했습니다. 다시 시도해 주세요.")
