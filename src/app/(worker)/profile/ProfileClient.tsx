@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/ui/page-header"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { AvailabilityToggle } from "./availability-toggle"
 import WithdrawSection from "./WithdrawSection"
+import RrnSection from "./RrnSection"
 import { ProfileCompletenessBanner } from "@/components/worker/ProfileCompletenessBanner"
 import {
   WORKER_PROFILE,
@@ -94,6 +95,7 @@ export interface ProfileClientProps {
   bankAccount: string | null
   bankHolder: string | null
   bankVerifiedAt: Date | null
+  rrnRegisteredAt: Date | null
   missingProfileItems: string[]
   pointBalance: number
   recentContracts: ContractItem[]
@@ -869,6 +871,8 @@ export default function ProfileClient(props: ProfileClientProps) {
               </div>
             )}
           </div>
+
+          {props.hasProfile && !editing && <RrnSection registered={!!props.rrnRegisteredAt} />}
 
           {errors.general && <p className="text-sm text-sos text-center">{errors.general}</p>}
 

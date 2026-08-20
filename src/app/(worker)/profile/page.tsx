@@ -108,6 +108,7 @@ export default async function ProfilePage({
       bankAccount={profile?.bankAccount ?? null}
       bankHolder={profile?.bankHolder ?? null}
       bankVerifiedAt={profile?.bankVerifiedAt ?? null}
+      rrnRegisteredAt={profile?.rrnRegisteredAt ?? null}
       missingProfileItems={missingProfileItems}
       pointBalance={pointAccount?.balance ?? 0}
       recentContracts={recentContracts}

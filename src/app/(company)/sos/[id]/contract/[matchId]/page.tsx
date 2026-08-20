@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
 import ContractForm from "@/components/ContractForm"
+import { decryptPii, formatRrnDisplay } from "@/lib/crypto"
 
 interface Props {
   params: Promise<{ id: string; matchId: string }>
@@ -33,6 +34,17 @@ export default async function CompanyContractPage({ params }: Props) {
   if (match.status !== SosMatchStatus.CONFIRMED) redirect(`/sos/${id}`)
 
   const sos = match.sosRequest
+
+  // 근로계약이 확정된(CONFIRMED) 매치에 한해, 업체가 4대보험·세금 신고에 쓸 수 있도록
+  // 암호화 저장된 주민등록번호를 복호화해 전달한다.
+  let workerRrn: string | null = null
+  if (match.workerProfile.rrn) {
+    try {
+      workerRrn = formatRrnDisplay(decryptPii(match.workerProfile.rrn))
+    } catch {
+      workerRrn = null
+    }
+  }
 
   // scheduleDays에서 근무 기간 파싱
   const days = Array.isArray(sos.scheduleDays) ? sos.scheduleDays as Array<{
@@ -67,6 +79,7 @@ export default async function CompanyContractPage({ params }: Props) {
             workPeriod,
             workHours,
             workerName: match.workerProfile.user.name ?? "",
+            workerRrn,
           }}
         />
       </div>

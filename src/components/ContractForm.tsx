@@ -12,6 +12,7 @@ interface SosInfo {
   workPeriod: string
   workHours: string
   workerName: string
+  workerRrn?: string | null
 }
 
 interface Prefill {
@@ -197,6 +198,7 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
           ) : (
             <>
               <Row label="성명" value={contract?.workerRealName ?? sosInfo.workerName ?? "-"} />
+              {sosInfo.workerRrn && <Row label="주민등록번호" value={sosInfo.workerRrn} />}
               <Row label="생년월일" value={contract?.workerBirthDate ?? "-"} />
               <Row label="주소" value={contract?.workerAddress ?? "-"} />
               <Row label="연락처" value={contract?.workerPhone ?? "-"} />
