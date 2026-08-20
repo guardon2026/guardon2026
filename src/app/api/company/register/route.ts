@@ -58,9 +58,20 @@ export async function POST(request: Request) {
     .filter((file): file is File => file instanceof File && file.size > 0)
 
   // 5. 서버 사이드 검증 (클라이언트 우회 방어)
-  if (!name || !licenseNumber || !businessRegistrationNumber || !address || !phone) {
+  if (!name || !licenseNumber || !businessRegistrationNumber || !address || !phone || !kakaoOpenChatUrl) {
     return Response.json(
       { error: "필수 항목을 모두 입력해 주세요.", code: "MISSING_FIELDS" },
+      { status: 400 }
+    )
+  }
+
+  if (!kakaoOpenChatUrl.startsWith("https://open.kakao.com/")) {
+    return Response.json(
+      {
+        error: "올바른 카카오 오픈채팅 링크를 입력해 주세요. (https://open.kakao.com/으로 시작)",
+        field: "kakaoOpenChatUrl",
+        code: "INVALID_KAKAO_URL",
+      },
       { status: 400 }
     )
   }

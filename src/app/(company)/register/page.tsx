@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, Upload, ShieldCheck, Search } from "lucide-react"
+import { Building2, Phone, ArrowRight, HelpCircle, MapPin, FileText, Upload, ShieldCheck, Search, MessageCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,7 @@ interface FormData {
   city: string
   district: string
   phone: string
+  kakaoOpenChatUrl: string
   description: string
 }
 
@@ -30,6 +31,7 @@ interface FormErrors {
   securityLicenseFile?: string
   address?: string
   phone?: string
+  kakaoOpenChatUrl?: string
 }
 
 
@@ -47,6 +49,7 @@ export default function RegisterPage() {
     city: "",
     district: "",
     phone: "",
+    kakaoOpenChatUrl: "",
     description: "",
   })
   const [errors, setErrors] = useState<FormErrors>({})
@@ -131,6 +134,11 @@ export default function RegisterPage() {
     }
     if (!formData.address.trim()) newErrors.address = COMPANY_ONBOARDING.ERROR.ADDRESS_REQUIRED
     if (!formData.phone.trim()) newErrors.phone = COMPANY_ONBOARDING.ERROR.PHONE_REQUIRED
+    if (!formData.kakaoOpenChatUrl.trim()) {
+      newErrors.kakaoOpenChatUrl = COMPANY_ONBOARDING.ERROR.KAKAO_REQUIRED
+    } else if (!formData.kakaoOpenChatUrl.startsWith("https://open.kakao.com/")) {
+      newErrors.kakaoOpenChatUrl = COMPANY_ONBOARDING.ERROR.KAKAO_FORMAT
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -156,6 +164,7 @@ export default function RegisterPage() {
         : formData.address
       payload.append("address", fullAddress)
       payload.append("phone", formData.phone)
+      payload.append("kakaoOpenChatUrl", formData.kakaoOpenChatUrl)
       payload.append("description", formData.description)
       if (businessRegistrationFile) {
         payload.append("businessRegistrationFile", businessRegistrationFile)
@@ -465,6 +474,29 @@ export default function RegisterPage() {
                   />
                 </div>
                 {errors.phone && <p className="text-sm text-sos">{errors.phone}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="kakaoOpenChatUrl">
+                  {COMPANY_ONBOARDING.FIELDS.KAKAO_LABEL}
+                  <span className="text-sos ml-0.5">*</span>
+                </Label>
+                <div className="relative">
+                  <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Input
+                    id="kakaoOpenChatUrl"
+                    name="kakaoOpenChatUrl"
+                    value={formData.kakaoOpenChatUrl}
+                    onChange={handleChange}
+                    placeholder={COMPANY_ONBOARDING.FIELDS.KAKAO_PLACEHOLDER}
+                    className={`pl-9 ${errors.kakaoOpenChatUrl ? "border-red-300 bg-red-50 focus-visible:ring-red-400" : ""}`}
+                  />
+                </div>
+                {errors.kakaoOpenChatUrl ? (
+                  <p className="text-sm text-sos">{errors.kakaoOpenChatUrl}</p>
+                ) : (
+                  <p className="text-xs text-gray-400">{COMPANY_ONBOARDING.FIELDS.KAKAO_HINT}</p>
+                )}
               </div>
 
               <div className="space-y-1.5">
