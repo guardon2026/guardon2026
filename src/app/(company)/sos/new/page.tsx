@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Zap, MapPin, Calendar, Users, Minus, Plus, Search, Trash2, Coins } from "lucide-react"
+import { Zap, MapPin, Calendar, Users, Minus, Plus, Search, Trash2, Coins, MessageCircle } from "lucide-react"
 import { WorkField, CredentialType } from "@prisma/client"
 import { SOS_FORM, WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_WORK_FIELD_OPTIONS, SOS_CREDENTIAL_OPTIONS } from "@/lib/constants"
 import { PointChargeModal } from "@/components/ui/PointChargeModal"
@@ -274,6 +274,17 @@ export default function SosNewPage() {
       .catch(() => setAvgDailyRate(null))
   }, [])
 
+  // 업체에 카카오 오픈채팅 링크가 이미 설정돼 있는지 확인 — 없으면 최초 SOS 등록 시 필수 입력
+  const [existingKakaoUrl, setExistingKakaoUrl] = useState<string | null | "loading">("loading")
+  const [kakaoOpenChatUrl, setKakaoOpenChatUrl] = useState("")
+  useEffect(() => {
+    fetch("/api/company/profile")
+      .then((r) => r.json())
+      .then((data) => setExistingKakaoUrl(data.company?.kakaoOpenChatUrl ?? null))
+      .catch(() => setExistingKakaoUrl(null))
+  }, [])
+  const needsKakaoUrl = existingKakaoUrl !== "loading" && !existingKakaoUrl
+
   const [addrModalOpen, setAddrModalOpen] = useState(false)
   const [daumLoading, setDaumLoading] = useState(false)
   const addrEmbedRef = useRef<HTMLDivElement>(null)
@@ -401,6 +412,14 @@ export default function SosNewPage() {
     if (!hasContact) newErrors.siteManagers = "현장 담당자 연락처를 입력해 주세요."
     if (!description.trim()) newErrors.description = "업무 설명을 입력해 주세요."
 
+    if (needsKakaoUrl) {
+      if (!kakaoOpenChatUrl.trim()) {
+        newErrors.kakaoOpenChatUrl = "카카오 오픈채팅 URL을 입력해 주세요."
+      } else if (!kakaoOpenChatUrl.startsWith("https://open.kakao.com/")) {
+        newErrors.kakaoOpenChatUrl = "올바른 카카오 오픈채팅 링크를 입력해 주세요. (https://open.kakao.com/으로 시작)"
+      }
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -452,6 +471,7 @@ export default function SosNewPage() {
             .filter(Boolean)
             .join("\n") || null,
           description: description.trim() || null,
+          ...(needsKakaoUrl ? { kakaoOpenChatUrl: kakaoOpenChatUrl.trim() } : {}),
         }),
       })
       if (!res.ok) {
@@ -887,6 +907,28 @@ export default function SosNewPage() {
                 />
                 {errors.dressCode && <p className="text-xs text-sos">{errors.dressCode}</p>}
               </div>
+
+              {/* 카카오 오픈채팅 — 업체에 아직 설정된 링크가 없을 때만 최초 1회 필수 입력 */}
+              {needsKakaoUrl && (
+                <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <MessageCircle className="w-3.5 h-3.5 text-yellow-500" />
+                    카카오 오픈채팅 URL <span className="text-sos normal-case">*</span>
+                  </p>
+                  <p className="text-xs text-gray-400 -mt-1">
+                    경비 인력이 SOS 수락 전 문의할 수 있는 채널입니다. 최초 SOS 등록 시 1회만 설정하면 이후 요청에는 그대로 적용됩니다.
+                  </p>
+                  <input
+                    type="text"
+                    value={kakaoOpenChatUrl}
+                    onChange={(e) => { setKakaoOpenChatUrl(e.target.value); setErrors((prev) => ({ ...prev, kakaoOpenChatUrl: "" })) }}
+                    placeholder="https://open.kakao.com/o/..."
+                    className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand
+                      ${errors.kakaoOpenChatUrl ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                  />
+                  {errors.kakaoOpenChatUrl && <p className="text-xs text-sos">{errors.kakaoOpenChatUrl}</p>}
+                </div>
+              )}
 
               {/* 현장 담당자 연락처 */}
               <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-4">

@@ -75,6 +75,7 @@ interface SosRequestBody {
   dressCodeNote?: string | null
   description?: string | null
   receiptInfo?: unknown | null
+  kakaoOpenChatUrl?: string | null
 }
 
 const VALID_DRESS_CODES = ["FORMAL", "TACTICAL", "CASUAL", "OTHER"]
@@ -155,6 +156,7 @@ function parseBody(body: unknown): SosRequestBody | null {
     dressCodeNote: typeof b.dressCodeNote === "string" ? b.dressCodeNote.trim() || null : null,
     description: typeof b.description === "string" ? b.description.trim() || null : null,
     receiptInfo: b.receiptInfo != null && typeof b.receiptInfo === "object" ? b.receiptInfo : null,
+    kakaoOpenChatUrl: typeof b.kakaoOpenChatUrl === "string" ? b.kakaoOpenChatUrl.trim() || null : null,
   }
 }
 
@@ -194,6 +196,24 @@ export async function POST(req: NextRequest) {
   const data = parseBody(body)
   if (!data) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
+  }
+
+  // 3-0. 카카오 오픈채팅 링크 확인 — 업체에 아직 설정된 링크가 없으면 최초 SOS 등록 시 필수로 받는다.
+  // 이미 설정돼 있으면 이 경로로는 변경하지 않는다 (업체 정보 페이지에서만 수정).
+  if (!company.kakaoOpenChatUrl) {
+    if (!data.kakaoOpenChatUrl || !data.kakaoOpenChatUrl.startsWith("https://open.kakao.com/")) {
+      return NextResponse.json(
+        {
+          error: "카카오 오픈채팅 링크를 입력해 주세요. (https://open.kakao.com/으로 시작)",
+          field: "kakaoOpenChatUrl",
+        },
+        { status: 400 }
+      )
+    }
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { kakaoOpenChatUrl: data.kakaoOpenChatUrl },
+    })
   }
 
   // 3-1. 최저임금 방어
