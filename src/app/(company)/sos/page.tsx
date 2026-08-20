@@ -106,7 +106,7 @@ export default async function SosPage({
   } else {
     const profile = await prisma.workerProfile.findUnique({
       where: { userId: session.user.id },
-      select: { id: true, workFields: true, ...WORKER_COMPLETENESS_SELECT },
+      select: { id: true, ...WORKER_COMPLETENESS_SELECT },
     })
     // 주소·업무 분야가 없으면 게시판을 의미 있게 보여줄 수 없으므로 리다이렉트
     if (!profile || !profile.address || !profile.city || !profile.district || profile.workFields.length === 0) {

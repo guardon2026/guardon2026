@@ -173,12 +173,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // 필수 필드 검증
+  // 필수 필드 검증 — "내 정보"는 모든 항목이 필수(SOS 신청 조건)
   if (!data.name?.trim()) {
     return NextResponse.json({ error: "이름을 입력해 주세요." }, { status: 400 })
   }
+  if (!data.phone?.trim() || !PHONE_REGEX.test(data.phone.trim())) {
+    return NextResponse.json({ error: "올바른 연락처를 입력해 주세요." }, { status: 400 })
+  }
   if (!data.workFields || data.workFields.length === 0) {
     return NextResponse.json({ error: "업무 분야를 하나 이상 선택해 주세요." }, { status: 400 })
+  }
+  if (!data.declaredCredentials || data.declaredCredentials.length === 0) {
+    return NextResponse.json({ error: "보유 자격증을 하나 이상 선택해 주세요." }, { status: 400 })
+  }
+  if (data.height == null) {
+    return NextResponse.json({ error: "키를 입력해 주세요." }, { status: 400 })
+  }
+  if (data.weight == null) {
+    return NextResponse.json({ error: "몸무게를 입력해 주세요." }, { status: 400 })
+  }
+  if (data.desiredHourlyRate == null) {
+    return NextResponse.json({ error: "희망 시급을 입력해 주세요." }, { status: 400 })
+  }
+  if (!data.bio?.trim()) {
+    return NextResponse.json({ error: "자기소개를 입력해 주세요." }, { status: 400 })
   }
   if (!data.address?.trim()) {
     return NextResponse.json({ error: "주소를 입력해 주세요." }, { status: 400 })
@@ -190,24 +208,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "구·군을 입력해 주세요." }, { status: 400 })
   }
 
-  await prisma.user.update({
-    where: { id: auth_result.userId },
-    data: { name: data.name.trim() },
-  })
+  try {
+    await prisma.user.update({
+      where: { id: auth_result.userId },
+      data: { name: data.name.trim(), phone: data.phone.trim() },
+    })
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json({ error: "이미 사용 중인 전화번호입니다." }, { status: 409 })
+    }
+    throw e
+  }
 
   const profile = await prisma.workerProfile.create({
     data: {
       userId: auth_result.userId,
       workFields: data.workFields,
-      declaredCredentials: data.declaredCredentials ?? [],
+      declaredCredentials: data.declaredCredentials,
       experienceYears: data.experienceYears ?? 0,
       address: data.address.trim(),
       city: data.city.trim(),
       district: data.district.trim(),
-      desiredHourlyRate: data.desiredHourlyRate ?? null,
-      height: data.height ?? null,
-      weight: data.weight ?? null,
-      bio: data.bio ?? null,
+      desiredHourlyRate: data.desiredHourlyRate,
+      height: data.height,
+      weight: data.weight,
+      bio: data.bio.trim(),
       availability: AvailabilityStatus.AVAILABLE,
     },
   })
@@ -262,15 +287,30 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "요청 데이터가 올바르지 않습니다." }, { status: 400 })
   }
 
-  // workFields가 전달된 경우 비어있으면 오류
+  // "내 정보"는 모든 항목이 필수(SOS 신청 조건) — 값이 전달된 경우 비어있으면 오류
   if (data.workFields !== undefined && data.workFields.length === 0) {
     return NextResponse.json({ error: "업무 분야를 하나 이상 선택해 주세요." }, { status: 400 })
   }
   if (data.name !== undefined && !data.name.trim()) {
     return NextResponse.json({ error: "이름을 입력해 주세요." }, { status: 400 })
   }
-  if (data.phone !== undefined && data.phone.trim() && !PHONE_REGEX.test(data.phone.trim())) {
-    return NextResponse.json({ error: "올바른 휴대폰 번호를 입력해 주세요." }, { status: 400 })
+  if (data.phone !== undefined && (!data.phone.trim() || !PHONE_REGEX.test(data.phone.trim()))) {
+    return NextResponse.json({ error: "올바른 연락처를 입력해 주세요." }, { status: 400 })
+  }
+  if (data.declaredCredentials !== undefined && data.declaredCredentials.length === 0) {
+    return NextResponse.json({ error: "보유 자격증을 하나 이상 선택해 주세요." }, { status: 400 })
+  }
+  if (data.height === null) {
+    return NextResponse.json({ error: "키를 입력해 주세요." }, { status: 400 })
+  }
+  if (data.weight === null) {
+    return NextResponse.json({ error: "몸무게를 입력해 주세요." }, { status: 400 })
+  }
+  if (data.desiredHourlyRate === null) {
+    return NextResponse.json({ error: "희망 시급을 입력해 주세요." }, { status: 400 })
+  }
+  if (data.bio !== undefined && (data.bio === null || !data.bio.trim())) {
+    return NextResponse.json({ error: "자기소개를 입력해 주세요." }, { status: 400 })
   }
 
   if (data.name !== undefined) {

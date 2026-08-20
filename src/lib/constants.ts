@@ -40,10 +40,10 @@ export const WORKER_PROFILE = {
     LATITUDE_PLACEHOLDER:    "예) 37.4979",
     LONGITUDE_LABEL:         "경도 (선택)",
     LONGITUDE_PLACEHOLDER:   "예) 127.0276",
-    HOURLY_RATE_LABEL:       "희망 시급 (선택)",
+    HOURLY_RATE_LABEL:       "희망 시급",
     HOURLY_RATE_PLACEHOLDER: "예) 12000",
     HOURLY_RATE_UNIT:        "원",
-    BIO_LABEL:               "자기소개 (선택)",
+    BIO_LABEL:               "자기소개",
     BIO_PLACEHOLDER:         "경력, 특기, 가용 지역 등을 자유롭게 소개해 주세요.",
   },
 

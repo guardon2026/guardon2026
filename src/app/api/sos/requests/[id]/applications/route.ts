@@ -205,8 +205,6 @@ export async function POST(
       where: { userId: session.user.id },
       select: {
         id: true,
-        workFields: true,
-        desiredHourlyRate: true,
         suspendedAt: true,
         noShowCount: true,
         ...WORKER_COMPLETENESS_SELECT,

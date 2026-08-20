@@ -378,7 +378,6 @@ export async function matchSosRequestsForWorker(
       availability: true,
       isProfilePublic: true,
       suspendedAt: true,
-      workFields: true,
       latitude: true,
       longitude: true,
       credentials: {

@@ -125,7 +125,11 @@ interface FormErrors {
   workFields?: string
   address?: string
   experienceYears?: string
+  height?: string
+  weight?: string
   desiredHourlyRate?: string
+  declaredCredentials?: string
+  bio?: string
   avatar?: string
   general?: string
 }
@@ -153,20 +157,36 @@ function buildForm(p: ProfileClientProps): FormState {
 function validate(f: FormState): FormErrors {
   const errs: FormErrors = {}
   if (!f.name.trim()) errs.name = "이름을 입력해 주세요."
-  if (f.phone.trim() && !/^01[016789]-\d{3,4}-\d{4}$/.test(f.phone.trim())) {
+  if (!f.phone.trim()) {
+    errs.phone = "연락처를 입력해 주세요."
+  } else if (!/^01[016789]-\d{3,4}-\d{4}$/.test(f.phone.trim())) {
     errs.phone = "올바른 휴대폰 번호를 입력해 주세요."
   }
   if (f.workFields.length === 0) errs.workFields = WORKER_PROFILE.ERROR.WORK_FIELDS_REQUIRED
   if (!f.address.trim()) errs.address = WORKER_PROFILE.ERROR.ADDRESS_REQUIRED
   const expNum = Number(f.experienceYears)
   if (isNaN(expNum) || expNum < 0 || !Number.isInteger(expNum)) errs.experienceYears = WORKER_PROFILE.ERROR.EXPERIENCE_INVALID
-  if (f.desiredHourlyRate !== "") {
+  if (f.height === "") {
+    errs.height = "키를 입력해 주세요."
+  } else if (isNaN(Number(f.height)) || Number(f.height) < 100 || Number(f.height) > 250) {
+    errs.height = "올바른 키를 입력해 주세요."
+  }
+  if (f.weight === "") {
+    errs.weight = "몸무게를 입력해 주세요."
+  } else if (isNaN(Number(f.weight)) || Number(f.weight) < 30 || Number(f.weight) > 200) {
+    errs.weight = "올바른 몸무게를 입력해 주세요."
+  }
+  if (f.desiredHourlyRate === "") {
+    errs.desiredHourlyRate = "희망 시급을 입력해 주세요."
+  } else {
     const rateNum = Number(f.desiredHourlyRate)
     if (isNaN(rateNum) || rateNum < 0) errs.desiredHourlyRate = WORKER_PROFILE.ERROR.HOURLY_RATE_INVALID
   }
+  if (f.declaredCredentials.length === 0) errs.declaredCredentials = "보유 자격증을 하나 이상 선택해 주세요."
+  if (!f.bio.trim()) errs.bio = "자기소개를 입력해 주세요."
   const bankFilled = [f.bankName, f.bankAccount, f.bankHolder].filter((v) => v.trim() !== "").length
-  if (bankFilled > 0 && bankFilled < 3) {
-    errs.general = "계좌 정보를 등록하려면 은행·계좌번호·예금주를 모두 입력해 주세요."
+  if (bankFilled < 3) {
+    errs.general = "계좌 정보(은행·계좌번호·예금주)를 모두 입력해 주세요."
   }
   return errs
 }
@@ -570,7 +590,7 @@ export default function ProfileClient(props: ProfileClientProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="height">키 (선택)</Label>
+                    <Label htmlFor="height">키</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="height"
@@ -584,9 +604,10 @@ export default function ProfileClient(props: ProfileClientProps) {
                       />
                       <span className="text-sm text-gray-600">cm</span>
                     </div>
+                    {errors.height && <p className="text-xs text-sos">{errors.height}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="weight">몸무게 (선택)</Label>
+                    <Label htmlFor="weight">몸무게</Label>
                     <div className="flex items-center gap-2">
                       <Input
                         id="weight"
@@ -600,6 +621,7 @@ export default function ProfileClient(props: ProfileClientProps) {
                       />
                       <span className="text-sm text-gray-600">kg</span>
                     </div>
+                    {errors.weight && <p className="text-xs text-sos">{errors.weight}</p>}
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -751,7 +773,7 @@ export default function ProfileClient(props: ProfileClientProps) {
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">보유 자격증 (자기신고)</h3>
             {editing ? (
               <>
-                <p className="text-xs text-gray-500 mb-2">보유한 자격증을 모두 선택해 주세요.</p>
+                <p className="text-xs text-gray-500 mb-2">보유한 자격증을 하나 이상 선택해 주세요.</p>
                 <div className="flex flex-wrap gap-2">
                   {ALL_CREDENTIALS.map((cred) => {
                     const selected = form.declaredCredentials.includes(cred)
@@ -772,6 +794,7 @@ export default function ProfileClient(props: ProfileClientProps) {
                     )
                   })}
                 </div>
+                {errors.declaredCredentials && <p className="text-xs text-sos mt-2">{errors.declaredCredentials}</p>}
               </>
             ) : (() => {
               const approvedTypes = props.credentials.map((c) => c.type)
@@ -807,6 +830,7 @@ export default function ProfileClient(props: ProfileClientProps) {
                   maxLength={500}
                 />
                 <span className="absolute bottom-2 right-3 text-xs text-gray-400 select-none">{form.bio.length}/500</span>
+                {errors.bio && <p className="text-xs text-sos mt-1">{errors.bio}</p>}
               </div>
             ) : form.bio ? (
               <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">{form.bio}</p>

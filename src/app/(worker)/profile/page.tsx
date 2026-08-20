@@ -78,7 +78,14 @@ export default async function ProfilePage({
         address: profile.address,
         city: profile.city,
         district: profile.district,
+        workFields: profile.workFields,
+        declaredCredentials: profile.declaredCredentials,
+        height: profile.height,
+        weight: profile.weight,
+        desiredHourlyRate: profile.desiredHourlyRate,
+        bio: profile.bio,
         bankVerifiedAt: profile.bankVerifiedAt,
+        rrnRegisteredAt: profile.rrnRegisteredAt,
         user: { name: user?.name ?? null, phone: user?.phone ?? null },
       }).missing
     : []
