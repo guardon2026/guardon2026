@@ -39,7 +39,6 @@ const NAV_LINKS: Record<Role, NavLink[]> = {
 // 경비 업체 전용 "내 정보" 드롭다운 항목
 const MY_INFO_LINKS: NavLink[] = [
   { label: "업체 정보",  href: "/my-company" },
-  { label: "설정",      href: "/settings" },
   { label: "포인트",    href: "/company-points" },
   { label: "근로계약서", href: "/contracts" },
   { label: "인건비 정산", href: "/payroll" },
