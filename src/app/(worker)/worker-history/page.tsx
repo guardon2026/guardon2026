@@ -68,7 +68,7 @@ export default async function WorkerHistoryPage() {
     select: { id: true },
   })
 
-  if (!workerProfile) redirect("/profile/edit")
+  if (!workerProfile) redirect("/profile")
 
   const matches = await prisma.sosMatch.findMany({
     where: {

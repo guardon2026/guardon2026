@@ -15,7 +15,7 @@ export default async function WorkerContractsPage() {
     where: { userId: session.user.id },
     select: { id: true },
   })
-  if (!workerProfile) redirect("/profile/edit")
+  if (!workerProfile) redirect("/profile")
 
   const matches = await prisma.sosMatch.findMany({
     where: { workerProfileId: workerProfile.id, status: "CONFIRMED" },

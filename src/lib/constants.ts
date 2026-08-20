@@ -68,11 +68,8 @@ export const WORKER_PROFILE = {
 // ─────────────────────────────────────────
 
 export const WORKER_PUBLIC_PROFILE = {
-  PAGE_TITLE:           "내 프로필",
-  EDIT_BUTTON:          "프로필 편집",
-  NO_PROFILE_HEADING:   "아직 프로필이 등록되지 않았습니다.",
+  PAGE_TITLE:           "내 정보",
   NO_PROFILE_BODY:      "프로필을 등록하면 업체에서 찾아볼 수 있습니다.",
-  NO_PROFILE_BUTTON:    "프로필 등록하기",
   EXPERIENCE_LABEL:     "경력",
   EXPERIENCE_UNIT:      "년",
   WORK_FIELDS_LABEL:    "업무 분야",

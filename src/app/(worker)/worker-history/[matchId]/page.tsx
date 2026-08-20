@@ -68,7 +68,7 @@ export default async function WorkerSosDetailPage({
     where: { userId: session.user.id },
     select: { id: true },
   })
-  if (!workerProfile) redirect("/profile/edit")
+  if (!workerProfile) redirect("/profile")
 
   const match = await prisma.sosMatch.findUnique({
     where: { id: matchId },

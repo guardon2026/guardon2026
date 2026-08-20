@@ -96,7 +96,7 @@ export default function ConsentPage() {
       // role이 없는 예전 JWT를 읽어 /unauthorized로 튕겨내는 경합이 발생한다.
       // 세션에 새 role이 실제로 반영됐는지 짧게 폴링해서 확인한 뒤 이동한다.
       await waitForSessionRole(pendingRole)
-      window.location.href = pendingRole === "COMPANY_OWNER" ? "/register" : "/profile/edit"
+      window.location.href = pendingRole === "COMPANY_OWNER" ? "/register" : "/profile"
     } catch {
       alert("오류가 발생했습니다. 다시 시도해 주세요.")
     } finally {

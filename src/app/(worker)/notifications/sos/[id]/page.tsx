@@ -64,7 +64,7 @@ export default async function WorkerSosDetailPage({ params }: Props) {
     where: { userId: session.user.id },
     select: { id: true },
   })
-  if (!workerProfile) redirect("/profile/edit")
+  if (!workerProfile) redirect("/profile")
 
   // 이 워커의 이 요청 내 날짜별 매치 전체 (다일 근무는 날짜당 1행)
   const matches = await prisma.sosMatch.findMany({

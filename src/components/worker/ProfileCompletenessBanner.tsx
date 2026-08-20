@@ -1,14 +1,9 @@
 import Link from "next/link"
 import { AlertTriangle } from "lucide-react"
 
-const VERIFICATION_ITEMS = new Set(["계좌 정보"])
-
 /** 경비 인력의 SOS 신청·수락에 필요한 필수 정보 중 빠진 항목을 안내하는 배너 */
 export function ProfileCompletenessBanner({ missing }: { missing: string[] }) {
   if (missing.length === 0) return null
-
-  const editItems = missing.filter((m) => !VERIFICATION_ITEMS.has(m))
-  const verificationItems = missing.filter((m) => VERIFICATION_ITEMS.has(m))
 
   return (
     <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
@@ -23,23 +18,13 @@ export function ProfileCompletenessBanner({ missing }: { missing: string[] }) {
           </p>
         </div>
       </div>
-      <div className="flex gap-2 pl-6">
-        {editItems.length > 0 && (
-          <Link
-            href="/profile/edit"
-            className="text-xs font-medium text-brand hover:underline"
-          >
-            프로필 정보 입력하기 →
-          </Link>
-        )}
-        {verificationItems.length > 0 && (
-          <Link
-            href="/my-verification"
-            className="text-xs font-medium text-brand hover:underline"
-          >
-            계좌 정보 등록하기 →
-          </Link>
-        )}
+      <div className="pl-6">
+        <Link
+          href="/profile?edit=1"
+          className="text-xs font-medium text-brand hover:underline"
+        >
+          정보 입력하기 →
+        </Link>
       </div>
     </div>
   )

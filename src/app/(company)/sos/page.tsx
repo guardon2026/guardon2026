@@ -110,7 +110,7 @@ export default async function SosPage({
     })
     // 주소·업무 분야가 없으면 게시판을 의미 있게 보여줄 수 없으므로 리다이렉트
     if (!profile || !profile.address || !profile.city || !profile.district || profile.workFields.length === 0) {
-      redirect("/profile/edit")
+      redirect("/profile")
     }
     workerProfile = { id: profile.id }
     missingProfileItems = getWorkerCompleteness(profile).missing

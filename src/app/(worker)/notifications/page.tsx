@@ -264,7 +264,7 @@ export default async function NotificationsPage() {
     where: { userId: session.user.id },
     select: { id: true, ...WORKER_COMPLETENESS_SELECT },
   })
-  if (!workerProfile) redirect("/profile/edit")
+  if (!workerProfile) redirect("/profile")
   const { missing: missingProfileItems } = getWorkerCompleteness(workerProfile)
 
   // SOS 매치 알림
