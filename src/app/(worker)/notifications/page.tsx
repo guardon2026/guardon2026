@@ -90,11 +90,9 @@ type MatchItem = {
     dressCode: string | null
     description: string | null
     siteManagerContact: string | null
+    kakaoOpenChatUrl: string | null
     status: string
     createdAt: Date
-    company: {
-      kakaoOpenChatUrl: string | null
-    }
   }
 }
 
@@ -219,9 +217,9 @@ function MatchCard({ item }: { item: MatchItem }) {
       {/* 수락 전 — 카카오톡 문의하기 버튼 + 수락/거절 버튼 */}
       {isNotified && (
         <div className="px-4 pb-4 space-y-2">
-          {req.company.kakaoOpenChatUrl && (
+          {req.kakaoOpenChatUrl && (
             <a
-              href={req.company.kakaoOpenChatUrl}
+              href={req.kakaoOpenChatUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-yellow-400 hover:bg-yellow-500 transition-colors text-sm font-semibold text-gray-900"
@@ -298,11 +296,9 @@ export default async function NotificationsPage() {
           dressCode: true,
           description: true,
           siteManagerContact: true,
+          kakaoOpenChatUrl: true,
           status: true,
           createdAt: true,
-          company: {
-            select: { kakaoOpenChatUrl: true },
-          },
         },
       },
     },

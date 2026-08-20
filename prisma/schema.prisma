@@ -364,6 +364,7 @@ model SosRequest {
   applicationCount       Int       @default(0)
   closedAt               DateTime?
   siteManagerContact  String?                        // 현장 담당자 연락처
+  kakaoOpenChatUrl    String?                        // 이 현장 전용 카카오 오픈채팅 링크 (SOS마다 새로 등록)
   dressCode           String?                        // 복장 규정: FORMAL | TACTICAL | CASUAL | OTHER
   dressCodeNote       String?                        // 기타 복장 규정 설명
   description         String?

@@ -20,7 +20,6 @@ export async function GET() {
       city: true,
       district: true,
       description: true,
-      kakaoOpenChatUrl: true,
       status: true,
       approvedAt: true,
     },
@@ -50,17 +49,6 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.city === "string") updateData.city = body.city.trim()
   if (typeof body.district === "string") updateData.district = body.district.trim()
   if (typeof body.description === "string") updateData.description = body.description.trim() || null
-  if ("kakaoOpenChatUrl" in body) {
-    const url = body.kakaoOpenChatUrl
-    if (url === null || url === "") {
-      updateData.kakaoOpenChatUrl = null
-    } else if (typeof url === "string") {
-      if (!url.startsWith("https://open.kakao.com/")) {
-        return NextResponse.json({ error: "올바른 카카오 오픈채팅 링크를 입력해 주세요. (https://open.kakao.com/...)" }, { status: 400 })
-      }
-      updateData.kakaoOpenChatUrl = url.trim()
-    }
-  }
 
   if (Object.keys(updateData).length === 0) {
     return NextResponse.json({ error: "변경할 내용이 없습니다." }, { status: 400 })
@@ -69,7 +57,7 @@ export async function PATCH(req: NextRequest) {
   const updated = await prisma.company.update({
     where: { id: company.id },
     data: updateData,
-    select: { id: true, name: true, phone: true, address: true, city: true, district: true, description: true, kakaoOpenChatUrl: true },
+    select: { id: true, name: true, phone: true, address: true, city: true, district: true, description: true },
   })
 
   return NextResponse.json({ company: updated })

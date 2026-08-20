@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Building2, Phone, MapPin, MessageCircle, FileText,
+  Building2, Phone, MapPin, FileText,
   Save, CheckCircle2, Pencil, X, ShieldCheck, AlertTriangle, UserX,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,6 @@ interface CompanyData {
   city: string
   district: string
   description: string | null
-  kakaoOpenChatUrl: string | null
   status: string
   approvedAt: string | null
 }
@@ -34,7 +33,6 @@ interface FormState {
   city: string
   district: string
   description: string
-  kakaoOpenChatUrl: string
 }
 
 declare global {
@@ -61,7 +59,7 @@ export default function MyCompanyPage() {
   const router = useRouter()
   const [form, setForm] = useState<FormState>({
     name: "", phone: "", address: "", city: "", district: "",
-    description: "", kakaoOpenChatUrl: "",
+    description: "",
   })
   const postcodeLoaded = useRef(false)
 
@@ -93,7 +91,6 @@ export default function MyCompanyPage() {
       city: c.city,
       district: c.district,
       description: c.description ?? "",
-      kakaoOpenChatUrl: c.kakaoOpenChatUrl ?? "",
     })
   }
 
@@ -121,10 +118,6 @@ export default function MyCompanyPage() {
     if (!form.name.trim()) { setError("업체명을 입력해 주세요."); return }
     if (!form.phone.trim()) { setError("연락처를 입력해 주세요."); return }
     if (!form.address.trim()) { setError("주소를 입력해 주세요."); return }
-    if (form.kakaoOpenChatUrl && !form.kakaoOpenChatUrl.startsWith("https://open.kakao.com/")) {
-      setError("올바른 카카오 오픈채팅 링크를 입력해 주세요.")
-      return
-    }
 
     setSaving(true)
     setError(null)
@@ -139,7 +132,6 @@ export default function MyCompanyPage() {
           city: form.city,
           district: form.district,
           description: form.description || null,
-          kakaoOpenChatUrl: form.kakaoOpenChatUrl || null,
         }),
       })
       const data = await res.json()
@@ -354,43 +346,6 @@ export default function MyCompanyPage() {
             </p>
           )}
         </div>
-      </div>
-
-      {/* 카카오 오픈채팅 */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6 space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-          <MessageCircle className="w-4 h-4 text-yellow-500" />
-          카카오 오픈채팅
-        </div>
-        {editing ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="kakao">오픈채팅 URL</Label>
-            <Input
-              id="kakao"
-              value={form.kakaoOpenChatUrl}
-              onChange={(e) => setForm((p) => ({ ...p, kakaoOpenChatUrl: e.target.value }))}
-              placeholder="https://open.kakao.com/o/..."
-            />
-            <p className="text-xs text-gray-400">
-              경비 인력이 SOS 수락 전 문의할 수 있는 카카오 오픈채팅 링크입니다.
-            </p>
-          </div>
-        ) : (
-          <div>
-            {company.kakaoOpenChatUrl ? (
-              <a
-                href={company.kakaoOpenChatUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-yellow-600 hover:underline break-all"
-              >
-                {company.kakaoOpenChatUrl}
-              </a>
-            ) : (
-              <p className="text-sm text-gray-400">—</p>
-            )}
-          </div>
-        )}
       </div>
 
       {/* 회원 탈퇴 */}
