@@ -908,7 +908,7 @@ export default function ProfileClient(props: ProfileClientProps) {
             )}
           </div>
 
-          {props.hasProfile && !editing && <RrnSection registered={!!props.rrnRegisteredAt} />}
+          {props.hasProfile && <RrnSection registered={!!props.rrnRegisteredAt} />}
 
           {errors.general && <p className="text-sm text-sos text-center">{errors.general}</p>}
 
