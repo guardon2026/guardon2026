@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Calendar, Clock, FileText, MapPin, Phone, ShieldCheck, Users, Zap, ClipboardList, User } from "lucide-react"
+import { ArrowLeft, AlertTriangle, Calendar, Clock, FileText, MapPin, Phone, ShieldCheck, Users, Zap, ClipboardList, User } from "lucide-react"
 import { SosApplicationStatus, SosUrgency, UserRole } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
@@ -255,6 +255,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
   }
   const acceptedByDate = groupByDate(acceptedMatches)
   const confirmedByDate = groupByDate(confirmedMatches)
+  const unsignedContractCount = confirmedMatches.filter((m) => !m.workContract?.employerSignedAt).length
   const todayStr = toISODate(new Date())
   function formatDayLabel(dateStr: string) {
     return new Date(dateStr).toLocaleDateString("ko-KR", {
@@ -446,6 +447,15 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                   신고 정보
                 </Link>
               </div>
+              {unsignedContractCount > 0 && (
+                <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    경비 인력을 확정하면 근로기준법에 따라 근무 개시 전 근로계약서를 작성해야 합니다.
+                    아래에서 확정된 인력의 "계약서 작성" 버튼을 눌러 근로계약서를 작성해 주세요.
+                  </p>
+                </div>
+              )}
               <div className="space-y-5">
                 {scheduleDaysList
                   .filter((day) => (confirmedByDate.get(day.date)?.length ?? 0) > 0)

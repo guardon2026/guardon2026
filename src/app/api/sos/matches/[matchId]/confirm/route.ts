@@ -100,14 +100,23 @@ export async function POST(
     updatedSosRequest = { ...match.sosRequest, status: updated.status, confirmedAt: updated.confirmedAt }
   }
 
-  // 7. 경비 인력에게 확정 알림 발송
-  await createNotifications([{
-    userId: match.workerProfile.userId,
-    sosRequestId,
-    type: "MATCH_CONFIRMED",
-    title: "SOS 확정 알림",
-    body: `'${match.sosRequest.title}' 요청의 ${match.scheduleDate} 근무가 최종 확정되었습니다. 배치 일정을 확인해 주세요.`,
-  }])
+  // 7. 경비 인력에게 확정 알림 + 업체에게 근로계약서 작성 안내 발송
+  await createNotifications([
+    {
+      userId: match.workerProfile.userId,
+      sosRequestId,
+      type: "MATCH_CONFIRMED",
+      title: "SOS 확정 알림",
+      body: `'${match.sosRequest.title}' 요청의 ${match.scheduleDate} 근무가 최종 확정되었습니다. 배치 일정을 확인해 주세요.`,
+    },
+    {
+      userId: session.user.id,
+      sosRequestId,
+      type: "CONTRACT_REQUIRED",
+      title: "근로계약서 작성 안내",
+      body: `인력 확정이 완료되었습니다. 근로기준법에 따라 근무 개시 전 근로계약서를 작성해야 합니다. SOS 상세 페이지에서 계약서를 작성해 주세요.`,
+    },
+  ])
 
   return NextResponse.json({
     match: updatedMatch,
