@@ -410,6 +410,15 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                           </p>
                         </div>
                         <div className="flex flex-wrap justify-end gap-1.5">
+                          {app.workerProfile && (
+                            <Link
+                              href={`/workers/${app.applicantUser.id}?from=/sos/${id}`}
+                              className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <User className="w-3.5 h-3.5" />
+                              인력 정보
+                            </Link>
+                          )}
                           <ApplicationStatusButton applicationId={app.id} status="REVIEWING" />
                           <ApplicationStatusButton applicationId={app.id} status="CONTACTED" />
                           <ApplicationStatusButton applicationId={app.id} status="SELECTED" />
