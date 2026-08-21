@@ -226,7 +226,11 @@ export default async function WorkerSosDetailPage({
       {/* 임무 완료 보고 버튼 — CONFIRMED 매치이고 SOS가 진행 중일 때만 표시 */}
       {match.status === SosMatchStatus.CONFIRMED &&
         (req.status === "DISPATCHING" || req.status === "CONFIRMED") && (
-        <MissionCompleteButton matchId={match.id} alreadyReported={!!match.missionReportedAt} />
+        <MissionCompleteButton
+          matchId={match.id}
+          alreadyReported={!!match.missionReportedAt}
+          contractComplete={!!(match.workContract?.employerSignedAt && match.workContract?.workerSignedAt)}
+        />
       )}
     </div>
   )

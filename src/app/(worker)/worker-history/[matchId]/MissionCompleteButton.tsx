@@ -1,14 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, AlertTriangle } from "lucide-react"
 
 export default function MissionCompleteButton({
   matchId,
   alreadyReported = false,
+  contractComplete = true,
 }: {
   matchId: string
   alreadyReported?: boolean
+  contractComplete?: boolean
 }) {
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(alreadyReported)
@@ -38,6 +40,15 @@ export default function MissionCompleteButton({
       <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm font-medium">
         <CheckCircle2 className="w-4 h-4 shrink-0" />
         임무 완료 보고가 전송됐습니다.
+      </div>
+    )
+  }
+
+  if (!contractComplete) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium">
+        <AlertTriangle className="w-4 h-4 shrink-0" />
+        근로계약서 서명이 완료되어야 임무 완료 보고를 할 수 있습니다.
       </div>
     )
   }

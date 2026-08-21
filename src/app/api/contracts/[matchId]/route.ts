@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
 import { sendKakaoMessages } from "@/lib/kakao-message"
+import { createNotifications } from "@/lib/notify"
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://guardon.kr"
 
@@ -87,9 +88,19 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       },
     })
 
-    // 양쪽 서명 완료 시 카카오 메시지 발송
-    if (sign && match.workContract?.workerSignedAt) {
-      await notifyBothParties(match, matchId)
+    // 업체가 처음 서명 — 양쪽 다 완료면 완료 알림, 근로자 미서명이면 서명 요청 알림
+    if (sign && !match.workContract?.employerSignedAt) {
+      if (match.workContract?.workerSignedAt) {
+        await notifyBothParties(match, matchId)
+      } else {
+        await createNotifications([{
+          userId: match.workerProfile.userId,
+          sosRequestId: match.sosRequest.id,
+          type: "CONTRACT_SIGN_REQUIRED",
+          title: "근로계약서 서명 요청",
+          body: `'${match.sosRequest.title}' 근로계약서에 경비 업체가 서명했습니다. 근무 전 근로계약서를 확인하고 서명해 주세요.`,
+        }])
+      }
     }
 
     return NextResponse.json({ contract })

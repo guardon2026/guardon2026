@@ -40,6 +40,7 @@ export async function POST(
           company: { select: { ownerId: true, name: true } },
         },
       },
+      workContract: { select: { employerSignedAt: true, workerSignedAt: true } },
     },
   })
 
@@ -49,6 +50,10 @@ export async function POST(
 
   if (match.status !== SosMatchStatus.CONFIRMED) {
     return NextResponse.json({ error: "확정된 매치만 완료 보고할 수 있습니다." }, { status: 409 })
+  }
+
+  if (!match.workContract?.employerSignedAt || !match.workContract?.workerSignedAt) {
+    return NextResponse.json({ error: "근로계약서 서명이 완료되어야 임무 완료 보고를 할 수 있습니다." }, { status: 409 })
   }
 
   if (match.missionReportedAt) {
