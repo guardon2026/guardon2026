@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
@@ -204,8 +204,17 @@ export default function ProfileClient(props: ProfileClientProps) {
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [form, setForm] = useState<FormState>(() => buildForm(props))
   const [errors, setErrors] = useState<FormErrors>({})
+  const [submitted, setSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // 한 번 저장을 시도해 오류가 표시된 뒤에는, 입력값을 수정할 때마다 즉시
+  // 재검증해서 이미 채운 항목의 빨간 오류 문구가 다음 저장 시도 전까지
+  // 남아있지 않도록 한다. avatar는 별도 업로드 흐름이라 여기서 건드리지 않는다.
+  useEffect(() => {
+    if (!submitted) return
+    setErrors((prev) => ({ ...validate(form), avatar: prev.avatar }))
+  }, [form, submitted])
 
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -283,10 +292,12 @@ export default function ProfileClient(props: ProfileClientProps) {
     setAvatarFile(null)
     setAvatarPreview(null)
     setErrors({})
+    setSubmitted(false)
     setEditing(false)
   }
 
   async function handleSave() {
+    setSubmitted(true)
     const errs = validate(form)
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
@@ -348,6 +359,7 @@ export default function ProfileClient(props: ProfileClientProps) {
       setAvatarFile(null)
       setAvatarPreview(null)
       await update()
+      setSubmitted(false)
       setEditing(false)
       setSuccessMsg(WORKER_PROFILE.SUCCESS)
       setTimeout(() => setSuccessMsg(null), 2500)
