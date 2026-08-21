@@ -233,10 +233,10 @@ export default function HomePage() {
                 <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
               ))}
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">업체들의 실제 후기</h2>
-            <p className="text-gray-500 text-sm">GuardOn 네트워크 베타 참여 업체</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">가드온 사용 후기</h2>
+            <p className="text-gray-500 text-sm">GuardOn 네트워크 베타 참여 업체·경비 인력</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-5">
+          <div className="grid sm:grid-cols-2 gap-5">
             {[
               {
                 name: "박** 소장",
@@ -252,6 +252,11 @@ export default function HomePage() {
                 name: "김** 경비원",
                 company: "신변보호사 자격 보유",
                 text: "자격증 등록하고 뱃지 달았더니 일주일도 안 돼서 매칭 요청이 왔습니다. 가용 표시만 켜두면 알아서 연결돼요.",
+              },
+              {
+                name: "정** 경비원",
+                company: "일반경비 3년차",
+                text: "SOS 요청이 뜨면 앱에서 바로 조건 확인하고 수락만 누르면 끝이라 정말 편해요. 근무 이력이랑 정산 내역도 한눈에 보여서 따로 기록 안 해도 됩니다.",
               },
             ].map((r) => (
               <div key={r.name} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
