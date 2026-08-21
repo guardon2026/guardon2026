@@ -176,7 +176,7 @@ export default function HomePage() {
                 icon: <Clock className="w-5 h-5 text-green-600" />,
                 color: "bg-green-50 border-green-100",
                 title: "8분 내 배치 확정",
-                desc: "수락된 인력 정보가 즉시 전달되고 배치가 확정됩니다. 정산까지 자동화됩니다.",
+                desc: "수락된 인력 정보가 즉시 전달되고 배치가 확정됩니다.",
               },
             ].map((item) => (
               <div key={item.step} className="bg-white rounded-2xl border border-gray-100 p-7 space-y-4 shadow-sm">
