@@ -44,3 +44,14 @@ export function formatRrnDisplay(plain: string): string {
   const cleaned = plain.replace(/-/g, "")
   return `${cleaned.slice(0, 6)}-${cleaned.slice(6)}`
 }
+
+// 주민등록번호 앞자리(YYMMDD)와 성별 구분자로 생년월일(YYYYMMDD)을 계산한다.
+// 1,2 = 1900년대 출생, 3,4 = 2000년대 출생.
+export function extractBirthDateFromRrn(plain: string): string | null {
+  const cleaned = plain.replace(/-/g, "")
+  if (!/^\d{13}$/.test(cleaned)) return null
+  const genderDigit = cleaned[6]
+  const century = ["1", "2"].includes(genderDigit) ? "19" : ["3", "4"].includes(genderDigit) ? "20" : null
+  if (!century) return null
+  return `${century}${cleaned.slice(0, 6)}`
+}

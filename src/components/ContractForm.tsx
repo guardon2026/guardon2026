@@ -19,6 +19,12 @@ interface Prefill {
   employerName?: string
   employerBizNumber?: string
   employerAddress?: string
+  workerBirthDate?: string
+  workerAddress?: string
+  workerPhone?: string
+  workerBankName?: string
+  workerAccountNum?: string
+  workerAccountHolder?: string
 }
 
 interface Props {
@@ -54,14 +60,14 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
   const [ceoName,   setCeoName]   = useState(contract?.employerCeoName ?? "")
   const [empAddr,   setEmpAddr]   = useState(contract?.employerAddress  ?? prefill?.employerAddress ?? "")
 
-  // 경비 인력 필드
+  // 경비 인력 필드 — 계약서에 저장된 값이 없으면 프로필에 등록된 정보로 자동 입력
   const [realName,   setRealName]   = useState(contract?.workerRealName      ?? "")
-  const [birthDate,  setBirthDate]  = useState(contract?.workerBirthDate     ?? "")
-  const [wAddr,      setWAddr]      = useState(contract?.workerAddress        ?? "")
-  const [wPhone,     setWPhone]     = useState(contract?.workerPhone          ?? "")
-  const [bankName,   setBankName]   = useState(contract?.workerBankName       ?? "")
-  const [accountNum, setAccountNum] = useState(contract?.workerAccountNum     ?? "")
-  const [accountHolder, setAccountHolder] = useState(contract?.workerAccountHolder ?? "")
+  const [birthDate,  setBirthDate]  = useState(contract?.workerBirthDate     ?? prefill?.workerBirthDate     ?? "")
+  const [wAddr,      setWAddr]      = useState(contract?.workerAddress        ?? prefill?.workerAddress       ?? "")
+  const [wPhone,     setWPhone]     = useState(contract?.workerPhone          ?? prefill?.workerPhone         ?? "")
+  const [bankName,   setBankName]   = useState(contract?.workerBankName       ?? prefill?.workerBankName      ?? "")
+  const [accountNum, setAccountNum] = useState(contract?.workerAccountNum     ?? prefill?.workerAccountNum    ?? "")
+  const [accountHolder, setAccountHolder] = useState(contract?.workerAccountHolder ?? prefill?.workerAccountHolder ?? "")
 
   const [saving,  setSaving]  = useState(false)
   const [signing, setSigning] = useState(false)

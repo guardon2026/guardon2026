@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
 import ContractForm from "@/components/ContractForm"
+import { decryptPii, extractBirthDateFromRrn } from "@/lib/crypto"
 
 interface Props {
   params: Promise<{ matchId: string }>
@@ -15,11 +16,26 @@ export default async function WorkerContractPage({ params }: Props) {
   if (!session?.user?.id) redirect("/login")
   if (session.user.role !== UserRole.WORKER) redirect("/")
 
-  const workerProfile = await prisma.workerProfile.findUnique({
-    where: { userId: session.user.id },
-    select: { id: true },
-  })
+  const [workerProfile, user] = await Promise.all([
+    prisma.workerProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true, address: true, bankName: true, bankAccount: true, bankHolder: true, rrn: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { phone: true },
+    }),
+  ])
   if (!workerProfile) redirect("/profile")
+
+  let birthDate: string | null = null
+  if (workerProfile.rrn) {
+    try {
+      birthDate = extractBirthDateFromRrn(decryptPii(workerProfile.rrn))
+    } catch {
+      birthDate = null
+    }
+  }
 
   const match = await prisma.sosMatch.findUnique({
     where: { id: matchId },
@@ -55,6 +71,14 @@ export default async function WorkerContractPage({ params }: Props) {
           sosId={sos.id}
           role="worker"
           contract={match.workContract}
+          prefill={{
+            workerBirthDate: birthDate ?? undefined,
+            workerAddress: workerProfile.address ?? undefined,
+            workerPhone: user?.phone ?? undefined,
+            workerBankName: workerProfile.bankName ?? undefined,
+            workerAccountNum: workerProfile.bankAccount ?? undefined,
+            workerAccountHolder: workerProfile.bankHolder ?? undefined,
+          }}
           sosInfo={{
             title: sos.title,
             locationAddress: sos.locationAddress,
