@@ -8,7 +8,7 @@ import Script from "next/script"
 import Image from "next/image"
 import {
   Star, Award, MapPin, Clock, DollarSign, FileText, Scale, Ruler, Coins, ChevronRight,
-  CheckCircle2, ShieldCheck, ShieldAlert, Camera, Pencil, X, Save, Loader2,
+  CheckCircle2, ShieldCheck, Camera, Pencil, X, Save, Loader2,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,6 +18,7 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { AvailabilityToggle } from "./availability-toggle"
 import WithdrawSection from "./WithdrawSection"
 import RrnSection from "./RrnSection"
+import BankSection from "./BankSection"
 import { ProfileCompletenessBanner } from "@/components/worker/ProfileCompletenessBanner"
 import {
   WORKER_PROFILE,
@@ -34,13 +35,6 @@ import { cn, formatPhoneNumber } from "@/lib/utils"
 
 const ALL_WORK_FIELDS = SOS_WORK_FIELD_OPTIONS as unknown as WorkFieldKey[]
 const ALL_CREDENTIALS = SOS_CREDENTIAL_OPTIONS as unknown as CredentialTypeKey[]
-
-const BANKS = [
-  "KB국민은행", "신한은행", "우리은행", "하나은행", "IBK기업은행",
-  "NH농협은행", "카카오뱅크", "토스뱅크", "케이뱅크", "SC제일은행",
-  "씨티은행", "부산은행", "경남은행", "대구은행", "광주은행",
-  "전북은행", "제주은행", "우체국", "새마을금고", "신협",
-]
 
 declare global {
   interface Window {
@@ -114,9 +108,6 @@ interface FormState {
   district: string
   desiredHourlyRate: string
   bio: string
-  bankName: string
-  bankAccount: string
-  bankHolder: string
 }
 
 interface FormErrors {
@@ -148,9 +139,6 @@ function buildForm(p: ProfileClientProps): FormState {
     district: p.district ?? "",
     desiredHourlyRate: p.desiredHourlyRate != null ? String(p.desiredHourlyRate) : "",
     bio: p.bio ?? "",
-    bankName: p.bankName ?? "",
-    bankAccount: p.bankAccount ?? "",
-    bankHolder: p.bankHolder ?? "",
   }
 }
 
@@ -184,10 +172,6 @@ function validate(f: FormState): FormErrors {
   }
   if (f.declaredCredentials.length === 0) errs.declaredCredentials = "보유 자격증을 하나 이상 선택해 주세요."
   if (!f.bio.trim()) errs.bio = "자기소개를 입력해 주세요."
-  const bankFilled = [f.bankName, f.bankAccount, f.bankHolder].filter((v) => v.trim() !== "").length
-  if (bankFilled < 3) {
-    errs.general = "계좌 정보(은행·계좌번호·예금주)를 모두 입력해 주세요."
-  }
   return errs
 }
 
@@ -334,25 +318,6 @@ export default function ProfileClient(props: ProfileClientProps) {
         const d = await res.json().catch(() => ({}))
         setErrors({ general: d.error ?? WORKER_PROFILE.ERROR.SAVE_FAILED })
         return
-      }
-
-      const bankFilled = form.bankName.trim() && form.bankAccount.trim() && form.bankHolder.trim()
-      if (bankFilled) {
-        const bankRes = await fetch("/api/worker/verification", {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "bank",
-            bankName: form.bankName,
-            bankAccount: form.bankAccount,
-            bankHolder: form.bankHolder,
-          }),
-        })
-        if (!bankRes.ok) {
-          const d = await bankRes.json().catch(() => ({}))
-          setErrors({ general: d.error ?? "계좌 정보 저장에 실패했습니다." })
-          return
-        }
       }
 
       if (newAvatarUrl) setProfileImageUrl(newAvatarUrl)
@@ -851,62 +816,14 @@ export default function ProfileClient(props: ProfileClientProps) {
             )}
           </div>
 
-          {/* 계좌 정보 */}
-          <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-5">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-brand" />
-              계좌 정보
-            </h3>
-            {editing ? (
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">은행 선택</label>
-                  <select
-                    value={form.bankName}
-                    onChange={(e) => setForm((p) => ({ ...p, bankName: e.target.value }))}
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand bg-white"
-                  >
-                    <option value="">은행을 선택해 주세요</option>
-                    {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">계좌번호</label>
-                  <input
-                    type="text"
-                    value={form.bankAccount}
-                    onChange={(e) => setForm((p) => ({ ...p, bankAccount: e.target.value.replace(/[^\d-]/g, "") }))}
-                    placeholder="'-' 없이 숫자만 입력"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">예금주명</label>
-                  <input
-                    type="text"
-                    value={form.bankHolder}
-                    onChange={(e) => setForm((p) => ({ ...p, bankHolder: e.target.value }))}
-                    placeholder="예금주 실명"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-                  />
-                </div>
-                <p className="text-xs text-gray-400">급여 지급 및 포인트 출금에 사용됩니다. 입력 형식만 확인하며, 실제 예금주 일치 여부는 검증되지 않습니다.</p>
-              </div>
-            ) : (
-              <div className={`rounded-xl px-4 py-3 flex items-center gap-2 ${props.bankVerifiedAt ? "bg-green-50" : "bg-amber-50"}`}>
-                {props.bankVerifiedAt
-                  ? <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                  : <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0" />
-                }
-                <div>
-                  <p className="text-xs font-semibold text-gray-700">계좌 정보</p>
-                  <p className={`text-xs ${props.bankVerifiedAt ? "text-green-600" : "text-amber-600"}`}>
-                    {props.bankVerifiedAt ? `${form.bankName} · ${form.bankAccount} · ${form.bankHolder}` : "미등록"}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          {props.hasProfile && (
+            <BankSection
+              bankName={props.bankName}
+              bankAccount={props.bankAccount}
+              bankHolder={props.bankHolder}
+              bankVerifiedAt={props.bankVerifiedAt}
+            />
+          )}
 
           {props.hasProfile && <RrnSection registered={!!props.rrnRegisteredAt} />}
 
