@@ -256,7 +256,7 @@ export default function HomePage() {
               {
                 name: "정** 경비원",
                 company: "일반경비 3년차",
-                text: "SOS 요청이 뜨면 앱에서 바로 조건 확인하고 수락만 누르면 끝이라 정말 편해요. 근무 이력이랑 정산 내역도 한눈에 보여서 따로 기록 안 해도 됩니다.",
+                text: "SOS 요청이 뜨면 앱에서 바로 조건 확인하고 수락만 누르면 끝이라 정말 편해요. 근무 이력도 한눈에 보여서 따로 기록 안 해도 됩니다.",
               },
             ].map((r) => (
               <div key={r.name} className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4 shadow-sm">
