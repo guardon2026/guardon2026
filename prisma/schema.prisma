@@ -687,6 +687,7 @@ model WorkContract {
   employerCeoName   String?  // 대표자 성명
   employerAddress   String?  // 업체 주소
   employerSignedAt  DateTime?
+  employerSignatureImage String? // 서명 이미지 (PNG data URL)
 
   // 근로자(경비 인력) 입력 정보
   workerRealName      String?  // 성명
@@ -697,6 +698,7 @@ model WorkContract {
   workerAccountNum    String?  // 계좌번호
   workerAccountHolder String?  // 예금주
   workerSignedAt      DateTime?
+  workerSignatureImage String? // 서명 이미지 (PNG data URL)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

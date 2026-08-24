@@ -10,6 +10,13 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "https://guardon.kr"
 
 type Params = { params: Promise<{ matchId: string }> }
 
+function validSignatureImage(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  if (!value.startsWith("data:image/png;base64,")) return null
+  if (value.length > 500_000) return null
+  return value
+}
+
 // GET /api/contracts/[matchId] — 계약서 조회
 export async function GET(_req: NextRequest, { params }: Params) {
   const { matchId } = await params
@@ -67,7 +74,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const now = new Date()
 
   if (isCompany) {
-    const { employerBizNumber, employerName, employerCeoName, employerAddress, sign } = body
+    const { employerBizNumber, employerName, employerCeoName, employerAddress, sign, employerSignatureImage } = body
+    const signatureImage = sign ? validSignatureImage(employerSignatureImage) : null
+    if (sign && !signatureImage) {
+      return NextResponse.json({ error: "서명 이미지가 필요합니다." }, { status: 400 })
+    }
     const contract = await prisma.workContract.upsert({
       where: { sosMatchId: matchId },
       create: {
@@ -78,13 +89,14 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         employerCeoName: employerCeoName?.trim() || null,
         employerAddress: employerAddress?.trim() || null,
         employerSignedAt: sign ? now : null,
+        employerSignatureImage: sign ? signatureImage : null,
       },
       update: {
         employerBizNumber: employerBizNumber?.trim() || null,
         employerName: employerName?.trim() || null,
         employerCeoName: employerCeoName?.trim() || null,
         employerAddress: employerAddress?.trim() || null,
-        ...(sign && { employerSignedAt: now }),
+        ...(sign && { employerSignedAt: now, employerSignatureImage: signatureImage }),
       },
     })
 
@@ -107,7 +119,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   // isWorker
-  const { workerRealName, workerBirthDate, workerAddress, workerPhone, workerBankName, workerAccountNum, workerAccountHolder, sign } = body
+  const { workerRealName, workerBirthDate, workerAddress, workerPhone, workerBankName, workerAccountNum, workerAccountHolder, sign, workerSignatureImage } = body
+  const signatureImage = sign ? validSignatureImage(workerSignatureImage) : null
+  if (sign && !signatureImage) {
+    return NextResponse.json({ error: "서명 이미지가 필요합니다." }, { status: 400 })
+  }
   const contract = await prisma.workContract.upsert({
     where: { sosMatchId: matchId },
     create: {
@@ -121,6 +137,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       workerAccountNum: workerAccountNum?.trim() || null,
       workerAccountHolder: workerAccountHolder?.trim() || null,
       workerSignedAt: sign ? now : null,
+      workerSignatureImage: sign ? signatureImage : null,
     },
     update: {
       workerRealName: workerRealName?.trim() || null,
@@ -130,7 +147,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       workerBankName: workerBankName?.trim() || null,
       workerAccountNum: workerAccountNum?.trim() || null,
       workerAccountHolder: workerAccountHolder?.trim() || null,
-      ...(sign && { workerSignedAt: now }),
+      ...(sign && { workerSignedAt: now, workerSignatureImage: signatureImage }),
     },
   })
 

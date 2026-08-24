@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, FileText, ArrowLeft, Printer } from "lucide-react"
 import type { WorkContract } from "@prisma/client"
+import SignaturePad from "./SignaturePad"
 
 interface SosInfo {
   title: string
@@ -73,33 +74,34 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
   const [signing, setSigning] = useState(false)
   const [error,   setError]   = useState("")
   const [saved,   setSaved]   = useState(false)
+  const [showSignaturePad, setShowSignaturePad] = useState(false)
 
   const employerSigned = !!contract?.employerSignedAt
   const workerSigned   = !!contract?.workerSignedAt
   const bothSigned     = employerSigned && workerSigned
   const mySigned       = isEmployer ? employerSigned : workerSigned
 
-  async function buildBody(sign: boolean) {
+  function buildBody(sign: boolean, signatureImage?: string) {
     if (isEmployer) {
-      return { employerBizNumber: bizNumber, employerName: empName, employerCeoName: ceoName, employerAddress: empAddr, sign }
+      return { employerBizNumber: bizNumber, employerName: empName, employerCeoName: ceoName, employerAddress: empAddr, sign, employerSignatureImage: signatureImage }
     }
-    return { workerRealName: realName, workerBirthDate: birthDate, workerAddress: wAddr, workerPhone: wPhone, workerBankName: bankName, workerAccountNum: accountNum, workerAccountHolder: accountHolder, sign }
+    return { workerRealName: realName, workerBirthDate: birthDate, workerAddress: wAddr, workerPhone: wPhone, workerBankName: bankName, workerAccountNum: accountNum, workerAccountHolder: accountHolder, sign, workerSignatureImage: signatureImage }
   }
 
   async function handleSave() {
     setSaving(true); setError("")
     try {
-      const res = await fetch(`/api/contracts/${matchId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await buildBody(false)) })
+      const res = await fetch(`/api/contracts/${matchId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildBody(false)) })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? "저장 실패"); return }
       setSaved(true)
       router.refresh()
     } catch { setError("네트워크 오류") } finally { setSaving(false) }
   }
 
-  async function handleSign() {
+  async function handleSign(signatureImage: string) {
     setSigning(true); setError("")
     try {
-      const res = await fetch(`/api/contracts/${matchId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(await buildBody(true)) })
+      const res = await fetch(`/api/contracts/${matchId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildBody(true, signatureImage)) })
       if (!res.ok) { const d = await res.json(); setError(d.error ?? "서명 실패"); return }
       router.refresh()
     } catch { setError("네트워크 오류") } finally { setSigning(false) }
@@ -132,11 +134,16 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
       {/* 서명 상태 배너 */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: "사업주 서명", signed: employerSigned, date: contract?.employerSignedAt },
-          { label: "근로자 서명", signed: workerSigned,   date: contract?.workerSignedAt },
-        ].map(({ label, signed, date }) => (
-          <div key={label} className={`rounded-xl border px-4 py-3 flex items-center gap-2 ${signed ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"}`}>
-            <CheckCircle2 className={`w-4 h-4 shrink-0 ${signed ? "text-green-500" : "text-gray-300"}`} />
+          { label: "사업주 서명", signed: employerSigned, date: contract?.employerSignedAt, image: contract?.employerSignatureImage },
+          { label: "근로자 서명", signed: workerSigned,   date: contract?.workerSignedAt, image: contract?.workerSignatureImage },
+        ].map(({ label, signed, date, image }) => (
+          <div key={label} className={`rounded-xl border px-4 py-3 flex items-center gap-3 ${signed ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"}`}>
+            {signed && image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={image} alt={`${label} 이미지`} className="h-8 w-auto shrink-0 bg-white rounded border border-green-100" />
+            ) : (
+              <CheckCircle2 className={`w-4 h-4 shrink-0 ${signed ? "text-green-500" : "text-gray-300"}`} />
+            )}
             <div>
               <p className={`text-xs font-semibold ${signed ? "text-green-700" : "text-gray-400"}`}>{label}</p>
               {signed && date && <p className="text-xs text-green-600">{new Date(date).toLocaleDateString("ko-KR")}</p>}
@@ -242,7 +249,7 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
               {saving ? "저장 중..." : "임시 저장"}
             </button>
             <button
-              onClick={handleSign}
+              onClick={() => setShowSignaturePad(true)}
               disabled={signing}
               className="flex-1 h-11 bg-brand text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
@@ -253,6 +260,14 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
             서명 후에는 {isEmployer ? "사업주" : "근로자"} 정보를 수정할 수 없습니다.
           </p>
         </div>
+      )}
+
+      {showSignaturePad && (
+        <SignaturePad
+          saving={signing}
+          onCancel={() => setShowSignaturePad(false)}
+          onSave={(dataUrl) => { setShowSignaturePad(false); handleSign(dataUrl) }}
+        />
       )}
 
       {mySigned && !bothSigned && (
