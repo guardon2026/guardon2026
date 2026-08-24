@@ -6,6 +6,7 @@ import { UserRole, SosMatchStatus, SosStatus, AvailabilityStatus } from "@prisma
 // workerAccount 조회 불필요 — 일급은 경비 업체가 직접 지급
 import { createNotifications } from "@/lib/notify"
 import { sendKakaoMessages } from "@/lib/kakao-message"
+import { calcDailyTax, calcInsuredDailyTax } from "@/lib/tax"
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"
 
@@ -59,6 +60,7 @@ export async function POST(
   const workerName = match.workerProfile.user.name ?? "경비 인력"
   const sosTitle = match.sosRequest.title
   const dailyPay = match.sosRequest.hourlyRate // hourlyRate 필드가 실제로는 일급
+  const tax = match.insuranceStatus === "INSURED" ? calcInsuredDailyTax(dailyPay) : calcDailyTax(dailyPay)
   const now = new Date()
 
   // 이 매치의 임무완료 확인 기록
@@ -104,7 +106,9 @@ export async function POST(
   const kakaoBody =
     `✅ 임무 완료가 확정되었습니다!\n\n` +
     `현장: ${sosTitle}\n` +
-    `일급: ${dailyPay.toLocaleString()}원\n` +
+    `일급(세전): ${dailyPay.toLocaleString()}원\n` +
+    `원천징수 공제액: ${(dailyPay - tax.netPay).toLocaleString()}원\n` +
+    `실수령액(세후): ${tax.netPay.toLocaleString()}원\n` +
     `지급 기한: ${dueDateStr}까지 (확정일로부터 14일 이내)\n\n` +
     `경비 업체에게 직접 일급을 수령하시기 바랍니다.\n` +
     `수고하셨습니다!`
@@ -116,7 +120,7 @@ export async function POST(
         sosRequestId,
         type: "MISSION_CONFIRMED",
         title: "임무 완료 확정 — 일급 지급 안내",
-        body: `${sosTitle} 임무 완료가 확정되었습니다. 일급 ${dailyPay.toLocaleString()}원을 확정일로부터 14일 이내(${dueDateStr}까지) 경비 업체에게 직접 수령하세요.`,
+        body: `${sosTitle} 임무 완료가 확정되었습니다. 일급(세전) ${dailyPay.toLocaleString()}원, 원천징수 후 실수령액 ${tax.netPay.toLocaleString()}원을 확정일로부터 14일 이내(${dueDateStr}까지) 경비 업체에게 직접 수령하세요.`,
       },
     ]),
     sendKakaoMessages([

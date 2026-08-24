@@ -9,6 +9,7 @@ import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_STATUS_LABELS } from "@/lib/c
 import MissionCompleteButton from "./MissionCompleteButton"
 import WorkerCancelButton from "./WorkerCancelButton"
 import { ScheduleDayList } from "@/components/sos/ScheduleDayList"
+import { calcDailyTax, calcInsuredDailyTax } from "@/lib/tax"
 
 function fmtDate(date: Date) {
   return date.toLocaleString("ko-KR", {
@@ -155,7 +156,34 @@ export default async function WorkerSosDetailPage({
 
       {/* 급여 */}
       <InfoSection title="급여" icon={DollarSign}>
-        <InfoRow label="일급" value={`${req.hourlyRate.toLocaleString()}원/일`} />
+        <InfoRow label="일급 (세전)" value={`${req.hourlyRate.toLocaleString()}원/일`} />
+        {(() => {
+          const insured = match.insuranceStatus === "INSURED"
+          const tax = insured ? calcInsuredDailyTax(req.hourlyRate) : calcDailyTax(req.hourlyRate)
+          const pension = insured ? (tax as ReturnType<typeof calcInsuredDailyTax>).pension : 0
+          const health = insured ? (tax as ReturnType<typeof calcInsuredDailyTax>).health : 0
+          return (
+            <>
+              <div className="pt-2 border-t border-gray-100 space-y-1.5">
+                <p className="text-xs text-gray-400">공제 내역 (원천징수)</p>
+                <InfoRow label="소득세" value={`- ${tax.incomeTax.toLocaleString()}원`} />
+                <InfoRow label="지방소득세" value={`- ${tax.localTax.toLocaleString()}원`} />
+                {insured && <InfoRow label="국민연금" value={`- ${pension.toLocaleString()}원`} />}
+                {insured && <InfoRow label="건강보험" value={`- ${health.toLocaleString()}원`} />}
+                <InfoRow label="고용보험" value={`- ${tax.employmentInsurance.toLocaleString()}원`} />
+              </div>
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex gap-3 text-sm">
+                  <span className="text-gray-500 w-24 shrink-0 font-medium">실수령액</span>
+                  <span className="text-brand font-bold">{tax.netPay.toLocaleString()}원</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  일용근로소득세 원천징수 {insured ? "및 4대보험 공제" : ""} 반영 예상 금액이며, 실제 지급액과 다를 수 있습니다.
+                </p>
+              </div>
+            </>
+          )
+        })()}
       </InfoSection>
 
       {/* 업체 정보 */}
