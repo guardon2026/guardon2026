@@ -75,6 +75,7 @@ export default async function SosPage({
     sort?: string
     scope?: string
     openOnly?: string
+    history?: string
   }>
 }) {
   const session = await getServerSession()
@@ -88,6 +89,7 @@ export default async function SosPage({
   const sort = SORT_OPTIONS.has(params.sort ?? "") ? params.sort! : "newest"
   const scope = params.scope === "mine" ? "mine" : "board"
   const openOnly = params.openOnly !== "false"
+  const showHistory = params.history === "true"
   const urgency = Object.values(SosUrgency).includes(params.urgency as SosUrgency)
     ? (params.urgency as SosUrgency)
     : null
@@ -117,9 +119,9 @@ export default async function SosPage({
   }
 
   const where: Prisma.SosRequestWhereInput = {
-    status: { notIn: ["CANCELLED", "COMPLETED"] },
+    status: showHistory ? { in: ["CANCELLED", "COMPLETED"] } : { notIn: ["CANCELLED", "COMPLETED"] },
   }
-  if (openOnly) {
+  if (openOnly && !showHistory) {
     where.closedAt = null
     where.OR = [
       { applicationDeadline: null },
@@ -237,7 +239,25 @@ export default async function SosPage({
           검색
         </button>
         {scope === "mine" && <input type="hidden" name="scope" value="mine" />}
+        {showHistory && <input type="hidden" name="history" value="true" />}
       </form>
+
+      {session.user.role === UserRole.COMPANY_OWNER && (
+        <div className="flex items-center gap-2">
+          <Link
+            href="/sos"
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${!showHistory ? "bg-gray-900 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
+          >
+            진행 중
+          </Link>
+          <Link
+            href="/sos?history=true"
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium ${showHistory ? "bg-gray-900 text-white" : "bg-white text-gray-600 border border-gray-200"}`}
+          >
+            지난 내역
+          </Link>
+        </div>
+      )}
 
       {session.user.role === UserRole.WORKER && (
         <div className="flex items-center gap-2">
@@ -260,9 +280,9 @@ export default async function SosPage({
         <div className="bg-white rounded-2xl border border-gray-100 shadow-card">
           <EmptyState
             icon={Zap}
-            title="조건에 맞는 SOS 요청이 없습니다"
-            description="검색 조건을 조정하거나 새 긴급 요청을 등록해 보세요."
-            action={canCreate ? { label: "새 SOS 등록", href: "/sos/new" } : undefined}
+            title={showHistory ? "지난 SOS 내역이 없습니다" : "조건에 맞는 SOS 요청이 없습니다"}
+            description={showHistory ? "완료되거나 취소된 SOS 요청이 여기에 표시됩니다." : "검색 조건을 조정하거나 새 긴급 요청을 등록해 보세요."}
+            action={!showHistory && canCreate ? { label: "새 SOS 등록", href: "/sos/new" } : undefined}
           />
         </div>
       ) : (
