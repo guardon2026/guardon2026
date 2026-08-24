@@ -205,12 +205,15 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
             <>
               <Row label="성명" value={contract?.workerRealName ?? sosInfo.workerName ?? "-"} />
               {sosInfo.workerRrn && <Row label="주민등록번호" value={sosInfo.workerRrn} />}
-              <Row label="생년월일" value={contract?.workerBirthDate ?? "-"} />
-              <Row label="주소" value={contract?.workerAddress ?? "-"} />
-              <Row label="연락처" value={contract?.workerPhone ?? "-"} />
-              <Row label="은행명" value={contract?.workerBankName ?? "-"} />
-              <Row label="계좌번호" value={contract?.workerAccountNum ?? "-"} />
-              <Row label="예금주" value={contract?.workerAccountHolder ?? "-"} />
+              <Row label="생년월일" value={contract?.workerBirthDate ?? prefill?.workerBirthDate ?? "-"} />
+              <Row label="주소" value={contract?.workerAddress ?? prefill?.workerAddress ?? "-"} />
+              <Row label="연락처" value={contract?.workerPhone ?? prefill?.workerPhone ?? "-"} />
+              <Row label="은행명" value={contract?.workerBankName ?? prefill?.workerBankName ?? "-"} />
+              <Row label="계좌번호" value={contract?.workerAccountNum ?? prefill?.workerAccountNum ?? "-"} />
+              <Row label="예금주" value={contract?.workerAccountHolder ?? prefill?.workerAccountHolder ?? "-"} />
+              {!contract?.workerAddress && prefill?.workerAddress && (
+                <p className="text-xs text-gray-400 -mt-1">※ 근로자가 아직 계약서에 직접 입력하지 않아, 등록된 프로필 정보를 미리 보여드립니다.</p>
+              )}
             </>
           )}
         </Section>

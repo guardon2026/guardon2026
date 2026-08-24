@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "@/lib/session"
 import { UserRole, SosMatchStatus } from "@prisma/client"
 import ContractForm from "@/components/ContractForm"
-import { decryptPii, formatRrnDisplay } from "@/lib/crypto"
+import { decryptPii, formatRrnDisplay, extractBirthDateFromRrn } from "@/lib/crypto"
 
 interface Props {
   params: Promise<{ id: string; matchId: string }>
@@ -38,9 +38,12 @@ export default async function CompanyContractPage({ params }: Props) {
   // 근로계약이 확정된(CONFIRMED) 매치에 한해, 업체가 4대보험·세금 신고에 쓸 수 있도록
   // 암호화 저장된 주민등록번호를 복호화해 전달한다.
   let workerRrn: string | null = null
+  let workerBirthDate: string | null = null
   if (match.workerProfile.rrn) {
     try {
-      workerRrn = formatRrnDisplay(decryptPii(match.workerProfile.rrn))
+      const decrypted = decryptPii(match.workerProfile.rrn)
+      workerRrn = formatRrnDisplay(decrypted)
+      workerBirthDate = extractBirthDateFromRrn(decrypted)
     } catch {
       workerRrn = null
     }
@@ -71,6 +74,12 @@ export default async function CompanyContractPage({ params }: Props) {
             employerName: sos.company.name,
             employerBizNumber: sos.company.businessRegistrationNumber ?? "",
             employerAddress: sos.company.address,
+            workerBirthDate: workerBirthDate ?? undefined,
+            workerAddress: match.workerProfile.address ?? undefined,
+            workerPhone: match.workerProfile.user.phone ?? undefined,
+            workerBankName: match.workerProfile.bankName ?? undefined,
+            workerAccountNum: match.workerProfile.bankAccount ?? undefined,
+            workerAccountHolder: match.workerProfile.bankHolder ?? undefined,
           }}
           sosInfo={{
             title: sos.title,
