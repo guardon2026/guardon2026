@@ -2,6 +2,7 @@
 
 interface WorkerRow {
   name: string
+  rrn: string
   birthDate: string
   phone: string
   workDates: string[]
@@ -44,12 +45,13 @@ export default function TaxReportExport({ sosTitle, employerName, employerBizNum
   function handleWithholdingCsv() {
     const rows = [
       [
-        "구분", "성명", "생년월일", "연락처", "근무일수", "총지급액(세전)",
+        "구분", "성명", "주민등록번호", "생년월일", "연락처", "근무일수", "총지급액(세전)",
         "소득세", "지방소득세", "국민연금", "건강보험", "고용보험", "차인지급액(세후)",
       ],
       ...workers.map((w) => [
         insuranceLabel(w),
         w.name,
+        w.rrn,
         w.birthDate,
         w.phone,
         String(w.workDates.length),
@@ -68,10 +70,11 @@ export default function TaxReportExport({ sosTitle, employerName, employerBizNum
 
   function handleLaborCsv() {
     const rows = [
-      ["성명", "생년월일", "연락처", "근무일자", "구분"],
+      ["성명", "주민등록번호", "생년월일", "연락처", "근무일자", "구분"],
       ...workers.flatMap((w) =>
         w.workDates.map((date) => [
           w.name,
+          w.rrn,
           w.birthDate,
           w.phone,
           date,

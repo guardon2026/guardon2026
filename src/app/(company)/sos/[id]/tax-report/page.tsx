@@ -6,6 +6,7 @@ import { getServerSession } from "@/lib/session"
 import { UserRole } from "@prisma/client"
 import { calcDailyTax, calcInsuredDailyTax } from "@/lib/tax"
 import { extractDays, calcDayHours, getMonthlyWorkStats } from "@/lib/sos-matcher"
+import { decryptPii, formatRrnDisplay } from "@/lib/crypto"
 import TaxReportExport from "./TaxReportExport"
 
 interface Props {
@@ -60,6 +61,15 @@ export default async function TaxReportPage({ params }: Props) {
     },
     orderBy: { confirmedAt: "asc" },
   })
+
+  function resolveRrn(encrypted: string | null): string | null {
+    if (!encrypted) return null
+    try {
+      return formatRrnDisplay(decryptPii(encrypted))
+    } catch {
+      return null
+    }
+  }
 
   const scheduleDays = extractDays(sos.scheduleDays) ?? []
   const urgencyBonus = URGENCY_FEE[sos.urgencyLevel ?? "NORMAL"] ?? 0
@@ -128,12 +138,14 @@ export default async function TaxReportPage({ params }: Props) {
     })
     const primary = g.matches[0]
     const contract = primary.workContract
+    const rrn = resolveRrn(primary.workerProfile.rrn)
     const insuredDates = matchBreakdown.filter((d) => d.insured).map((d) => d.scheduleDate)
     return {
       ...g,
       workDates,
       workingDays: workDates.length,
       contract,
+      rrn,
       matchBreakdown,
       insuredDates,
       monthlyStats,
@@ -151,6 +163,7 @@ export default async function TaxReportPage({ params }: Props) {
   // CSV export용 근로자 데이터
   const exportWorkers = workerGroups.map((g) => ({
     name: g.workerName,
+    rrn: g.rrn ?? "미등록",
     birthDate: formatBirth(g.contract?.workerBirthDate ?? null),
     phone: g.contract?.workerPhone ?? g.matches[0].workerProfile.user.phone ?? "-",
     workDates: g.workDates,
@@ -200,7 +213,7 @@ export default async function TaxReportPage({ params }: Props) {
         <ul className="text-xs space-y-0.5 list-disc list-inside text-amber-700">
           <li>원천징수 신고(지급명세서)는 지급일이 속한 달의 다음 달 말일까지 국세청 홈택스에 제출하세요.</li>
           <li>일용근로자 고용보험 취득신고는 근로 개시일로부터 14일 이내에 근로복지공단에 제출하세요.</li>
-          <li>주민등록번호는 시스템에서 수집하지 않으므로, 신고 시 근로자에게 직접 확인하세요.</li>
+          <li>주민등록번호가 "미등록"인 근로자는 신고 시 본인에게 직접 확인하세요.</li>
           <li>일급 150,000원 이하는 소득세 비과세 구간입니다.</li>
         </ul>
       </div>
@@ -301,7 +314,7 @@ export default async function TaxReportPage({ params }: Props) {
                       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">기본 정보</p>
                       <InfoRow label="성명" value={g.workerName} />
                       <InfoRow label="생년월일" value={birthDate} />
-                      <InfoRow label="주민번호" value="직접 확인 필요" muted />
+                      <InfoRow label="주민번호" value={g.rrn ?? "미등록"} muted={!g.rrn} />
                       <InfoRow label="연락처" value={phone} />
                       <InfoRow label="주소" value={address} />
                     </div>
@@ -423,6 +436,7 @@ export default async function TaxReportPage({ params }: Props) {
             <thead>
               <tr className="text-xs text-gray-400 border-b border-gray-100">
                 <th className="py-2 pr-4 font-medium">성명</th>
+                <th className="py-2 pr-4 font-medium">주민등록번호</th>
                 <th className="py-2 pr-4 font-medium">생년월일</th>
                 <th className="py-2 pr-4 font-medium">근무 기간</th>
                 <th className="py-2 font-medium">일 근무시간</th>
@@ -440,6 +454,7 @@ export default async function TaxReportPage({ params }: Props) {
                 return (
                   <tr key={g.workerProfileId} className="text-gray-700">
                     <td className="py-2 pr-4 font-medium">{g.workerName}</td>
+                    <td className="py-2 pr-4">{g.rrn ?? "미등록"}</td>
                     <td className="py-2 pr-4">{birth}</td>
                     <td className="py-2 pr-4">{firstDate} ~ {lastDate}</td>
                     <td className="py-2">{avgHours}시간</td>
