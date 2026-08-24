@@ -18,6 +18,9 @@ import MarkNotificationsRead from "@/components/ui/mark-notifications-read"
 import { ScheduleDayList } from "@/components/sos/ScheduleDayList"
 import { getWorkerCompleteness, WORKER_COMPLETENESS_SELECT } from "@/lib/worker-completeness"
 import { ProfileCompletenessBanner } from "@/components/worker/ProfileCompletenessBanner"
+import { toISODate } from "@/lib/sos-matcher"
+
+const CLOSED_SOS_STATUSES = new Set(["CANCELLED", "COMPLETED", "UNRESOLVED"])
 
 // ─────────────────────────────────────────
 // 상대 시간 포맷
@@ -76,6 +79,7 @@ type MatchItem = {
   status: SosMatchStatus
   scheduleDate: string
   notifiedAt: Date
+  isPast: boolean
   sosRequest: {
     id: string
     title: string
@@ -100,11 +104,14 @@ function MatchCard({ item }: { item: MatchItem }) {
   const req = item.sosRequest
   const isNotified = item.status === SosMatchStatus.NOTIFIED
   const isRead = item.status !== SosMatchStatus.NOTIFIED
+  const showActions = isNotified && !item.isPast
 
   return (
     <div
       className={`rounded-xl border overflow-hidden ${
-        isRead
+        item.isPast
+          ? "bg-gray-50 border-gray-100 opacity-60"
+          : isRead
           ? "bg-white border-gray-100 opacity-80"
           : "bg-blue-50/20 border-l-4 border-l-brand border-gray-100"
       }`}
@@ -116,7 +123,12 @@ function MatchCard({ item }: { item: MatchItem }) {
             <p className="text-sm font-semibold text-gray-900 leading-snug">{req.title}</p>
             <p className="text-xs text-gray-400 mt-0.5">{relativeTime(new Date(item.notifiedAt))}</p>
           </div>
-          <div className="shrink-0">{matchStatusBadge(item.status)}</div>
+          <div className="shrink-0">
+            {item.isPast
+              ? <StatusBadge variant="unresolved" label="지난 SOS" />
+              : matchStatusBadge(item.status)
+            }
+          </div>
         </div>
 
         {/* 구분선 */}
@@ -214,8 +226,8 @@ function MatchCard({ item }: { item: MatchItem }) {
         )}
       </div>
 
-      {/* 수락 전 — 카카오톡 문의하기 버튼 + 수락/거절 버튼 */}
-      {isNotified && (
+      {/* 수락 전 — 카카오톡 문의하기 버튼 + 수락/거절 버튼 (지난 SOS는 숨김) */}
+      {showActions && (
         <div className="px-4 pb-4 space-y-2">
           {req.kakaoOpenChatUrl && (
             <a
@@ -313,6 +325,7 @@ export default async function NotificationsPage() {
   })
 
   // 두 소스를 시간순 병합
+  const todayStr = toISODate(new Date())
   const matchItems: MatchItem[] = matches.map((m) => ({
     kind: "match",
     sortKey: new Date(m.notifiedAt),
@@ -320,6 +333,7 @@ export default async function NotificationsPage() {
     status: m.status,
     scheduleDate: m.scheduleDate,
     notifiedAt: new Date(m.notifiedAt),
+    isPast: CLOSED_SOS_STATUSES.has(m.sosRequest.status) || m.scheduleDate < todayStr,
     sosRequest: m.sosRequest,
   }))
 
