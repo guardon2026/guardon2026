@@ -14,6 +14,13 @@ import {
   SOS_STATUS_LABELS,
   WORK_FIELD_LABELS,
 } from "@/lib/constants"
+import { calcDailyTax, calcInsuredDailyTax } from "@/lib/tax"
+
+function netPayOf(dailyRate: number, insuranceStatus: string) {
+  return insuranceStatus === "INSURED"
+    ? calcInsuredDailyTax(dailyRate).netPay
+    : calcDailyTax(dailyRate).netPay
+}
 
 // ─────────────────────────────────────────
 // 타입
@@ -27,6 +34,7 @@ interface HistoryRow extends Record<string, unknown> {
   location: string
   field: string
   hourlyRate: string
+  netPay: string
   status: string
   statusRaw: string
   matchStatus: string
@@ -91,10 +99,13 @@ export default async function WorkerHistoryPage() {
   const completedDispatches = confirmedMatches.filter(
     (m) => m.sosRequest.status === "COMPLETED" || m.sosRequest.status === "CONFIRMED",
   ).length
-  const avgDailyRate =
+  const avgNetPay =
     confirmedMatches.length > 0
       ? Math.round(
-          confirmedMatches.reduce((sum, m) => sum + m.sosRequest.hourlyRate, 0) / confirmedMatches.length,
+          confirmedMatches.reduce(
+            (sum, m) => sum + netPayOf(m.sosRequest.hourlyRate, m.insuranceStatus),
+            0,
+          ) / confirmedMatches.length,
         )
       : 0
 
@@ -116,6 +127,7 @@ export default async function WorkerHistoryPage() {
       location: req.locationAddress,
       field: fields || "-",
       hourlyRate: `${req.hourlyRate.toLocaleString()}원`,
+      netPay: `${netPayOf(req.hourlyRate, match.insuranceStatus).toLocaleString()}원`,
       status: req.status,
       statusRaw: req.status,
       matchStatus: match.status,
@@ -127,7 +139,8 @@ export default async function WorkerHistoryPage() {
     { key: "company",    label: "업체명",     width: "140px" },
     { key: "location",   label: "집결지" },
     { key: "field",      label: "업무 분야",  width: "120px" },
-    { key: "hourlyRate", label: "일급",       width: "100px" },
+    { key: "hourlyRate", label: "일급(세전)", width: "100px" },
+    { key: "netPay",     label: "실수령액(세후)", width: "110px" },
     {
       key: "status",
       label: "상태",
@@ -171,8 +184,8 @@ export default async function WorkerHistoryPage() {
           variant="brand"
         />
         <StatCard
-          label="평균 일급"
-          value={avgDailyRate > 0 ? `${avgDailyRate.toLocaleString()}원` : "-"}
+          label="평균 실수령액 (세후)"
+          value={avgNetPay > 0 ? `${avgNetPay.toLocaleString()}원` : "-"}
           icon={DollarSign}
           variant="default"
         />
