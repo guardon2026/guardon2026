@@ -226,7 +226,7 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
         include: {
           workerProfile: {
             include: {
-              user: { select: { name: true, phone: true } },
+              user: { select: { id: true, name: true, phone: true } },
               credentials: { select: { type: true, status: true } },
             },
           },
@@ -364,11 +364,20 @@ export default async function SosDetailPage({ params }: SosDetailPageProps) {
                                 )}
                               </p>
                             </div>
-                            <ConfirmButton
-                              sosRequestId={sosRequest.id}
-                              matchId={m.id}
-                              workerName={m.workerProfile.user.name ?? undefined}
-                            />
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Link
+                                href={`/workers/${m.workerProfile.user.id}?from=/sos/${id}`}
+                                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                              >
+                                <User className="w-3.5 h-3.5" />
+                                인력 정보
+                              </Link>
+                              <ConfirmButton
+                                sosRequestId={sosRequest.id}
+                                matchId={m.id}
+                                workerName={m.workerProfile.user.name ?? undefined}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
