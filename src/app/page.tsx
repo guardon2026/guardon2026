@@ -8,7 +8,6 @@ import {
   Bell,
   Star,
   ChevronRight,
-  Phone,
   ArrowRight,
 } from "lucide-react"
 
@@ -306,7 +305,7 @@ export default function HomePage() {
 
       {/* ── 푸터 ── */}
       <footer className="bg-slate-900 text-slate-400 py-12 px-6">
-        <div className="max-w-5xl mx-auto grid md:grid-cols-4 gap-8 mb-10">
+        <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8 mb-10">
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Shield className="w-5 h-5 text-blue-400" />
@@ -328,26 +327,6 @@ export default function HomePage() {
               <li><Link href="/login" className="hover:text-white transition-colors">업체 가입</Link></li>
               <li><Link href="/login" className="hover:text-white transition-colors">인력 가입</Link></li>
               <li><Link href="#features" className="hover:text-white transition-colors">기능 소개</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-slate-300 text-xs font-semibold mb-3 uppercase tracking-wider">지원</h4>
-            <ul className="space-y-2 text-xs">
-              <li><Link href="/login" className="hover:text-white transition-colors">이용 가이드</Link></li>
-              <li><Link href="/login" className="hover:text-white transition-colors">자주 묻는 질문</Link></li>
-              <li>
-                <a href="tel:010-0000-0000" className="hover:text-white transition-colors flex items-center gap-1">
-                  <Phone className="w-3 h-3" /> 고객 문의
-                </a>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-slate-300 text-xs font-semibold mb-3 uppercase tracking-wider">회사</h4>
-            <ul className="space-y-2 text-xs">
-              <li><Link href="/login" className="hover:text-white transition-colors">회사 소개</Link></li>
-              <li><Link href="/login" className="hover:text-white transition-colors">채용</Link></li>
-              <li><Link href="/login" className="hover:text-white transition-colors">파트너십</Link></li>
             </ul>
           </div>
         </div>
