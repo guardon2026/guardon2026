@@ -11,9 +11,28 @@ import {
   ArrowRight,
 } from "lucide-react"
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "가드온",
+  alternateName: ["GuardOn", "guardon"],
+  url: "https://guardon.kr",
+  logo: "https://guardon.kr/shield.svg",
+  description: "경비·보안 업체와 경비 인력을 잇는 B2B 긴급 매칭 플랫폼",
+  areaServed: "KR",
+  parentOrganization: {
+    "@type": "Organization",
+    name: "주식회사 G360",
+  },
+}
+
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* ── 헤더 ── */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur-sm">
