@@ -199,13 +199,11 @@ export default function ContractForm({ matchId, sosId, role, contract, prefill, 
               <Field label="생년월일" value={birthDate} onChange={setBirthDate} placeholder="YYYYMMDD" inputMode="numeric" maxLength={8} />
               <Field label="주소" value={wAddr} onChange={setWAddr} placeholder="서울시..." />
               <Field label="연락처" value={wPhone} onChange={(v) => setWPhone(formatPhone(v))} placeholder="010-0000-0000" inputMode="numeric" />
-              <div className="border-t border-gray-100 pt-3 space-y-1.5">
+              <div className="border-t border-gray-100 pt-3 space-y-3">
                 <p className="text-xs font-medium text-gray-500">정산 계좌 (원천징수 후 입금)</p>
-                <div className="grid grid-cols-3 gap-2">
-                  <Field label="은행명" value={bankName} onChange={setBankName} placeholder="국민은행" />
-                  <Field label="계좌번호" value={accountNum} onChange={setAccountNum} placeholder="00000000000" inputMode="numeric" />
-                  <Field label="예금주" value={accountHolder} onChange={setAccountHolder} placeholder="홍길동" />
-                </div>
+                <Field label="은행명" value={bankName} onChange={setBankName} placeholder="국민은행" />
+                <Field label="계좌번호" value={accountNum} onChange={setAccountNum} placeholder="00000000000" inputMode="numeric" />
+                <Field label="예금주" value={accountHolder} onChange={setAccountHolder} placeholder="홍길동" />
               </div>
             </div>
           ) : (
