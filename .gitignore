@@ -1,8 +1,7 @@
 .planning/
 node_modules/
-.next/cache/
-.next/standalone/
-.next/trace
+# 빌드 산출물 — Cafe24가 서버에서 직접 빌드하므로 커밋하지 않는다
+.next/
 .env.local
 .env
 tsconfig.tsbuildinfo
