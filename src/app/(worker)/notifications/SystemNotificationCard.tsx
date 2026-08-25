@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronDown, ChevronUp, Loader2 } from "lucide-react"
+import Link from "next/link"
+import { ChevronDown, ChevronUp, FileText, Loader2 } from "lucide-react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { WORK_FIELD_LABELS } from "@/lib/constants"
 
@@ -74,9 +75,10 @@ interface Props {
   isRead: boolean
   createdAt: Date
   sosRequestId: string | null
+  contractMatchId?: string | null
 }
 
-export default function SystemNotificationCard({ title, body, type, isRead, createdAt, sosRequestId }: Props) {
+export default function SystemNotificationCard({ title, body, type, isRead, createdAt, sosRequestId, contractMatchId }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [sosDetail, setSosDetail] = useState<SosDetail | null>(null)
@@ -121,7 +123,14 @@ export default function SystemNotificationCard({ title, body, type, isRead, crea
           <p className="text-xs text-gray-400">{relativeTime(createdAt)}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0 pt-0.5">
-          <StatusBadge variant="sos" label={type === "SYSTEM_NOTICE" ? "시스템 안내" : "변경 안내"} />
+          <StatusBadge
+            variant="sos"
+            label={
+              type === "SYSTEM_NOTICE" ? "시스템 안내"
+              : type === "CONTRACT_SIGN_REQUIRED" ? "계약서 서명"
+              : "변경 안내"
+            }
+          />
           {loading && <Loader2 size={15} className="animate-spin text-gray-400" />}
           {!loading && canExpand && (
             <span className="text-gray-400">
@@ -130,6 +139,19 @@ export default function SystemNotificationCard({ title, body, type, isRead, crea
           )}
         </div>
       </button>
+
+      {/* 근로계약서 서명 요청 — 바로 서명 페이지로 이동 */}
+      {type === "CONTRACT_SIGN_REQUIRED" && contractMatchId && (
+        <div className="px-4 pb-4">
+          <Link
+            href={`/worker-history/${contractMatchId}/contract`}
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-brand text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+          >
+            <FileText className="w-4 h-4" />
+            근로계약서 작성하기
+          </Link>
+        </div>
+      )}
 
       {/* diff 있는 신규 알림: 변경 전/후 비교 표 */}
       {open && hasDiff && diff.changes.length > 0 && (

@@ -261,6 +261,7 @@ type SystemItem = {
   isRead: boolean
   createdAt: Date
   sosRequestId: string | null
+  contractMatchId: string | null
 }
 
 // ─────────────────────────────────────────
@@ -324,6 +325,35 @@ export default async function NotificationsPage() {
     take: 50,
   })
 
+  // "근로계약서 서명 요청" 알림 → 실제 서명 페이지로 바로 연결하기 위해
+  // 해당 SOS 요청에서 이 근로자의 확정 매치를 찾는다(서명 안 된 매치 우선).
+  const contractSignSosRequestIds = Array.from(
+    new Set(
+      systemNotifications
+        .filter((n) => n.type === "CONTRACT_SIGN_REQUIRED" && n.sosRequestId)
+        .map((n) => n.sosRequestId as string),
+    ),
+  )
+  const contractMatchIdBySosRequestId = new Map<string, string>()
+  if (contractSignSosRequestIds.length > 0) {
+    const contractMatches = await prisma.sosMatch.findMany({
+      where: {
+        workerProfileId: workerProfile.id,
+        sosRequestId: { in: contractSignSosRequestIds },
+        status: SosMatchStatus.CONFIRMED,
+      },
+      select: { id: true, sosRequestId: true, workContract: { select: { workerSignedAt: true } } },
+      orderBy: { confirmedAt: "desc" },
+    })
+    for (const cm of contractMatches) {
+      const isUnsigned = !cm.workContract?.workerSignedAt
+      // 서명 안 된 매치를 우선 채택 — 아직 아무것도 없으면 일단 채택해 둔다
+      if (!contractMatchIdBySosRequestId.has(cm.sosRequestId) || isUnsigned) {
+        contractMatchIdBySosRequestId.set(cm.sosRequestId, cm.id)
+      }
+    }
+  }
+
   // 두 소스를 시간순 병합
   const todayStr = toISODate(new Date())
   const matchItems: MatchItem[] = matches.map((m) => ({
@@ -347,6 +377,10 @@ export default async function NotificationsPage() {
     isRead: n.isRead,
     createdAt: new Date(n.createdAt),
     sosRequestId: n.sosRequestId,
+    contractMatchId:
+      n.type === "CONTRACT_SIGN_REQUIRED" && n.sosRequestId
+        ? contractMatchIdBySosRequestId.get(n.sosRequestId) ?? null
+        : null,
   }))
 
   const allItems = [...matchItems, ...systemItems].sort((a, b) => {
@@ -397,6 +431,7 @@ export default async function NotificationsPage() {
                 isRead={item.isRead}
                 createdAt={item.createdAt}
                 sosRequestId={item.sosRequestId}
+                contractMatchId={item.contractMatchId}
               />
             ),
           )}
