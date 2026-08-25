@@ -2,11 +2,9 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
-const MAX_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_SIZE = 2 * 1024 * 1024 // 2MB — base64로 DB에 저장하므로 원본 크기를 제한
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
@@ -31,18 +29,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "JPG, PNG, WEBP 파일만 업로드 가능합니다." }, { status: 400 })
   }
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "파일 크기는 5MB 이하여야 합니다." }, { status: 400 })
+    return NextResponse.json({ error: "파일 크기는 2MB 이하여야 합니다." }, { status: 400 })
   }
 
-  const ext = file.type === "image/webp" ? "webp" : file.type === "image/png" ? "png" : "jpg"
-  const filename = `${session.user.id}-${Date.now()}.${ext}`
-  const uploadDir = join(process.cwd(), "public", "uploads", "avatars")
-  await mkdir(uploadDir, { recursive: true })
-
+  // 컨테이너 로컬 디스크(public/uploads)는 재배포 시 초기화되어 파일이 사라지므로
+  // (근로계약서 서명 이미지와 동일하게) DB에 base64로 직접 저장한다.
   const bytes = await file.arrayBuffer()
-  await writeFile(join(uploadDir, filename), Buffer.from(bytes))
+  const url = `data:${file.type};base64,${Buffer.from(bytes).toString("base64")}`
 
-  const url = `/uploads/avatars/${filename}`
   await prisma.workerProfile.update({
     where: { id: profile.id },
     data: { profileImageUrl: url },

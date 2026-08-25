@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/image"
 import { X, User } from "lucide-react"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { AvatarImage } from "@/components/ui/avatar-image"
 import { WORK_FIELD_LABELS, CREDENTIAL_LABELS, SOS_MATCH_STATUS_LABELS } from "@/lib/constants"
 import { SosMatchStatus } from "@prisma/client"
 import ConfirmButton from "./ConfirmButton"
@@ -79,11 +79,12 @@ function WorkerCard({
         {/* 워커 정보 */}
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
-            {wp.profileImageUrl ? (
-              <Image src={wp.profileImageUrl} alt="" width={36} height={36} className="object-cover w-full h-full" unoptimized />
-            ) : (
-              <span className="text-sm font-bold text-gray-500">{wp.user.name?.charAt(0) ?? "?"}</span>
-            )}
+            <AvatarImage
+              src={wp.profileImageUrl}
+              alt=""
+              className="object-cover w-full h-full"
+              fallback={<span className="text-sm font-bold text-gray-500">{wp.user.name?.charAt(0) ?? "?"}</span>}
+            />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -160,11 +161,12 @@ function WorkerDetailDrawer({
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center shrink-0">
-              {wp.profileImageUrl ? (
-                <Image src={wp.profileImageUrl} alt="" width={40} height={40} className="object-cover w-full h-full" unoptimized />
-              ) : (
-                <User className="w-5 h-5 text-gray-400" />
-              )}
+              <AvatarImage
+                src={wp.profileImageUrl}
+                alt=""
+                className="object-cover w-full h-full"
+                fallback={<User className="w-5 h-5 text-gray-400" />}
+              />
             </div>
             <div>
               <p className="text-base font-bold text-gray-900">{wp.user.name}</p>

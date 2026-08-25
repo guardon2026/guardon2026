@@ -10,6 +10,7 @@ import {
   AVAILABILITY_LABELS,
 } from "@/lib/constants"
 import { Star, Briefcase, MapPin, ArrowLeft, ShieldCheck, User, Phone, Mail, AlertTriangle } from "lucide-react"
+import { AvatarImage } from "@/components/ui/avatar-image"
 
 export default async function WorkerProfilePage({
   params,
@@ -86,13 +87,13 @@ export default async function WorkerProfilePage({
         {/* 기본 정보 카드 */}
         <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-5">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-              {p.profileImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.profileImageUrl} alt={user.name ?? ""} className="w-14 h-14 rounded-full object-cover" />
-              ) : (
-                <User className="w-7 h-7 text-gray-400" />
-              )}
+            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+              <AvatarImage
+                src={p.profileImageUrl}
+                alt={user.name ?? ""}
+                className="w-14 h-14 rounded-full object-cover"
+                fallback={<User className="w-7 h-7 text-gray-400" />}
+              />
             </div>
             <div>
               <p className="text-xl font-bold text-gray-900">{user.name ?? "이름 없음"}</p>

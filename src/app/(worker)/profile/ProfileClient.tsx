@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import Script from "next/script"
-import Image from "next/image"
+import { AvatarImage } from "@/components/ui/avatar-image"
 import {
   Star, Award, MapPin, Clock, DollarSign, FileText, Scale, Ruler, Coins, ChevronRight,
   CheckCircle2, ShieldCheck, Camera, Pencil, X, Save, Loader2,
@@ -207,8 +207,8 @@ export default function ProfileClient(props: ProfileClientProps) {
       setErrors((prev) => ({ ...prev, avatar: "JPG, PNG, WEBP 파일만 가능합니다." }))
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, avatar: "파일 크기는 5MB 이하여야 합니다." }))
+    if (file.size > 2 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, avatar: "파일 크기는 2MB 이하여야 합니다." }))
       return
     }
     setErrors((prev) => ({ ...prev, avatar: undefined }))
@@ -396,13 +396,16 @@ export default function ProfileClient(props: ProfileClientProps) {
             <div className="flex flex-col items-center gap-3 pb-5 border-b border-gray-100">
               <div className="relative">
                 <div className="rounded-full overflow-hidden flex items-center justify-center shrink-0" style={{ width: 72, height: 72 }}>
-                  {displayImage ? (
-                    <Image src={displayImage} alt="" width={72} height={72} className="object-cover w-full h-full" unoptimized />
-                  ) : (
-                    <div className="bg-brand text-white w-full h-full flex items-center justify-center text-2xl font-bold select-none">
-                      {initials}
-                    </div>
-                  )}
+                  <AvatarImage
+                    src={displayImage}
+                    alt=""
+                    className="object-cover w-full h-full"
+                    fallback={
+                      <div className="bg-brand text-white w-full h-full flex items-center justify-center text-2xl font-bold select-none">
+                        {initials}
+                      </div>
+                    }
+                  />
                 </div>
                 {editing && (
                   <button
