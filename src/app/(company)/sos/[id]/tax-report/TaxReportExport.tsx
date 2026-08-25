@@ -18,13 +18,14 @@ interface WorkerRow {
 }
 
 interface Props {
+  sosId: string
   sosTitle: string
   employerName: string
   employerBizNumber: string
   workers: WorkerRow[]
 }
 
-export default function TaxReportExport({ sosTitle, employerName, employerBizNumber, workers }: Props) {
+export default function TaxReportExport({ sosId, sosTitle, employerName, employerBizNumber, workers }: Props) {
   function downloadCsv(content: string, filename: string) {
     const bom = "﻿"
     const blob = new Blob([bom + content], { type: "text/csv;charset=utf-8;" })
@@ -104,6 +105,12 @@ export default function TaxReportExport({ sosTitle, employerName, employerBizNum
       >
         📥 노무 신고 CSV
       </button>
+      <a
+        href={`/api/sos/requests/${sosId}/labor-excel`}
+        className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-purple-300 bg-purple-50 text-sm font-medium text-purple-700 hover:bg-purple-100 transition-colors"
+      >
+        📥 근로내용확인신고(근로복지공단) 엑셀
+      </a>
       <button
         onClick={handlePrint}
         className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
