@@ -32,6 +32,7 @@ import {
   type AvailabilityStatusKey,
 } from "@/lib/constants"
 import { cn, formatPhoneNumber } from "@/lib/utils"
+import { resizeImageFile } from "@/lib/resize-image"
 
 const ALL_WORK_FIELDS = SOS_WORK_FIELD_OPTIONS as unknown as WorkFieldKey[]
 const ALL_CREDENTIALS = SOS_CREDENTIAL_OPTIONS as unknown as CredentialTypeKey[]
@@ -200,20 +201,30 @@ export default function ProfileClient(props: ProfileClientProps) {
     setErrors((prev) => ({ ...validate(form), avatar: prev.avatar }))
   }, [form, submitted])
 
-  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       setErrors((prev) => ({ ...prev, avatar: "JPG, PNG, WEBP 파일만 가능합니다." }))
       return
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, avatar: "파일 크기는 2MB 이하여야 합니다." }))
+    // 원본은 업로드 전에 축소되므로 한도를 넉넉히 둔다 — 휴대폰 사진(2~5MB)이
+    // 그대로 거부되지 않도록 하기 위함이다.
+    if (file.size > 20 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, avatar: "파일 크기는 20MB 이하여야 합니다." }))
       return
     }
     setErrors((prev) => ({ ...prev, avatar: undefined }))
-    setAvatarFile(file)
-    setAvatarPreview(URL.createObjectURL(file))
+    try {
+      const resized = await resizeImageFile(file)
+      setAvatarFile(resized)
+      setAvatarPreview(URL.createObjectURL(resized))
+    } catch {
+      setErrors((prev) => ({
+        ...prev,
+        avatar: "이미지를 처리하지 못했습니다. 다른 사진을 선택해 주세요.",
+      }))
+    }
   }
 
   async function uploadAvatar(): Promise<string | null> {

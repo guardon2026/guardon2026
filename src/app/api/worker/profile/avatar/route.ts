@@ -4,7 +4,10 @@ import { getServerSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
-const MAX_SIZE = 2 * 1024 * 1024 // 2MB — base64로 DB에 저장하므로 원본 크기를 제한
+// 클라이언트가 320px로 축소해 보내므로 실제로는 수십 KB 수준이다.
+// 이 한도는 클라이언트를 거치지 않은 직접 호출로 거대한 base64가 DB에 들어가는
+// 것을 막기 위한 상한이다.
+const MAX_SIZE = 4 * 1024 * 1024
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession()
@@ -29,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "JPG, PNG, WEBP 파일만 업로드 가능합니다." }, { status: 400 })
   }
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "파일 크기는 2MB 이하여야 합니다." }, { status: 400 })
+    return NextResponse.json({ error: "파일 크기는 4MB 이하여야 합니다." }, { status: 400 })
   }
 
   // 컨테이너 로컬 디스크(public/uploads)는 재배포 시 초기화되어 파일이 사라지므로
