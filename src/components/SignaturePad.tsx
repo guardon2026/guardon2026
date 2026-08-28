@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Eraser } from "lucide-react"
 
 interface Props {
@@ -14,6 +14,19 @@ export default function SignaturePad({ onSave, onCancel, saving }: Props) {
   const drawingRef = useRef(false)
   const lastPointRef = useRef<{ x: number; y: number } | null>(null)
   const [hasDrawn, setHasDrawn] = useState(false)
+
+  // 캔버스 해상도를 실제 표시 크기에 맞춰 잡아준다 — 고정 width/height(440x200)를
+  // 쓰면 화면이 좁을 때(모바일) CSS로 줄어든 표시 크기와 내부 좌표계가 어긋나,
+  // 레이아웃이 넘치거나 서명이 터치 위치와 다른 곳에 그려진다.
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const { width, height } = canvas.getBoundingClientRect()
+    if (width > 0 && height > 0) {
+      canvas.width = Math.round(width)
+      canvas.height = Math.round(height)
+    }
+  }, [])
 
   function getContext() {
     const canvas = canvasRef.current
@@ -76,7 +89,7 @@ export default function SignaturePad({ onSave, onCancel, saving }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
+      <div className="w-full min-w-0 max-w-md bg-white rounded-2xl shadow-2xl p-5 space-y-4">
         <div>
           <h3 className="font-bold text-gray-900">서명해 주세요</h3>
           <p className="text-xs text-gray-500 mt-1">아래 칸에 마우스나 손가락으로 직접 서명해 주세요.</p>
@@ -85,8 +98,6 @@ export default function SignaturePad({ onSave, onCancel, saving }: Props) {
         <div className="relative rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 overflow-hidden touch-none">
           <canvas
             ref={canvasRef}
-            width={440}
-            height={200}
             className="w-full h-[200px] touch-none cursor-crosshair"
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
