@@ -2,6 +2,7 @@ import Link from "next/link"
 import { CheckCircle2, Shield, Users } from "lucide-react"
 import { AUTH } from "@/lib/constants"
 import { signIn } from "@/lib/auth"
+import { KakaoSubmitButton } from "./KakaoSubmitButton"
 
 const FEATURES = [
   {
@@ -76,8 +77,8 @@ export default function LoginPage() {
                 await signIn("kakao", { redirectTo: "/after-login" })
               }}
             >
-              <button
-                type="submit"
+              <KakaoSubmitButton
+                pendingLabel="로그인 중..."
                 className="w-full h-12 flex items-center justify-center gap-2.5
                            bg-[#FEE500] hover:bg-[#FDD835] text-gray-900
                            font-semibold rounded-xl transition-colors"
@@ -91,7 +92,7 @@ export default function LoginPage() {
                   <path d="M255.5 48C138.0 48 42 123.8 42 218.1c0 60.4 38.5 113.4 96.7 144.1l-24.7 90.2c-2.2 8.0 6.9 14.4 13.8 9.5l104.9-71.2a282 282 0 0 0 22.8.9c117.5 0 213.5-75.8 213.5-170.1S373.0 48 255.5 48z" />
                 </svg>
                 {AUTH.kakaoLoginBtn}
-              </button>
+              </KakaoSubmitButton>
             </form>
 
             {/* 다른 카카오 계정으로 로그인 */}
@@ -101,12 +102,12 @@ export default function LoginPage() {
                 await signIn("kakao", { redirectTo: "/after-login" }, { prompt: "login" })
               }}
             >
-              <button
-                type="submit"
+              <KakaoSubmitButton
+                pendingLabel="로그인 중..."
                 className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors text-center"
               >
                 다른 카카오 계정으로 로그인
-              </button>
+              </KakaoSubmitButton>
             </form>
 
             {/* 개발 환경 전용 */}
