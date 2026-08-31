@@ -18,14 +18,13 @@ interface WorkerRow {
 }
 
 interface Props {
-  sosId: string
   sosTitle: string
   employerName: string
   employerBizNumber: string
   workers: WorkerRow[]
 }
 
-export default function TaxReportExport({ sosId, sosTitle, employerName, employerBizNumber, workers }: Props) {
+export default function TaxReportExport({ sosTitle, employerName, employerBizNumber, workers }: Props) {
   function downloadCsv(content: string, filename: string) {
     const bom = "﻿"
     const blob = new Blob([bom + content], { type: "text/csv;charset=utf-8;" })
@@ -69,6 +68,24 @@ export default function TaxReportExport({ sosId, sosTitle, employerName, employe
     downloadCsv(csv, `원천징수_${sosTitle}_${new Date().toLocaleDateString("ko-KR")}.csv`)
   }
 
+  function handleLaborCsv() {
+    const rows = [
+      ["성명", "주민등록번호", "생년월일", "연락처", "근무일자", "구분"],
+      ...workers.flatMap((w) =>
+        w.workDates.map((date) => [
+          w.name,
+          w.rrn,
+          w.birthDate,
+          w.phone,
+          date,
+          w.insuredDates.includes(date) ? "4대보험대상" : "일용직",
+        ])
+      ),
+    ]
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n")
+    downloadCsv(csv, `노무신고_${sosTitle}_${new Date().toLocaleDateString("ko-KR")}.csv`)
+  }
+
   function handlePrint() {
     window.print()
   }
@@ -81,12 +98,12 @@ export default function TaxReportExport({ sosId, sosTitle, employerName, employe
       >
         📥 원천징수 CSV
       </button>
-      <a
-        href={`/api/sos/requests/${sosId}/labor-excel`}
+      <button
+        onClick={handleLaborCsv}
         className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-green-300 bg-green-50 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors"
       >
-        📥 노무 신고 엑셀(근로내용확인신고)
-      </a>
+        📥 노무 신고 CSV
+      </button>
       <button
         onClick={handlePrint}
         className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
